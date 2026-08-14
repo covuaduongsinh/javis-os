@@ -225,6 +225,63 @@
       "default_perm": "readonly"
     },
     {
+      "id": "duongsinh",
+      "name": "Cờ vua Dương Sinh",
+      "icon": "book-open",
+      "category": "Vận hành",
+      "description": "Học viên, lớp, điểm danh, học phí, chăm sóc phụ huynh, KPI và giải đấu từ lõi covuaduongsinh (Payload CMS). Javis CHỈ ĐỌC: hỏi đáp, nhắc việc, báo cáo, soạn nháp. Việc nhập liệu vẫn làm trên trang quản trị.",
+      "status": "beta",
+      "transport": "internal",
+      "internal": "duongsinh",
+      "auth": {
+        "type": "apikey",
+        "fields": [
+          {
+            "key": "core_url",
+            "label": "Địa chỉ lõi",
+            "placeholder": "Ví dụ: https://covuaduongsinh.com"
+          },
+          {
+            "key": "email",
+            "label": "Email tài khoản nhân viên",
+            "placeholder": "Ví dụ: javis@covuaduongsinh.com"
+          },
+          {
+            "key": "password",
+            "label": "Mật khẩu",
+            "placeholder": "Dán mật khẩu tài khoản..."
+          },
+          {
+            "key": "pair_url",
+            "label": "Địa chỉ app bốc thăm (tuỳ chọn)",
+            "placeholder": "Bỏ trống sẽ tự suy ra pair.<tên miền lõi>"
+          }
+        ],
+        "guide": "Cần một tài khoản nhân viên của lõi covuaduongsinh (bảng users, không phải tài khoản phụ huynh).\n\n1. Dán địa chỉ lõi, vd https://covuaduongsinh.com\n2. Dán email và mật khẩu tài khoản.\n3. Bấm Kết nối.\n\nJavis đăng nhập lấy JWT rồi tự đăng nhập lại khi token hết hạn. Javis KHÔNG giữ PAYLOAD_SECRET của lõi.\n\nNên tạo một tài khoản riêng cho Javis thay vì dùng tài khoản admin cá nhân: quyền càng hẹp thì càng ít thứ hỏng được khi có sự cố.",
+        "guide_url": "https://covuaduongsinh.com/admin"
+      },
+      "validate": {
+        "tool": "ds_lop",
+        "args": { "gioi_han": 1 },
+        "label_paths": ["lop.0.location", "lop.0.title"]
+      },
+      "tool_meta": {
+        "read": [
+          "ds_truy_van",
+          "ds_hoc_vien",
+          "ds_hoc_phi",
+          "ds_diem_danh",
+          "ds_lop",
+          "ds_bao_cao",
+          "ds_giai_dau",
+          "ds_boc_tham"
+        ]
+      },
+      "default_perm": "readonly",
+      "risk": "Cầu nối này CHỈ ĐỌC và không có tool ghi nào. Nâng mức quyền lên cũng không làm Javis sửa được dữ liệu trung tâm, vì phần mã chỉ biết phát lệnh đọc.\n\nChỗ đáng lưu ý nằm khác: tài khoản bạn dán vào đây thấy đúng những gì tài khoản đó thấy trên trang quản trị.\n\nDán tài khoản admin thì Javis đọc được học viên, phụ huynh, tiền nong và khiếu nại của mọi cơ sở. Nên tạo một tài khoản riêng quyền hẹp cho Javis.\n\nDữ liệu nhạy cảm nhất bị chặn cứng, tài khoản admin cũng không đọc được: mật khẩu nhân viên, token Lichess của học viên, mã OTP của phụ huynh và khoá API.\n\nTool bốc thăm chỉ tính cặp đấu rồi trả về, không chốt vòng và không ghi kết quả vào giải.",
+      "rate_limit": { "calls_per_min": 30 }
+    },
+    {
       "id": "google-sheets",
       "name": "Google Sheets",
       "group": "google",
