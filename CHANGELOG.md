@@ -4,6 +4,12 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.0] - 2026-08-14
+### Thêm mới
+- **Đấu thẳng vào hệ Cờ vua Dương Sinh.** Trang Kết nối có thêm ô **Dương Sinh**: dán địa chỉ lõi và tài khoản nhân viên là hỏi được học viên, lớp, điểm danh, học phí, chăm sóc phụ huynh và KPI bằng tiếng Việt ngay trong chat, số lấy thẳng từ hệ đang chạy.
+- **Xin cặp đấu vòng kế ngay trong chat.** Javis gọi thẳng app bốc thăm để lấy cặp đấu hệ Thuỵ Sĩ, và xem được bảng xếp hạng kèm Buchholz mà không cần mở app. Việc chốt vòng vẫn làm trên app như cũ.
+- **Kết nối này chỉ đọc, khoá bằng mã chứ không bằng lời hứa.** Trong đó không có một lệnh ghi nào, nên nâng mức quyền lên cũng không sửa được dữ liệu trung tâm. Mật khẩu nhân viên, token Lichess của học viên và mã OTP của phụ huynh bị chặn hẳn, tài khoản admin cũng không đọc được.
+
 ## [0.34.1] - 2026-08-14
 ### Sửa lỗi
 - **Chữ trong Terminal trên Windows hết trôi thành bậc thang.** Chạy `git help` là cả màn hình xiên dần sang phải, mỗi dòng bắt đầu ở chỗ dòng trước kết thúc. Windows không có tầng nào lo việc "về đầu dòng" hộ nên Javis phải tự làm, giờ đã làm.

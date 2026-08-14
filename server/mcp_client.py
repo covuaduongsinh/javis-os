@@ -28,7 +28,8 @@ import httpx
 
 PROTOCOL = "2025-06-18"
 _IDLE_TTL = 600          # đóng session không dùng > 10 phút
-_INTERNAL = {"botcake": "botcake_mcp", "substack": "substack_mcp"}   # transport internal → tên module
+_INTERNAL = {"botcake": "botcake_mcp", "substack": "substack_mcp",
+             "duongsinh": "duongsinh_mcp"}                          # transport internal → tên module
 
 _DIAL_SONG_SONG = 8      # số connection dò tool CÙNG LÚC (đừng để npx nổ ra 30 tiến trình)
 _DIAL_TRAN = "20"        # giây - trần dò tool CHO MỖI connection (0 = không giới hạn)
