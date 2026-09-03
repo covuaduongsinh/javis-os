@@ -159,17 +159,6 @@ body.in-console .hud-actions { display: none; }
 .prov-steps { font-size: 13px; color: var(--text2); margin-top: 8px; line-height: 1.75; }
 .prov-steps code { background: var(--bg3); padding: 1px 6px; border-radius: 5px;
   font-size: 12.5px; word-break: break-all; }
-/* Hàng dán mã đăng nhập Google (#gcliLogin). Cần luật riêng vì khối này nằm NGOÀI
-   .prov-action, nên không hưởng hai dòng width:auto/flex ở trên - mà luật gốc .gcard-btn cuối
-   file đặt `width:100%` + `margin-top:14px`. Kết quả trước khi có rule này: nút "Xong" giãn ra
-   nuốt cả hàng flex, ô nhập mã teo còn vài chục pixel và người dùng KHÔNG gõ nổi mã vào.
-   - min-width:0 để ô nhập co được thật (input có kích thước nội tại chặn co lại trong flex).
-   - flex-wrap + basis 180px: màn hẹp thì nút rơi xuống dòng dưới thay vì bóp ô nhập. */
-.gcli-code-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-  max-width: 520px; margin-top: 6px; }
-.gcli-code-row .js-input { flex: 1 1 180px; min-width: 0; margin-bottom: 0; }
-.gcli-code-row .gcard-btn { flex: 0 0 auto; width: auto; margin-top: 0; }
-
 /* Nguồn xác thực của gói Claude Code (subscription / API key) */
 .prov-auth { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--glass-brd); }
 .prov-auth-title { font-family: var(--font); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
@@ -279,6 +268,18 @@ body.in-console .hud-actions { display: none; }
 .sk-group-head .dim { color: var(--text3); font-weight: 400; margin-left: 6px; }
 
 .rail-spacer { flex: 1; }
+.rail-lang {                                           /* ô đổi ngôn ngữ giao diện, ngay trên hàng version */
+  display: flex; align-items: center; gap: 6px; padding: 8px 6px 0;
+  border-top: 1px solid var(--glass-brd); color: var(--text3);
+}
+.rail-lang svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.rail-lang-sel {
+  flex: 1; min-width: 0; background: transparent; color: var(--text2);
+  border: 1px solid var(--glass-brd); border-radius: 8px;
+  font-family: var(--font-ui); font-size: 12px; padding: 4px 6px; cursor: pointer;
+}
+.rail-lang-sel:hover { color: var(--text); background: var(--surface-2); }
+.rail-lang-sel option { background: var(--panel-solid); color: var(--text); }
 .rail-foot {                                           /* version/tác giả bên TRÁI, nút thu/mở bên PHẢI */
   font-family: var(--font); line-height: 1.35; padding: 8px 6px 0;
   border-top: 1px solid var(--glass-brd);
@@ -323,6 +324,7 @@ body.in-console .hud-actions { display: none; }
   .rail.collapsed .rail-item { justify-content: center; padding: 9px 0; gap: 0; }
   .rail.collapsed .rail-item .rail-lbl { display: none; }       /* giấu chữ, chỉ còn icon */
   .rail.collapsed .rf-meta { display: none; }                   /* giấu version/tác giả cho vừa bề ngang hẹp, chỉ còn nút */
+  .rail.collapsed .rail-lang { display: none; }                 /* ô ngôn ngữ cũng không vừa bề ngang thu gọn */
   .rail.collapsed .rail-foot { justify-content: center; }       /* thu: chỉ còn nút, căn giữa */
 }
 
@@ -725,9 +727,11 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
     justify-content: flex-start;
     gap: 8px;
   }
+  /* Cột hẹp: chip project CÓ nội dung thì xuống hàng riêng cho đủ bề ngang tên; rỗng thì
+     không chiếm hàng nào (style.css :empty). Hai nút vẫn ở hàng nhãn, sát mép phải. */
+  .hud-right .panel-label .proj-chip-host:not(:empty) { flex: 1 0 100%; order: 3; }
   /* max-width: 60% mặc định tính theo khối bọc, mà khối đó lại co theo nội dung nên tên model
      dài là nó đẩy nút phóng to đi. Trên màn hẹp neo theo BỀ NGANG MÀN HÌNH mới chặn được. */
-  .hud-right .panel-label .engine-badge { max-width: 58vw; }
   .hud-right .transcript {
     flex: 1 1 auto;
     min-height: 0;
@@ -949,3 +953,112 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
 .set-tfa .tfa-off { color: var(--text); }
 .set-tfa .tfa-low { color: var(--warn-ink); }
 .set-tfa button { margin-left: auto; flex: 0 0 auto; }
+
+/* ===== Trang Models: thanh hai tab (Cloud / máy nhà) ===== */
+.mtabs { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid var(--glass-brd); }
+.mtab { display: inline-flex; align-items: center; gap: 7px; padding: 11px 16px; cursor: pointer;
+  border: 0; background: none; color: var(--text3); font-family: var(--font);
+  font-size: 14px; font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.mtab:hover { color: var(--text2); }
+.mtab.act { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ===== Tab model chạy trên máy ===== */
+.ol-sect { margin-bottom: 26px; }
+.ol-h { display: flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text2); margin: 0 0 12px; font-weight: 700; }
+.ol-h-sub { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text3);
+  font-size: 12.5px; margin-left: auto; }
+.ol-hint { font-size: 12px; color: var(--text3); margin-top: 8px; line-height: 1.55; }
+.ol-empty-line { padding: 16px 4px; color: var(--text3); font-size: 13.5px; }
+
+/* Khung chưa nối: ba bước đọc từ trên xuống, không có nút "tự cài" nào - Javis trong container
+   không có quyền chạy lệnh trên máy vật lý của người dùng. */
+.ol-empty { text-align: center; max-width: 620px; margin: 10px auto; padding: 34px 26px; }
+.ol-empty-ico { color: var(--accent); margin-bottom: 12px; }
+.ol-empty-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.ol-empty-desc { font-size: 13.5px; color: var(--text2); line-height: 1.6; margin-bottom: 16px; }
+.ol-step { text-align: left; font-size: 13px; font-weight: 600; color: var(--text2);
+  margin: 16px 0 7px; }
+.ol-cmd { display: flex; align-items: center; gap: 8px; text-align: left;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px; }
+.ol-cmd code { flex: 1 1 auto; min-width: 0; overflow-x: auto; white-space: nowrap;
+  font-family: var(--mono, ui-monospace, monospace); font-size: 12.5px; color: var(--text2); }
+.ol-row { display: flex; gap: 8px; align-items: center; }
+.ol-in { flex: 1 1 auto; min-width: 0; padding: 9px 12px; border-radius: 9px;
+  border: 1px solid var(--border); background: var(--field-bg); color: var(--text);
+  font-family: var(--font); font-size: 13.5px; outline: none; }
+.ol-in:focus { border-color: var(--accent-line); }
+.ol-note, .ol-err { display: flex; align-items: flex-start; gap: 8px; text-align: left;
+  border-radius: 10px; padding: 10px 12px; font-size: 12.5px; line-height: 1.55; }
+.ol-note { background: var(--info-wash); border: 1px solid var(--info-line); color: var(--text2); }
+.ol-err { background: var(--warn-wash); border: 1px solid var(--warn-line);
+  color: var(--warn-ink); margin-top: 12px; }
+.ol-note .ic, .ol-err .ic { flex: none; margin-top: 2px; }
+
+.ol-conn { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.ol-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--text3); }
+.ol-dot.on { background: var(--green); box-shadow: 0 0 0 3px var(--ok-wash); }
+.ol-conn-name { font-weight: 700; font-size: 14.5px; }
+.ol-conn-ep { font-size: 12.5px; color: var(--text3); margin-top: 2px;
+  font-family: var(--mono, ui-monospace, monospace); }
+
+.ol-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.ol-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px;
+  border-radius: 10px; background: var(--surface-2); border: 1px solid var(--glass-brd);
+  font-size: 12.5px; color: var(--text2); }
+.ol-chip .ic { color: var(--accent); }
+.ol-specs-form { margin-top: 10px; }
+
+.ol-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.ol-card { display: flex; flex-direction: column; gap: 8px; padding: 14px;
+  border-radius: 13px; background: var(--glass); border: 1px solid var(--glass-brd); }
+.ol-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ol-card-name { font-weight: 700; font-size: 14px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.ol-card-size { flex: none; font-size: 11.5px; color: var(--text3); }
+.ol-card-desc { font-size: 12.5px; color: var(--text2); line-height: 1.5; flex: 1 1 auto; }
+/* Vì sao model này được gợi ý. Danh sách không nói lý do thì người dùng không có cơ sở nào
+   để tin nó - nhất là khi lý do đôi khi là "sẽ chạy chậm". */
+.ol-card-note { font-size: 11.5px; color: var(--accent-ink); }
+.ol-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.ol-tag { font-size: 10.5px; padding: 2px 7px; border-radius: 20px;
+  background: var(--surface-2); border: 1px solid var(--glass-brd); color: var(--text3); }
+.ol-card-act { display: flex; }
+.ol-card-act .gcard-btn { flex: 1 1 auto; justify-content: center; }
+.ol-done { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px;
+  color: var(--green); font-weight: 600; }
+
+.ol-prog { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+.ol-prog-track { height: 6px; border-radius: 20px; background: var(--surface-3); overflow: hidden; }
+.ol-prog-fill { height: 100%; width: 0; background: var(--accent); border-radius: 20px;
+  transition: width .2s; }
+.ol-prog-lbl { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: 11.5px; color: var(--text3); }
+
+.ol-list { display: flex; flex-direction: column; gap: 7px; }
+.ol-row-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-radius: 10px; background: var(--surface-2); border: 1px solid var(--glass-brd); }
+.ol-row-ico { flex: none; display: inline-flex; color: var(--text3); }
+.ol-row-name { display: block; font-weight: 600; font-size: 13.5px; }
+.ol-row-meta { display: block; font-size: 11.5px; color: var(--text3); margin-top: 2px; }
+/* Lý do một model không có nút "đặt làm model chính". Nằm ĐÚNG chỗ cái nút lẽ ra đứng, để
+   người đọc nối được hai thứ với nhau mà không phải suy luận. */
+.ol-row-note { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+  color: var(--text3); max-width: 60%; text-align: left; line-height: 1.35; }
+.ol-row-note svg { flex: none; }
+.ol-badge { margin-left: 7px; font-size: 10.5px; padding: 1px 7px; border-radius: 20px;
+  background: var(--ok-wash); border: 1px solid var(--ok-line); color: var(--green);
+  font-weight: 600; }
+.ol-badge-main { background: var(--accent, #6d5dfc); color: #fff; }
+.ol-hint.ol-ok { color: var(--ok, #1a8f4a); }
+.ol-fchip { padding: 6px 13px; border-radius: 20px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent; color: var(--text2);
+  font-family: var(--font); font-size: 12.5px; }
+.ol-fchip.on { border-color: var(--accent-line); color: var(--accent); background: var(--accent-wash); }
+
+/* Hướng dẫn cài Ollama cho bản Docker: ba bước đánh số, mỗi bước một dòng thở được. Dồn tất
+   vào một đoạn thì người đọc bỏ qua đúng bước 3 - bước mà thiếu nó là "không nối được". */
+.ol-buoc { font-size: 13.5px; color: var(--text2); line-height: 1.6; margin: 8px 0 4px; }
+.ol-note.ol-warn { border: 1px solid var(--warn-line); background: var(--warn-wash);
+  border-radius: 10px; padding: 9px 11px; margin: 10px 0; }
+.ol-note.ol-warn .ic { color: var(--warn-ink); }

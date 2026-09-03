@@ -65,6 +65,12 @@ _DEFAULT = {
         # Model phụ cho việc NỀN (loop/metrics/ingest) - alias Claude qua CLI. "" = dùng mặc định
         # (không đổi). Đặt model rẻ (vd haiku) để tiết kiệm khi chạy nền nhiều.
         "auxiliary": {"model": ""},
+        # Model RIÊNG cho kênh Telegram. provider rỗng = THEO model chính (mặc định, không đổi
+        # gì cho người đang dùng). Đặt provider = GHIM: đổi model trên web không kéo Telegram
+        # theo nữa, và /model trên Telegram sửa ô này chứ không sửa model chính. Ra đời 02/09:
+        # chủ repo đổi model liên tục trên web để thử (cả model local chạy 2-8 chữ/giây), mỗi
+        # lần thử là điện thoại của cả nhà bị kéo theo.
+        "telegram": {"provider": "", "model": ""},
         # --- Tiền bạc: những gì Javis KHÔNG tự biết được và phải hỏi người dùng ---
         # Nhà cung cấp không cho lấy giá gói hay hạn mức gói qua API, nên bốn số này là do
         # người dùng khai. Để 0 = chưa khai, và trang Mức dùng phải nói "chưa khai" chứ đừng
@@ -106,10 +112,20 @@ _DEFAULT = {
         # trong khi phần đông người dùng Javis chạy nó trên VPS, nơi "localhost" là chính cái
         # container chứ không phải máy họ.
         "ollama_key": "",
+        # --- Ollama chạy trên MÁY NHÀ (provider 'ollama-local') ---
+        # Ca đặc biệt mà khối chú thích ngay trên vừa từ chối, nay mở ra nhưng KHÔNG bằng cách
+        # giả định "localhost là máy người dùng". Cái Javis lưu là một ĐỊA CHỈ người dùng tự
+        # khai: có thể là máy đang chạy Javis (bản native), có thể là một máy khác trong nhà.
+        # Nhờ vậy bản Docker/VPS cũng dùng được - trỏ sang máy để bàn ở nhà là xong.
+        "ollama_local_endpoint": "",           # vd http://127.0.0.1:11434 hoặc http://192.168.1.20:11434
+        "ollama_local_key": "",                # chỉ cần khi Ollama nấp sau reverse proxy có auth
+        # Cấu hình máy CHẠY OLLAMA, để gợi ý model vừa sức. `source`:
+        #   auto    - Javis tự đọc được (chỉ khi endpoint là localhost VÀ Javis chạy native)
+        #   manual  - người dùng tự khai (mọi trường hợp còn lại)
+        #   unknown - chưa biết, gợi ý ở mức an toàn
+        "ollama_local_specs": {"source": "unknown", "ram_gb": 0, "has_gpu": False, "vram_gb": 0},
         # Provider 'openai-oauth' - đăng nhập ChatGPT Plus/Pro qua device-code (xem openai_oauth.py).
         "openai_oauth": {"access_token": "", "refresh_token": "", "id_token": "", "account_id": "", "plan": "", "expires_at": 0},
-        # Provider 'gemini-cli' - đăng nhập tài khoản Google ngay trên dashboard (xem gemini_oauth.py).
-        "gemini_oauth": {"access_token": "", "refresh_token": "", "email": "", "expires_at": 0},
         # --- Legacy: giữ đồng bộ với main để engine cũ không vỡ (engine/claude_model/openrouter_model) ---
         "engine": "cli",                       # cli (Claude Code, đủ MCP) | openrouter | anthropic-api
         "claude_model": "",                    # "" = mặc định CLI; hoặc opus/sonnet/haiku/fable
@@ -128,10 +144,10 @@ _DEFAULT = {
             # Không ghim model Codex: /provider/models lấy catalog LIVE bằng
             # codex app-server model/list và nhớ lại lần thành công gần nhất.
             "openai-oauth": [],
-            # Gemini CLI: model do chinh CLI khai (xem gemini_cli.MODELS_MAC_DINH).
-            "gemini-cli": [],
             # Antigravity CLI: model hoi thang `agy models`, KHONG chep tay bang nao o day.
             "antigravity-cli": [],
+            # Grok Build CLI: cung ly do, /provider/models hoi CLI roi nho lai.
+            "grok-cli": [],
             "openrouter": ["openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet", "google/gemini-2.0-flash-001", "deepseek/deepseek-chat"],
         },
     },
@@ -159,8 +175,14 @@ _DEFAULT = {
     "zalo_bot": {"enabled": False, "token": "", "chat_id": ""},
     # Backup brain lên GitHub (repo RIÊNG TƯ). token = GitHub PAT (fine-grained, quyền Contents).
     # Lưu trong settings.json (đã gitignored) - KHÔNG bao giờ đẩy lên brain repo.
+    # sync_images: đồng bộ CẢ ẢNH (jpg/png/gif/webp, mỗi ảnh <= trần ~10MB) lên repo backup.
+    # MẶC ĐỊNH TẮT vì git nhớ mãi mãi - bật là ảnh nằm vĩnh viễn trong lịch sử repo, tắt sau
+    # không đòi lại dung lượng. Dùng nhiều máy chung repo thì bật trên MỌI máy (dù đã có rào
+    # chống máy tắt xoá chéo ảnh của máy bật - xem git_brain._sync_mirror). Khi bật, máy dọn
+    # media tự BỎ QUA attachments/ để ảnh vừa backup không bị dọn rồi lệnh xoá lan đi các máy.
     "backup": {"enabled": False, "repo_url": "", "token": "", "branch": "main",
-               "interval_hours": 6, "last_backup": 0.0, "last_status": ""},
+               "interval_hours": 6, "sync_images": False,
+               "last_backup": 0.0, "last_status": ""},
     "dashboard": {
         # graph_enabled=False → vào thẳng Console, KHÔNG dựng đồ thị (nhẹ cho VPS/điện thoại).
         # Frontend cũng tự ép lite-mode khi màn hình hẹp dù cờ này bật.
@@ -435,11 +457,10 @@ _DEFAULT = {
 # Mất file .secret_key → decrypt trả "" (nhập lại key) - đánh đổi giống MCP secret, an toàn hơn lộ key.
 _SECRET_PATHS = (
     "model.openrouter_key", "model.anthropic_api_key", "model.openai_api_key", "model.gemini_api_key",
-    "model.groq_api_key", "model.ollama_key",
+    "model.groq_api_key", "model.ollama_key", "model.ollama_local_key",
     "model.openai_oauth.access_token", "model.openai_oauth.refresh_token", "model.openai_oauth.id_token",
     # Gemini CLI (đăng nhập Google ngay trên dashboard). Refresh token ở đây mở được cả gói
     # Code Assist của tài khoản Google, nên nó ngang hàng mọi secret khác trong danh sách.
-    "model.gemini_oauth.access_token", "model.gemini_oauth.refresh_token",
     "telegram.token", "zalo_bot.token", "backup.token", "voice.elevenlabs_key",
     # Secret TOTP là thứ SINH RA mã đăng nhập, nên nó ngang hàng mật khẩu chứ không phải một
     # tuỳ chọn. Ai đọc được nó thì tự sinh mã 2FA mãi mãi, và chủ máy không hề hay biết.
@@ -591,6 +612,55 @@ def _ap_muc_mac_dinh(cfg: dict) -> bool:
     return doi
 
 
+# Provider đã GỠ khỏi app. Cấu hình của người dùng vẫn trỏ vào đây sau khi cập nhật, nên phải
+# NẮN LẠI lúc đọc - không nắn thì hỏng theo kiểu khó lần nhất: `_provider_def()` trả None, thẻ
+# Models không cái nào mang nhãn MAIN, và lượt chat rơi vào nhánh mặc định `kind="cli"` rồi
+# đưa một tên model của nhà khác cho Claude Code. Không có câu lỗi nào, chỉ có câu trả lời lạ.
+#
+# Nắn ở ĐÂY chứ không ở main.py vì `aux_engine` đọc thẳng settings, không đi qua main.
+_PROVIDER_DA_GO = {
+    # 0.50.0: Google ngắt Gemini CLI với MỌI tài khoản cá nhân từ 18/06/2026.
+    "gemini-cli": "Gemini CLI (Google đã ngắt tài khoản cá nhân)",
+}
+_DA_BAO_GO = set()      # chỉ in cảnh báo MỘT lần mỗi tiến trình: read_settings gọi liên tục
+
+
+def _nan_provider_da_go(cfg: dict) -> None:
+    """Đưa mọi tham chiếu tới provider đã gỡ về mặc định của app, và NÓI RA.
+
+    Về mặc định `anthropic-cli` chứ không về provider thay thế (Grok Build): thay thế thì cần
+    cài binary và đăng nhập, mà người dùng chưa làm - đẩy họ sang một thẻ chưa sẵn sàng chỉ đổi
+    một kiểu hỏng lấy một kiểu hỏng khác. Về mặc định thì chat chạy được ngay, rồi họ tự chọn
+    lại trên trang Models.
+    """
+    m = cfg.get("model") or {}
+    main = m.get("main") or {}
+    da_nan = []
+    if main.get("provider") in _PROVIDER_DA_GO:
+        da_nan.append(("model chính", main["provider"]))
+        m["main"] = {"provider": "", "model": ""}
+    aux = m.get("auxiliary") or {}
+    if aux.get("provider") in _PROVIDER_DA_GO:
+        da_nan.append(("model việc nền", aux["provider"]))
+        m["auxiliary"] = {**aux, "provider": "", "model": ""}
+    tg = m.get("telegram") or {}
+    if tg.get("provider") in _PROVIDER_DA_GO:
+        da_nan.append(("model Telegram", tg["provider"]))
+        m["telegram"] = {"provider": "", "model": ""}   # về "theo model chính", không chết kênh
+    # Trường legacy `engine`: bỏ sót nó là `_effective_main` suy ngược ra provider vừa gỡ.
+    if m.get("engine") in _PROVIDER_DA_GO:
+        da_nan.append(("engine (legacy)", m["engine"]))
+        m["engine"] = "cli"
+    for cho, prov in da_nan:
+        khoa = (cho, prov)
+        if khoa in _DA_BAO_GO:
+            continue
+        _DA_BAO_GO.add(khoa)
+        print(f"[config] {cho} đang trỏ vào provider đã gỡ '{prov}' "
+              f"({_PROVIDER_DA_GO[prov]}) - đã đưa về mặc định. Chọn lại ở trang Models.",
+              file=__import__("sys").stderr)
+
+
 def _no_rong_pham_vi_bo_nao(cfg: dict) -> bool:
     """Nới `provider_kinds` của các mảng tiết kiệm về ÍT NHẤT bằng mặc định hiện tại.
 
@@ -650,6 +720,7 @@ def read_settings():
             _deep_merge(cfg, data or {})
     except Exception:
         pass
+    _nan_provider_da_go(cfg)
     _no_rong_pham_vi_bo_nao(cfg)
     _ap_muc_mac_dinh(cfg)
     try:
@@ -1113,12 +1184,28 @@ def get_or_create_setup_token():
         return None
 
 
+def lam_sach_setup_token(raw):
+    """Gọt thứ người ta THẬT SỰ dán vào ô, về đúng chuỗi mã.
+
+    Mã in ra log nằm CÙNG DÒNG với nhãn: "      SETUP TOKEN:  abc123". Bôi đen một dòng trong
+    terminal là dính cả nhãn, và bản cũ so nguyên cục đó với mã thật rồi báo "sai mã" - đúng
+    thao tác tự nhiên nhất lại là thao tác hỏng. Gọt nhãn KHÔNG nới lỏng bảo mật: phần còn lại
+    vẫn phải khớp tuyệt đối, vẫn so bằng compare_digest.
+    """
+    t = (raw or "").strip()
+    for nhan in ("SETUP TOKEN:", "SETUP_TOKEN:", "setup token:", "MÃ THIẾT LẬP:"):
+        if t.upper().startswith(nhan.upper()):
+            t = t[len(nhan):].strip()
+            break
+    return t.strip().strip("'\"`").strip()
+
+
 def check_setup_token(provided):
     try:
         if not _SETUP_TOKEN_PATH.exists():
             return False
         real = _SETUP_TOKEN_PATH.read_text(encoding="utf-8").strip()
-        return bool(real) and secrets.compare_digest(real, (provided or "").strip())
+        return bool(real) and secrets.compare_digest(real, lam_sach_setup_token(provided))
     except Exception:
         return False
 

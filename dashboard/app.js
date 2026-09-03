@@ -69,7 +69,6 @@ const chatArea = document.getElementById("chatArea");
 const chatInput = document.getElementById("chatInput");
 const sendBtn = document.getElementById("sendBtn");
 const voiceBtn = document.getElementById("voiceBtn");
-const ttsToggle = document.getElementById("ttsToggle");
 const voiceInterim = document.getElementById("voiceInterim");
 const orbState = document.getElementById("orbState");
 
@@ -129,9 +128,7 @@ function connect() {
   // không có chốt này là hai socket song song, mọi tin nhắn về gấp đôi.
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
   ws = new WebSocket(WS_URL);
-  ws.onopen = () => updateSysStatus("active");
-  ws.onclose = () => { updateSysStatus("error"); setTimeout(connect, 3000); };
-  ws.onerror = () => updateSysStatus("error");
+  ws.onclose = () => { setTimeout(connect, 3000); };
   ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
 }
 
@@ -208,6 +205,18 @@ function handleMessage(data) {
     try { if (window.JavisBackground) window.JavisBackground.refresh(); } catch (e) {}
     return;
   }
+  if (data.type === "inbox") {
+    // Việc nền vừa để lại một mẩu thư → chấm đỏ trên chuông nhảy NGAY, không đợi tải lại
+    // trang. Nếu thư thuộc đúng hội thoại đang mở thì coi như đã đọc luôn: người dùng đang
+    // nhìn thẳng vào nội dung, bắt họ bấm thêm một lần nữa trong hòm là đếm hai lần.
+    try {
+      if (window.JavisInbox) {
+        if (sid && sid === savedSessionId) window.JavisInbox.docPhien(sid);
+        else window.JavisInbox.refresh();
+      }
+    } catch (e) {}
+    return;
+  }
   if (data.type === "status") {
     if (t) t.running = true;
     setSessionRunning(sid, true);
@@ -243,7 +252,6 @@ function handleMessage(data) {
       if (!msgEl) msgEl = appendJavisMessage(shownText);
       else msgEl.querySelector(".bubble").innerHTML = markdownToHtml(shownText);
       if (ask) window.JavisAsk.render(msgEl, ask, true);   // chip chỉ mọc khi lượt xong
-      if (data.engine) setEngineBadge(data.engine, data.model);   // sự thật engine+model của lượt này
       _renderCtxLine(msgEl, data);   // lượt này đi đường nào, tốn bao nhiêu
       if (finalText.trim()) recordTurn("javis", finalText, null, ask);
       if (voice.ttsEnabled && t && !t.spoke && finalText) { setOrbState("speaking", "ĐANG NÓI"); voice.speak(finalText); }
@@ -302,7 +310,9 @@ function sendMessage(text) {
   voice.stopSpeaking();
   window.JavisAsk.freezeAll();   // trả lời rồi thì chip của lượt trước hết bấm được
   appendUserMessage(msg, atts);
-  recordTurn("user", msg, atts.map(a => ({ name: a.name, kind: a.kind })));
+  // Lưu cả `url` (đường /upload/raw của file stage): thiếu nó thì F5 xong ảnh trong tin cũ
+  // không còn gì để trỏ tới, và bong bóng chỉ còn trơ cái tên file.
+  recordTurn("user", msg, atts.map(a => ({ name: a.name, kind: a.kind, url: a.url || "" })));
 
   // Soạn message gửi Javis (kèm đường dẫn file trong Sources)
   const _isSkill = _slash.type === "skill";
@@ -414,6 +424,7 @@ async function openStoredSession(id) {
       else if (m.role === "assistant") { appendJavisMessage(m.content || "", ts, sess.brain); convo.push({ role: "javis", text: m.content || "", atts: [], ts, brain: sess.brain }); }
     });
     savedSessionId = id;          // lượt gửi tiếp theo → server resume đúng phiên này
+    try { if (window.JavisInbox) window.JavisInbox.docPhien(id); } catch (e) {}
     // Phiên này đang generate NỀN → gắn bong bóng SỐNG (kèm phần đã stream) để xem tiếp trực tiếp.
     const t = turns[id];
     if (t && t.running) {
@@ -498,19 +509,64 @@ function chuNguoiGo(text) {
 }
 window.JavisChuNguoiGo = chuNguoiGo;   // console.js dùng lại khi dựng bản xem trước hội thoại
 
+// Ảnh/file đính kèm hiện NGAY TRONG bong bóng tin của người dùng.
+//
+// Trước đây ô này trỏ vào `URL.createObjectURL(file)` - một URL chỉ sống trong tab đang mở,
+// và `clearAttachments()` thu hồi nó ngay sau khi gửi. Nên ảnh vừa gửi đã hỏng, F5 một cái
+// là mất hẳn (lịch sử chỉ lưu tên + loại), và cũng không bấm phóng to được. Nay ảnh trỏ vào
+// `/upload/raw` - chính file trong thư mục stage tạm trên máy chủ - nên xem lại được sau khi
+// tải lại trang, và bọc trong `a.jv-img-link` để dùng chung lightbox với mọi ảnh khác.
+//
+// Staging là chỗ trung chuyển, bị dọn sau vài ngày. Ảnh 404 KHÔNG được để trơ thành ô vỡ:
+// `vaAnhHong` đổi nó thành một khung nói thẳng là không xem lại được nữa.
+function attachHtml(attachments) {
+  if (!attachments || !attachments.length) return "";
+  return `<div class="msg-attach">` + attachments.map(a => {
+    const url = a.url || a.preview || "";
+    if (a.kind === "image" && url) {
+      const _u = escapeHtml(url), _t = escapeHtml(a.name || "");
+      return `<a class="jv-img-link att-img" href="${_u}" data-img-ten="${_t}"`
+        + ` target="_blank" rel="noopener" data-i18n-title="chat.att_zoom"`
+        + ` title="${escapeHtml(t("chat.att_zoom"))}">`
+        + `<img src="${_u}" alt="${_t}" loading="lazy"></a>`;
+    }
+    // Ảnh KHÔNG còn URL nào (tin cũ lưu từ bản trước, chỉ có tên + loại): nói thẳng là hết
+    // xem lại được, chứ đừng giả vờ nó là một file đính kèm bình thường.
+    if (a.kind === "image") return anhHetHan(a.name);
+    return `<span class="file-tag">${ic("file-text")} ${escapeHtml(a.name || "")}</span>`;
+  }).join("") + `</div>`;
+}
+// `data-i18n*` đi KÈM chữ đã dịch sẵn, không thay nó: từ điển nạp bằng fetch nên tin dựng lại
+// lúc F5 có thể vẽ TRƯỚC khi từ điển về, và khi đó `t()` trả về chính cái khoá. Có thuộc tính
+// này thì lượt quét `applyDom()` lúc từ điển về sẽ chữa lại - đúng lưới đã dựng ở 0.52.2.
+function anhHetHan(ten) {
+  return `<span class="att-mat" data-i18n-title="chat.att_gone_hint"`
+    + ` title="${escapeHtml(t("chat.att_gone_hint"))}">`
+    + `${ic("image")}<span class="att-mat-ten">${escapeHtml(ten || "")}</span>`
+    + `<span class="att-mat-note" data-i18n="chat.att_gone">`
+    + `${escapeHtml(t("chat.att_gone"))}</span></span>`;
+}
+// File tạm đã bị dọn -> ảnh 404. Thay thẻ <img> bằng khung "không còn xem lại được" thay vì
+// để trình duyệt vẽ ô ảnh vỡ (người dùng đọc ô vỡ thành "app hỏng", không thành "hết hạn").
+function vaAnhHong(root) {
+  if (!root) return;
+  root.querySelectorAll(".msg-attach img").forEach(img => {
+    img.addEventListener("error", () => {
+      const link = img.closest("a.att-img") || img;
+      const ten = img.getAttribute("alt") || "";
+      const tam = document.createElement("span");
+      tam.innerHTML = anhHetHan(ten);
+      if (link.parentNode) link.replaceWith(tam.firstElementChild || tam);
+    }, { once: true });
+  });
+}
+
 function appendUserMessage(text, attachments, ts) {
   text = chuNguoiGo(text);
   const div = document.createElement("div");
   div.className = "msg msg-user";
   div.dataset.text = text || "";   // giữ nguyên văn để gửi lại / sửa lại đúng chữ gốc
-  let attHtml = "";
-  if (attachments && attachments.length) {
-    attHtml = `<div class="msg-attach">` + attachments.map(a =>
-      a.preview
-        ? `<img src="${a.preview}" alt="${escapeHtml(a.name)}">`
-        : `<span class="file-tag">${ic("file-text")} ${escapeHtml(a.name)}</span>`
-    ).join("") + `</div>`;
-  }
+  const attHtml = attachHtml(attachments);
   // Tin dài (>10 dòng hoặc >900 ký tự) thu gọn lại, bấm "Xem thêm" để mở
   const isLong = text && (text.split("\n").length > 10 || text.length > 900);
   const textHtml = text
@@ -519,6 +575,7 @@ function appendUserMessage(text, attachments, ts) {
     : "";
   div.innerHTML = `<div class="bubble">${textHtml}${attHtml}</div>` +
     actsHtml("user", ts === undefined ? Date.now() : ts, !!(text || "").trim());
+  vaAnhHong(div);
   chatAppend(div); scrollBottom(true);
 }
 // brain (tuỳ chọn): brain của HỘI THOẠI chứa tin này. Bỏ trống = brain đang chọn (tin mới).
@@ -606,6 +663,13 @@ function escapeHtml(t) { return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").rep
 //      biến mất khi phóng to chat). Chip là 1 "bong bóng" 3 chấm nhún + dòng trạng thái
 //      + đồng hồ đếm giây, luôn nằm CUỐI khung chat, đi theo cả chế độ zoom. ----
 let activityEl = null, activityT0 = 0, activityTimer = null;
+// Thời lượng đọc được cho task dài: "45s" → "1m 56s" → "1h 30m 40s". Chủ repo báo (2026-08-24)
+// việc nền chạy hàng chục phút mà đồng hồ đếm "1856s" thì không ai nhẩm ra là bao lâu.
+function fmtElapsed(s) {
+  if (s < 60) return s + "s";
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), giay = s % 60;
+  return (h ? h + "h " + m + "m " : m + "m ") + giay + "s";
+}
 // Chip hoạt động cuối khung chat. THAM SỐ LÀ HTML, không phải chữ thuần: nhiều chỗ
 // gọi kèm icon (Icons.msg) nên textContent sẽ in nguyên thẻ <svg ...> ra màn hình.
 // Chữ từ server BẮT BUỘC đi qua escapeHtml trước khi truyền vào đây.
@@ -621,7 +685,7 @@ function showActivity(html) {
       if (!activityEl) return;
       const s = Math.floor((Date.now() - activityT0) / 1000);
       // 3s đầu khỏi hiện số cho đỡ rối; câu chậm (CLI/MCP) thì thấy rõ đã đợi bao lâu
-      activityEl.querySelector(".act-time").textContent = s >= 3 ? s + "s" : "";
+      activityEl.querySelector(".act-time").textContent = s >= 3 ? fmtElapsed(s) : "";
     }, 1000);
   }
   activityEl.querySelector(".act-text").innerHTML = html || "Đang xử lý...";
@@ -725,9 +789,10 @@ function runMsgAct(btn) {
     if (b) copyText(b.innerText).then(() => flashCopied(btn, "⧉"));
     return;
   }
-  const text = window.JavisActs && window.JavisActs.isUserMsg(msgEl)
-    ? (msgEl.dataset.text || "")
-    : (window.JavisActs ? window.JavisActs.prevUserText(msgEl) : "");
+  // Chi tin NGUOI DUNG mang nut gui lai / sua lai, nen chu goc luon nam ngay tren chinh no.
+  // Truoc day con mot nhanh nguoc len tim tin nguoi dung gan nhat - do la duong cua nut "tra
+  // loi lai cau hoi phia tren" o tin Javis, da bo o 0.52.13.
+  const text = msgEl.dataset.text || "";
   if (!text) return;
   if (act === "edit") {
     // Chỉ đổ chữ vào ô nhập, KHÔNG tự gửi - để anh sửa xong tự bấm gửi.
@@ -761,12 +826,6 @@ chatArea.addEventListener("click", (e) => {
   chatArea.querySelectorAll(".msg.acts-on").forEach(m => { if (m !== msgEl) m.classList.remove("acts-on"); });
   if (msgEl) msgEl.classList.toggle("acts-on");
 });
-function updateSysStatus(s) {
-  document.getElementById("claudeStatus").className = "mcp-item " + s;
-  document.getElementById("ttsStatus").className = "mcp-item " + s;
-}
-
-const usedMCPs = new Map();
 function compactToolLabel(toolName) {
   const raw = String(toolName || "").trim();
   let label = raw || "Tool", cat = "Tool";
@@ -791,34 +850,51 @@ function compactToolLabel(toolName) {
   if (label.length > 48) label = label.slice(0, 47) + "…";
   return { label, cat };
 }
-function trackMCP(toolName) {
+// BA tool VỪA GỌI, mới nhất đứng đầu (0.49.3, chủ repo chốt).
+//
+// Bản cũ giữ tối đa 4 loại theo thứ tự LẦN ĐẦU thấy, nên tool gọi từ đầu phiên nằm lì ở đầu
+// dải còn tool vừa chạy xong thì nấp ở cuối - đúng chỗ mắt ít nhìn nhất. Với một dải chỉ để
+// LIẾC thì thứ tự phải là mới-nhất-trước, và ba mục là đủ: dải nằm ngang cạnh ô chọn model,
+// thêm mục thứ tư là bắt đầu cắt chữ.
+//
+// Dựng lại cả danh sách từ mảng thay vì xáo DOM tại chỗ: cách này ngắn hơn và không có
+// đường nào để thứ tự trên màn hình lệch khỏi thứ tự trong mảng.
+const TRAN_TOOL_GAN_NHAT = 3;
+let toolGanNhat = [];   // [{label, cat, raw}] - phần tử 0 là mới nhất
+function veToolGanNhat(vuaGoi) {
   const list = document.getElementById("mcpList");
   if (!list) return;
-  const { label, cat } = compactToolLabel(toolName);
-  if (!usedMCPs.has(label)) {
-    if (list.querySelector(".dim")) list.innerHTML = "";
+  list.innerHTML = "";
+  if (!toolGanNhat.length) {
+    const em = document.createElement("div");
+    em.className = "mcp-item dim";
+    em.textContent = "Chưa gọi tool nào";
+    list.appendChild(em);
+    return;
+  }
+  toolGanNhat.forEach((t, i) => {
     const div = document.createElement("div");
-    div.className = "mcp-item active";
-    div.title = String(toolName || label);
-    div.insertAdjacentHTML("beforeend", `${ic("circle", { cls: "ic-fill ic-sm" })} ${escapeHtml(label)} `);
+    // Chỉ mục vừa gọi mới nháy vàng rồi về xanh - nhìn là biết ngay cái nào vừa chạy.
+    div.className = "mcp-item " + (i === 0 && t.label === vuaGoi ? "loading" : "active");
+    div.title = t.raw;
+    div.insertAdjacentHTML("beforeend", `${ic("circle", { cls: "ic-fill ic-sm" })} ${escapeHtml(t.label)} `);
     const meta = document.createElement("span");
     meta.className = "mcp-kind";
-    meta.textContent = `· ${cat}`;
+    meta.textContent = `· ${t.cat}`;
     div.appendChild(meta);
-    list.appendChild(div); usedMCPs.set(label, div);
-    // Đây là trạng thái gần đây, không phải nhật ký. Giữ tối đa 4 loại để DOM/dải ngang
-    // không phình mãi trong một phiên chat dài.
-    while (usedMCPs.size > 4) {
-      const oldest = usedMCPs.keys().next().value;
-      const oldEl = usedMCPs.get(oldest);
-      if (oldEl && oldEl.parentNode) oldEl.parentNode.removeChild(oldEl);
-      usedMCPs.delete(oldest);
+    list.appendChild(div);
+    if (div.classList.contains("loading")) {
+      setTimeout(() => div.classList.replace("loading", "active"), 600);
     }
-  } else {
-    const el = usedMCPs.get(label);
-    el.classList.add("loading");
-    setTimeout(() => el.classList.replace("loading", "active"), 600);
-  }
+  });
+}
+function trackMCP(toolName) {
+  const { label, cat } = compactToolLabel(toolName);
+  // Gọi lại tool cũ = nó VỪA chạy, phải nhảy lên đầu chứ không giữ chỗ cũ.
+  toolGanNhat = [{ label, cat, raw: String(toolName || label) }]
+    .concat(toolGanNhat.filter((t) => t.label !== label))
+    .slice(0, TRAN_TOOL_GAN_NHAT);
+  veToolGanNhat(label);
 }
 
 // ============================================
@@ -1567,8 +1643,16 @@ function renderChips() {
   pendingAttachments.forEach((a, i) => {
     const chip = document.createElement("div");
     chip.className = "attach-chip" + (a.uploading ? " uploading" : "");
-    const thumb = a.preview
-      ? `<img src="${a.preview}" alt="">`
+    // Ảnh vừa dán/chọn cũng phải BẤM PHÓNG TO được ngay ở thanh đính kèm - trước đây ô này
+    // là ảnh chết, muốn xem cho rõ phải gửi đi rồi mở lại. Ưu tiên URL trên máy chủ (tải xong),
+    // lúc còn đang tải thì tạm dùng blob để không phải chờ mới thấy hình.
+    const _tUrl = a.kind === "image" ? (a.url || a.preview || "") : "";
+    const thumb = _tUrl
+      ? `<a class="jv-img-link chip-thumb" href="${escapeHtml(_tUrl)}"`
+        + ` data-img-ten="${escapeHtml(a.name || "")}" target="_blank"`
+        + ` rel="noopener" data-i18n-title="chat.att_zoom"`
+        + ` title="${escapeHtml(t("chat.att_zoom"))}">`
+        + `<img src="${escapeHtml(_tUrl)}" alt=""></a>`
       : `<div class="chip-ico">${a.uploading ? ic("loader", { cls: "ic-spin" }) : ic("file-text")}</div>`;
     const meta = a.uploading
       ? (a.statusText || "đang xử lý...")
@@ -1659,6 +1743,7 @@ async function uploadFile(file) {
     const up = await resp.json();
     if (!up.ok) { att.uploading = false; att.statusText = up.error ? ("lỗi: " + up.error) : "lỗi upload"; renderChips(); return; }
     att.path = up.staged; att.name = up.name; att.size = up.size; att.kind = up.kind;
+    att.url = up.url || "";   // đường xem lại trên máy chủ (bong bóng chat dùng, không phải blob)
     att.sources = up.sources; att.attachments = up.attachments;
     att.uploading = false; att.statusText = "";
   } catch (e) {
@@ -1723,9 +1808,12 @@ window.addEventListener("drop", (e) => {
 // ============================================
 chatInput.addEventListener("input", () => {
   chatInput.style.height = "auto";
-  // Ở trang Trò chuyện (body.on-chat) cho ô nhập cao hơn để gõ dài dễ hơn. Trước đây mốc là
-  // .chat-zoomed của lớp phóng to; lớp đó đã bỏ, phóng to giờ là chuyển hẳn sang trang chat.
-  const _cap = document.body.classList.contains("on-chat") ? 220 : 90;
+  // Ô nhập NỞ THEO CHỮ như claude.ai (chủ yêu cầu 27/08): xuống dòng là thấy toàn bộ văn
+  // bản, không phải cuộn trong một ô 3 dòng. Trần ở trang Trò chuyện là 40% màn hình
+  // (đo lúc gõ nên đổi cỡ cửa sổ vẫn đúng); màn chính ô nhập nằm trong cột phải hẹp hơn
+  // nên trần 200px, quá nữa mới cuộn trong ô. CSS chỉ giữ lưới đỡ 45vh, không chặn nữa.
+  const _cap = document.body.classList.contains("on-chat")
+    ? Math.round(window.innerHeight * 0.4) : 200;
   chatInput.style.height = Math.min(chatInput.scrollHeight, _cap) + "px";
 });
 // Bộ gõ tiếng Việt/IME có thể phát keydown Enter trước compositionend. Nếu gửi và xoá
@@ -1751,6 +1839,10 @@ voiceBtn.addEventListener("click", () => {
   if (!voice.isSupported()) { alert("Trình duyệt không hỗ trợ giọng nói. Dùng Chrome/Edge."); return; }
   handsFree = !handsFree;
   voiceBtn.classList.toggle("handsfree", handsFree);
+  // Loa đi theo mic (chủ repo yêu cầu 02/09): bật nghe là muốn NÓI CHUYỆN bằng giọng, nên
+  // Javis phải đáp bằng giọng; tắt nghe là quay về gõ chữ, Javis im. Điện thoại từng không
+  // có chỗ nào bật loa cả, nên gộp vào mic là một nút lo cả hai chiều.
+  try { if (window.JavisTts) window.JavisTts.set(handsFree); } catch (e) {}
   if (handsFree) {
     voice.startListening();
   } else {
@@ -1773,6 +1865,9 @@ document.addEventListener("keydown", (e) => {
   const _ae = document.activeElement;
   const _typing = _ae && (_ae.tagName === "INPUT" || _ae.tagName === "TEXTAREA" || _ae.tagName === "SELECT" || _ae.isContentEditable);
   if (e.code === "Space" && !handsFree && !spacePressed && !_typing) {
+    // Bấm-giữ Space cũng là mở mic -> bật loa. Thả phím là hết câu, không phải "tắt nghe",
+    // nên KHÔNG tắt loa ở keyup - tắt thì câu trả lời ngay sau đó bị câm.
+    try { if (window.JavisTts) window.JavisTts.set(true); } catch (e2) {}
     e.preventDefault(); spacePressed = true; voice.startListening();
   }
   if (e.code === "Escape") {
@@ -1780,6 +1875,7 @@ document.addEventListener("keydown", (e) => {
     // trả lời hay ngắt Javis đang nói (đã bỏ theo yêu cầu - đã có nút bật/tắt tiếng và nút Dừng).
     handsFree = false; voiceBtn.classList.remove("handsfree");
     voice.stopListening();
+    try { if (window.JavisTts) window.JavisTts.set(false); } catch (e2) {}   // Esc = thoát nói chuyện bằng giọng
     if (typeof closeNodePopup === "function") closeNodePopup();
   }
 });
@@ -1820,10 +1916,8 @@ document.getElementById("testVoiceBtn").addEventListener("click", () => {
   // force: nghe thử là hành động chủ động của user, phải kêu kể cả khi đang tắt tiếng (mặc định).
   voice.speak(v.includes("HoaiMy") ? "Xin chào, em là HoaiMy, trợ lý của bạn." : "Xin chào, tôi là NamMinh, trợ lý của bạn.", { force: true });
 });
-ttsToggle.addEventListener("click", () => {
-  const enabled = voice.toggleTTS();
-  ttsToggle.classList.toggle("muted", !enabled);
-});
+// Nút loa header đã bỏ (0.48.3) - công tắc giọng nay chỉ còn nút trên THANH NHẬP
+// (#ttsToggleBar) và công tắc trong Cài đặt nhanh, cả hai do quick-settings.js lo.
 
 // Resume AudioContext khi user tương tác lần đầu (để analyser pulse hoạt động)
 function resumeAudio() {
@@ -1832,28 +1926,31 @@ function resumeAudio() {
 document.addEventListener("click", resumeAudio, { once: true });
 document.addEventListener("keydown", resumeAudio, { once: true });
 
-// ============================================
-// Badge engine+model (sự thật, không hỏi model)
-// ============================================
+
 // Nhãn hiển thị cho TỪNG provider. Trước đây chỉ có hai nhánh openrouter-hoặc-CLI, nên chọn
 // Groq/Gemini/OpenAI đều bị dán nhãn "CLI" - vừa sai, vừa phạm đúng luật trong CLAUDE.md là
-// phải trả lời ĐÚNG engine đang chạy. Chủ repo chụp lại cảnh badge ghi "CLI · openai/gpt-oss-120b"
-// trong khi thanh model ngay bên cạnh ghi "Groq".
+// phải trả lời ĐÚNG engine đang chạy.
 const ENGINE_LABEL = {
   "anthropic-cli": "Claude Code", "openai-oauth": "ChatGPT", "openrouter": "OpenRouter",
   "openai": "OpenAI", "anthropic-api": "Anthropic", "gemini": "Gemini", "groq": "Groq",
   "ollama": "Ollama",
-  // Nhãn phải TÁCH khỏi "Gemini" ở trên: cùng model nhưng khác đường và khác hoá đơn
-  // (đăng nhập Google miễn phí, so với API key trả theo lượt gọi).
-  "gemini-cli": "Gemini CLI",
+  // Hai engine CLI gói thuê bao. Nhãn phải TÁCH khỏi nhà cung cấp API cùng tên: khác đường
+  // và khác hoá đơn (gói đã trả, so với API key trả theo lượt gọi).
+  "grok-cli": "Grok Build", "antigravity-cli": "Antigravity",
 };
-// Một dòng nhỏ dưới câu trả lời: lượt này chạy ở chế độ nào, và tốn bao nhiêu
+// Một dòng nhỏ dưới câu trả lời: lượt này chạy BẰNG GÌ, ở chế độ nào, và tốn bao nhiêu
 // token vào. Trước đây chuyện này hoàn toàn vô hình - chỉ lộ ra khi nhà cung cấp báo vượt hạn
 // mức, tức là đã muộn. Thấy được thì người dùng tự biết mức vừa bật có ăn thật hay không.
 // Tên NÓI ĐÚNG NÓ LÀM GÌ, không phải nó cũ hay mới. "Đường cũ" là góc nhìn của người viết
 // code; với người dùng đó là chế độ gửi đủ mọi thứ, an toàn nhất, và đúng là thứ họ chọn khi
 // bấm "Tắt" - gọi nó là "cũ" vừa nghe như đang xin lỗi, vừa làm người ta tưởng máy đang hỏng.
 // Tên ở đây khớp tên nút bên trang Mức dùng để nhìn một dòng là biết mình đang ở đâu.
+//
+// Engine+model đứng ĐẦU dòng này từ 0.52.13. Trước đó nó là một badge riêng ở đầu khung hội
+// thoại, và badge ấy có hai vấn đề: nó chiếm chỗ để lặp lại thứ thanh model ngay dưới ô chat
+// đã nói, và nó chỉ nói về LƯỢT CUỐI - cuộn ngược lên một hội thoại từng đổi model, hay từng
+// bị đẩy sang model dự phòng lúc model chính quá tải, thì badge nói sai về mọi tin phía trên.
+// Gắn vào TỪNG TIN thì mỗi tin tự khai đúng bộ não đã sinh ra nó, và đầu khung được trả lại.
 const CTX_PATH_LABEL = {
   legacy: "Đầy đủ", sources: "Tối ưu", fast: "Tức thì",
   readonly: "Tra cứu", orchestrator: "Tra cứu sâu", write: "Thực thi",
@@ -1863,31 +1960,43 @@ const CTX_PATH_LABEL = {
   bot: "Bot chuyên trách",
 };
 function _renderCtxLine(msgEl, data) {
-  if (!msgEl || !data || !data.ctx_path) return;
+  // Có engine mà chưa có ctx_path thì VẪN vẽ: hai thứ đến từ hai chỗ khác nhau trong payload,
+  // và bỏ cả dòng chỉ vì thiếu một nửa là mất luôn nửa đang có.
+  if (!msgEl || !data || !(data.ctx_path || data.engine)) return;
   const cu = data.ctx_path === "legacy";
-  const ten = CTX_PATH_LABEL[data.ctx_path] || data.ctx_path;
   const tok = Number(data.ctx_in) || 0;
   const old = msgEl.querySelector(".msg-ctx");
   if (old) old.remove();
   const el = document.createElement("div");
-  el.className = "msg-ctx" + (cu ? "" : " saved");
+  // Lớp "saved" (tô khác) chỉ có nghĩa khi BIẾT lượt này đi đường tiết kiệm. Không có ctx_path
+  // thì đừng đoán - gắn bừa là nói dối bằng màu sắc.
+  el.className = "msg-ctx" + (data.ctx_path && !cu ? " saved" : "");
   // Bấm vào là sang trang Mức dùng, nơi có khối chọn mức ngay đầu trang - thấy chế độ đang
   // chạy mà không biết chỉnh ở đâu thì thông tin đó cũng chỉ để bực mình.
   el.dataset.usageGoto = "usage";
-  el.title = cu ? "Đang gửi đủ mọi thứ. Bấm để chọn mức tiết kiệm."
-                : "Đang tiết kiệm token. Bấm để xem chi tiết.";
-  el.textContent = ten + (tok ? " · " + _fmtTok(tok) + " token" : "");
+  const phan = [];
+  if (data.engine) {
+    // Tên model cắt ngắn cho vừa dòng; tên đầy đủ nằm ở tooltip bên dưới.
+    phan.push((ENGINE_LABEL[data.engine] || data.engine)
+              + (data.model ? " · " + _shortModel(data.model) : ""));
+  }
+  if (data.ctx_path) phan.push(CTX_PATH_LABEL[data.ctx_path] || data.ctx_path);
+  if (tok) phan.push(_fmtTok(tok) + " token");
+  el.textContent = phan.join(" · ");
+  const chuThich = [];
+  if (data.engine) {
+    chuThich.push("Bộ não THẬT đã chạy lượt này"
+                  + (data.model ? ": " + data.model : "")
+                  + " (máy chủ khai, không phải model tự nhận).");
+  }
+  if (data.ctx_path) {
+    chuThich.push(cu ? "Đang gửi đủ mọi thứ. Bấm để chọn mức tiết kiệm."
+                     : "Đang tiết kiệm token. Bấm để xem chi tiết.");
+  }
+  el.title = chuThich.join("\n");
   msgEl.appendChild(el);
 }
 
-function setEngineBadge(engine, model) {
-  const el = document.getElementById("engineBadge");
-  if (!el) return;
-  const label = ENGINE_LABEL[engine] || engine || "Chưa rõ";
-  el.textContent = label + (model ? " · " + model : "");
-  // Chỉ còn hai lớp màu: giữ nguyên bộ mặt cũ, không đẻ thêm 7 biến thể CSS.
-  el.className = "engine-badge " + (engine === "openrouter" ? "or" : "cli");
-}
 async function refreshTgStatus() {
   const el = document.getElementById("setTgStatus");
   if (!el) return;
@@ -1901,24 +2010,7 @@ async function refreshTgStatus() {
     if (s.loi_menu_lenh) el.innerHTML += '<div class="set-note">' + ic("triangle-alert", { cls: "ic-warn" }) + " " + escapeHtml(s.loi_menu_lenh) + "</div>";
   } catch (e) { el.textContent = ""; }
 }
-// Xuất ra window: console.js gọi lại sau khi đổi model để badge engine không bị cũ.
-// Model chính HIỆU LỰC, soi theo đúng thứ tự server dùng (_effective_main trong main.py):
-// model.main nếu đã đặt, không thì suy từ trường engine cũ. Đọc thiếu bước này là badge
-// đứng ì ở "CLI" cho mọi provider API.
-function _mainProviderModel(m) {
-  const main = m.main || {};
-  if (main.provider) return [main.provider, main.model || ""];
-  if (m.engine === "openrouter") return ["openrouter", m.openrouter_model || ""];
-  if (m.engine === "anthropic-api") return ["anthropic-api", m.claude_model || ""];
-  return ["anthropic-cli", m.claude_model || "mặc định"];
-}
-async function refreshEngineBadge() {
-  try {
-    const s = await (await fetch("/settings")).json();
-    const [prov, model] = _mainProviderModel(s.model || {});
-    setEngineBadge(prov, model || "mặc định");
-  } catch (e) {}
-}
+
 
 // ============================================
 // Mức dùng (token Javis tự đo, đa nhà cung cấp) - panel sidebar
@@ -2161,7 +2253,7 @@ if (document.getElementById("settingsBtn")) {
     const orModel = (sel.value === "__custom__") ? document.getElementById("setOrModel").value.trim() : sel.value;
     const d = { engine: document.getElementById("setEngine").value, claude_model: document.getElementById("setClaudeModel").value, openrouter_model: orModel };
     const k = document.getElementById("setOrKey").value.trim(); if (k) d.openrouter_key = k;
-    _saveSetting("model", d, e.target).then(() => { document.getElementById("setOrKey").value = ""; openSettings(); refreshEngineBadge(); });
+    _saveSetting("model", d, e.target).then(() => { document.getElementById("setOrKey").value = ""; openSettings(); });
   });
   // Dropdown model OpenRouter: chọn custom → hiện ô nhập tay
   document.getElementById("setOrModelSel").addEventListener("change", (e) => {
@@ -2307,12 +2399,31 @@ if (document.getElementById("wzFinish")) {
     const pass = document.getElementById("wzPass").value;
     const prov = (document.querySelector('input[name="wzprov"]:checked') || {}).value || "anthropic-cli";
     const btn = document.getElementById("wzFinish"); btn.disabled = true; btn.textContent = "Đang lưu…";
-    if (_wizardMandatory && !pass) { err.textContent = "Bắt buộc đặt mật khẩu khi chạy trên server công khai."; btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →"; return; }
+    // Ô mã thiết lập nằm ở mục 2, còn nút bấm và dòng báo lỗi nằm tít dưới đáy. Bỏ trống rồi
+    // bấm thì người dùng chỉ thấy một dòng đỏ ở đáy, không thấy ô nào đang trống - có người
+    // còn không biết là CÓ một ô như vậy. Nên khi lỗi phải KÉO MÀN HÌNH tới đúng ô đó.
+    const _soiOTrong = (o, cau) => {
+      err.textContent = cau;
+      btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →";
+      if (o) { try { o.scrollIntoView({ block: "center", behavior: "smooth" }); o.focus(); } catch (e) {} }
+    };
+    if (_wizardMandatory && !pass) {
+      return _soiOTrong(document.getElementById("wzPass"),
+                        "Bắt buộc đặt mật khẩu khi chạy trên server công khai.");
+    }
+    // Chặn ngay ở đây thay vì để server trả 403: cùng một câu lỗi, nhưng người dùng thấy con
+    // trỏ nhảy vào đúng ô đang trống nên hiểu ngay phải làm gì.
+    const _tokO = document.getElementById("wzToken");
+    if (_wizardMandatory && _tokO && !_tokO.value.trim()) {
+      return _soiOTrong(_tokO, "Thiếu MÃ THIẾT LẬP. Lấy mã bằng lệnh ngay dưới ô này, "
+                               + "rồi dán chuỗi đó vào đây.");
+    }
     try {
       if (pass) {
-        const _tok = document.getElementById("wzToken");
-        const d = await (await fetch("/auth/setup", { method: "POST", body: _fd({ username: user || "admin", password: pass, setup_token: _tok ? _tok.value.trim() : "" }) })).json();
-        if (!d.ok) { err.textContent = d.error || "Đặt mật khẩu lỗi"; btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →"; return; }
+        const d = await (await fetch("/auth/setup", { method: "POST", body: _fd({ username: user || "admin", password: pass, setup_token: _tokO ? _tokO.value.trim() : "" }) })).json();
+        // Server từ chối vì mã sai (403) thì cũng kéo về đúng ô mã, đừng để người dùng tự dò.
+        if (!d.ok) { return _soiOTrong(/MÃ THIẾT LẬP/i.test(d.error || "") ? _tokO : null,
+                                       d.error || "Đặt mật khẩu lỗi"); }
       }
       await fetch("/settings", { method: "POST", body: _fd({ section: "general", data: JSON.stringify({ workspace_name: ws, setup_done: true }) }) });
       const _PM = { "anthropic-cli": "sonnet", "openai-oauth": "gpt-5.5", "openrouter": "openai/gpt-4o-mini" };
@@ -2350,7 +2461,6 @@ if (document.getElementById("wzFinish")) {
 // Boot
 // ============================================
 initAuthGate();
-refreshEngineBadge();
 refreshUsage();
 connect();
 initStarfield();
@@ -2371,5 +2481,50 @@ restoreSession();
 _pinRestore();
 renderChips();
 
-// Đồng bộ badge engine từ module khác (console.js sau khi đổi model).
-window.refreshEngineBadge = refreshEngineBadge;
+// ============================================
+// "Mở như app" (cài PWA) - desktop lẫn Android, không chỉ mobile.
+// Chrome/Edge bắn beforeinstallprompt khi manifest đủ điều kiện cài (icon PNG vuông có
+// sizes - xem manifest.json). Giữ event lại rồi hiện nút trên thanh trạng thái; bấm nút
+// mới bung hộp cài của trình duyệt. Safari/Firefox không có event → nút không hiện,
+// iOS vẫn đi đường Share → Thêm vào màn hình chính như cũ.
+// ============================================
+(() => {
+  const btn = document.getElementById("installAppBtn");
+  if (!btn) return;
+  let deferredPrompt = null;
+  const daLaApp = () => {
+    try {
+      return window.matchMedia("(display-mode: standalone)").matches
+        || window.navigator.standalone === true;   // iOS standalone cũ
+    } catch (e) { return false; }
+  };
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();   // chặn mini-infobar tự bung trên Android, để nút của mình chủ động
+    deferredPrompt = e;
+    if (!daLaApp()) btn.hidden = false;
+  });
+  btn.addEventListener("click", async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    try { await deferredPrompt.userChoice; } catch (e) {}
+    deferredPrompt = null;
+    btn.hidden = true;   // từ chối thì trình duyệt sẽ bắn lại event ở phiên sau, nút tự hiện lại
+  });
+  window.addEventListener("appinstalled", () => { deferredPrompt = null; btn.hidden = true; });
+  // Mở cho install-nudge.js dùng chung ĐÚNG một event beforeinstallprompt này. Trình duyệt
+  // chỉ bắn nó MỘT lần mỗi phiên và chỉ dùng lại được một lần, nên hai nơi cùng bắt là một
+  // nơi mất - phải đi qua cùng một chỗ giữ.
+  window.JavisInstall = {
+    daLaApp: daLaApp,
+    coHopCai: () => !!deferredPrompt,
+    moHopCai: async () => {
+      if (!deferredPrompt) return false;
+      deferredPrompt.prompt();
+      let ket = null;
+      try { ket = await deferredPrompt.userChoice; } catch (e) {}
+      deferredPrompt = null;
+      btn.hidden = true;
+      return !!(ket && ket.outcome === "accepted");
+    },
+  };
+})();

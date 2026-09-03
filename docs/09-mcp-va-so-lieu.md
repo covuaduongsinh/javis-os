@@ -51,6 +51,23 @@ không còn listener/webhook riêng hay chuyển tiếp tin sang Telegram. Xem
 - **Systeme.io** (MCP chính chủ, dán key là xong): vào systeme.io > Cài đặt hồ sơ > "MCP & API keys" > tạo MCP key (hạn tối đa 90 ngày), dán vào. Javis quản lý được liên hệ, tag, newsletter, phễu. Mặc định Chỉ đọc.
 - **Lark** (MCP chính chủ, chạy local, cần Node.js 18+): nhắn tin, tài liệu, bảng dữ liệu Base, wiki, danh bạ trong Lark. Tạo một Lark app tại open.larksuite.com/app, cấp quyền (im, docx, bitable, contact...), lấy App ID + App Secret dán vào. Javis chỉ làm được đúng phạm vi quyền bạn cấp cho app. Mặc định Chỉ đọc - gửi tin nhắn và cấp quyền file phải nâng Toàn quyền.
 
+### 3c. Kết nối Shopify (tra cứu cửa hàng)
+
+Mỗi cửa hàng Shopify có sẵn một MCP công khai theo chuẩn UCP, nên đây là kết nối dễ nhất kho: **không cần API key, không cần cài app, và không cần bạn là chủ shop**.
+
+1. Ở **Kho kết nối**, tìm thẻ **Shopify**, bấm **Kết nối**.
+2. Dán địa chỉ cửa hàng (tên miền riêng hay dạng `...myshopify.com` đều được). Gõ thiếu `https://`, thừa gạch chéo hay dán nguyên URL trang sản phẩm cũng không sao, Javis tự cắt về đúng tên miền.
+3. Ô **hồ sơ agent UCP** đã điền sẵn - cứ để nguyên rồi bấm Kết nối.
+
+Javis tra được sản phẩm, giá, tồn kho, và dựng sẵn giỏ hàng để bạn bấm thanh toán. Mặc định **Chỉ đọc** (chỉ tra cứu); muốn Javis dựng giỏ hàng thật thì nâng lên **Ghi nháp**.
+
+Hai điều nên biết:
+
+- Giỏ hàng **chưa phải đơn hàng** và chưa trừ tiền. Shopify trả về một đường link để người thật bấm vào thanh toán - Javis không khai năng lực thanh toán nên không tự trả tiền được.
+- Đây là kênh **công khai của cửa hàng**, không phải cổng quản trị: nó không cho xem doanh thu, đơn hàng hay khách hàng của shop.
+
+Ô hồ sơ agent UCP là gì: Shopify bắt mỗi lời gọi phải kèm đường dẫn tới một tờ khai "agent này làm được những gì" để cửa hàng tải về và thoả thuận. Javis tự đính kèm ở mọi lời gọi, bạn không phải làm gì. Chỉ khi muốn dùng tờ khai riêng thì mới sửa ô đó.
+
 ### 3. Kết nối Webcake Landing / Botcake
 
 - **Webcake Landing**: lấy JWT tại webcake.io > Cài đặt > Mã truy cập > Tạo API keys, dán vào. Javis sẽ thiết kế/sửa landing page bằng lời nói. Cần Node.js 18+.
@@ -194,6 +211,7 @@ Không đổi so với trước: hỏi trực tiếp trong chat ("hôm nay bán 
 - **Không thấy "Đăng nhập bằng Facebook cho doanh nghiệp" dù đã tìm đúng chỗ**: bản "cho doanh nghiệp" chỉ hiện với app tạo đúng **loại Doanh nghiệp (Business)**, và loại app đã tạo thì không đổi được. Nhưng cách đấu của Javis dùng **Đăng nhập bằng Facebook bản THƯỜNG**, nên bạn không cần bản cho doanh nghiệp.
 - **Mã QR hết hạn**: bấm thử lại để lấy QR mới (QR Zalo sống ~3 phút).
 - **Tool bị chặn kèm dòng "đang ở mức quyền hạn chế"**: đúng thiết kế - nâng quyền tài khoản trong menu chip nếu bạn thật sự muốn Javis làm việc đó.
+- **Nguồn chập chờn kiểu "lên được 1 đơn, đơn thứ 2 là rớt kết nối"** (hay gặp với Pancake POS): đã sửa ở **0.52.8**. Mỗi nguồn chỉ có một phiên, và mỗi lượt chat Javis lại hỏi lại danh sách tool trên chính phiên đó. Việc hỏi lại xếp hàng sau cái đơn đang chạy, chờ quá 20 giây thì bản cũ **giết cả phiên** - tức là giết luôn cái đơn đang lên dở, rồi lượt sau nguồn biến mất khỏi hộp công cụ nên Javis báo "chưa đấu POS". Nay nguồn đang chạy tool được để yên, và vẫn giữ nguyên danh sách tool của lần hỏi trước. Trang Kết nối cũng thôi báo đỏ oan lúc nguồn đang bận.
 - **Sau khi cập nhật từ bản cũ**: các server MCP cũ tự chuyển thành tài khoản trong trang Kết nối (bản gốc backup ở `mcp_servers.v1.bak.json`), không phải khai lại.
 - **Muốn quay về cơ chế cũ** (mỗi server một entry, không qua hub): đặt `"mcp": {"hub": false}` trong `server/settings.json` rồi khởi động lại.
 

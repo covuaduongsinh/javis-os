@@ -964,10 +964,18 @@
     .kn-health{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px;margin:16px 0}
     .kn-kpi{padding:13px 14px;border:1px solid var(--hairline);border-radius:11px;background:var(--surface-1)}
     .kn-kpi b{display:block;font-size:22px;color:var(--text);margin-top:4px}.kn-kpi span{font-size:12px;color:var(--text3)}
-    .kn-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:14px;align-items:start}
+    /* MỘT cột. Trước đây là lưới 2 cột, và nó chống lại chính thứ nó bày ra: khu Cần bạn xử
+       lý nằm cột phải bị bóp còn ~1/3 bề ngang, nên mỗi việc kẹt phải cuộn trong một ô hẹp để
+       đọc hết lý do - trong khi hai khu bên trái thường trống trơn. Xếp dọc thì mọi khu đều
+       được cả bề ngang, và thứ tự đọc đúng thứ tự cần làm. */
+    .kn-layout{display:flex;flex-direction:column;gap:14px;align-items:stretch}
     .kn-panel{border:1px solid var(--hairline);border-radius:12px;background:rgba(255,255,255,.018);overflow:hidden}
     .kn-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.07)}
     .kn-panel-head b{font-size:14px;color:var(--text)}.kn-panel-head span{font-size:12px;color:var(--text3)}
+    .kn-panel-head .kn-head-right{display:flex;align-items:center;gap:10px}
+    .kn-wipe{background:none;border:none;padding:2px 4px;font:inherit;font-size:12px;color:var(--text3);
+      cursor:pointer;border-radius:6px;text-decoration:underline;text-underline-offset:2px}
+    .kn-wipe:hover{color:var(--red)}.kn-wipe[disabled]{opacity:.45;cursor:default;text-decoration:none}
     .kn-list{max-height:440px;overflow:auto}.kn-empty{padding:22px;text-align:center;color:var(--text3);font-size:13px}
     .kn-task{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.055);cursor:pointer;transition:.15s}
     .kn-task:last-child{border-bottom:none}.kn-task:hover{background:rgba(127,176,255,.055)}
@@ -981,7 +989,7 @@
     .kn-drawer{position:fixed;z-index:10001;top:0;right:0;width:min(520px,94vw);height:100vh;height:100dvh;background:var(--bg2);border-left:1px solid rgba(127,176,255,.25);box-shadow:-20px 0 60px rgba(0,0,0,.45);transform:translateX(105%);transition:transform .2s;display:flex;flex-direction:column}
     .kn-drawer.open{transform:translateX(0)}.kn-drawer-head{position:sticky;top:0;z-index:2;padding:12px 12px 12px 17px;border-bottom:1px solid var(--hairline);background:var(--bg2);display:flex;align-items:center;gap:10px}.kn-drawer-head b{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.kn-drawer-head button{width:36px;height:36px;display:grid;place-items:center;background:rgba(255,255,255,.035);border:1px solid var(--hairline);border-radius:8px;color:var(--text2);font-size:22px;line-height:1;cursor:pointer}.kn-drawer-head button:hover{border-color:var(--link-ink);color:var(--text-hi)}
     .kn-drawer-body{padding:16px 17px;overflow:auto;color:var(--text2);font-size:13px;line-height:1.5}.kn-detail-block{margin-top:16px}.kn-detail-block h4{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin:0 0 7px}.kn-event{padding:8px 0;border-bottom:1px solid var(--surface-2)}
-    @media(max-width:850px){.fm-search-tools{align-items:stretch}.fm-search{flex-basis:100%;max-width:none}.fm-search-meta{width:100%;min-width:0}.fm-search-kind{display:none}.kn-health{grid-template-columns:repeat(2,1fr)}.kn-layout{grid-template-columns:1fr}.kn-list{max-height:none}}`;
+    @media(max-width:850px){.fm-search-tools{align-items:stretch}.fm-search{flex-basis:100%;max-width:none}.fm-search-meta{width:100%;min-width:0}.fm-search-kind{display:none}.kn-health{grid-template-columns:repeat(2,1fr)}.kn-list{max-height:none}}`;
     const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
   }
 
@@ -1416,7 +1424,7 @@
   async function renderPlugins(el) {
     _injectExtraCss();
     const myGen = _renderGen;   // chống race: đổi trang → load dở tự bỏ
-    el.innerHTML = `<div class="cview-section"><div class="empty">Đang tải...</div></div>`;
+    el.innerHTML = `<div class="cview-section"><div class="empty">${esc(t("common.loading"))}</div></div>`;
 
     const SRC = { bundled: ["Có sẵn", "var(--green)"], user: ["Toàn cục", "var(--link-ink)"], vault: ["Brain này", "var(--warn-ink)"] };
     const srcBadge = (s) => {
@@ -1485,7 +1493,7 @@
     _injectExtraCss();
     const myGen = _renderGen;   // chống race: đổi trang → mọi loadLoops/loadLog dở tự bỏ
     let pollTimer = null;       // 1 chuỗi poll duy nhất (clearTimeout trước khi đặt lại)
-    el.innerHTML = `<div class="cview-section"><div class="empty">Đang tải...</div></div>`;
+    el.innerHTML = `<div class="cview-section"><div class="empty">${esc(t("common.loading"))}</div></div>`;
     const GNAME = { business: "Kinh doanh", brain: "Bộ não", product: "Cải thiện Javis", custom: "Tự định nghĩa" };
     const fmtT = ts => ts ? new Date(ts * 1000).toLocaleTimeString(LOC(), { hour: "2-digit", minute: "2-digit" }) : "-";
     // Giờ TRẦN (chỉ "07:00") không cho biết là hôm nay, mai hay tuần sau - nhìn thẻ việc vẫn
@@ -2096,7 +2104,7 @@
   // ============================================
   async function renderLearn(el) {
     _injectExtraCss();
-    el.innerHTML = `<div class="cview-section"><div class="empty">Đang tải...</div></div>`;
+    el.innerHTML = `<div class="cview-section"><div class="empty">${esc(t("common.loading"))}</div></div>`;
     let cfg = {};
     try { cfg = await (await fetch("/learn/config")).json(); } catch (e) {}
     const caps = cfg.capabilities || {};
@@ -2107,12 +2115,13 @@
     ];
     const modeChips = MODES.map(([v, l]) => `<button class="si-chip ${cfg.mode === v ? "sel" : ""}" data-mode="${v}">${l}</button>`).join("");
     const modeDesc = (MODES.find(m => m[0] === cfg.mode) || MODES[0])[2];
-    const capRow = [["memory", "Ký ức (Memory)"], ["wiki", "Tri thức (Wiki)"], ["skill", "Kỹ năng (Skill)"], ["task", "Việc (Kanban)"]]
+    const capRow = [["memory", "Ký ức (Memory)"], ["wiki", "Tri thức (Wiki)"], ["skill", "Kỹ năng (Skill)"],
+                    ["agent", "Vai (Agent)"], ["workflow", "Chuỗi bước (Workflow)"], ["task", "Việc (Kanban)"]]
       .map(([k, l]) => `<button class="si-chip ${caps[k] ? "sel" : ""}" data-cap="${k}">${caps[k] ? "● " : "○ "}${l}</button>`).join("");
     const gitWarn = cfg.git_available ? "" : `<div class="dim" style="color:var(--text3);font-size:13px;margin-top:6px">ℹ Máy chưa có <code>git</code>: Tự học VẪN chạy bình thường, chỉ là chưa có hoàn tác 1-chạm/backup lên GitHub. Cài git để bật undo + sao lưu brain.</div>`;
 
     el.innerHTML = `<div class="cview-section">
-      <p style="color:var(--text3);font-size:15px;max-width:660px;margin:0 0 14px">Sau mỗi hội thoại, Javis tự rút <b>ký ức</b>, đúc <b>tri thức Wiki</b>, <b>kỹ năng</b> và <b>việc</b> - qua tiến trình học <b>chỉ-đọc, cô lập</b> (0 MCP, không xoá). Người ghi file là code tin cậy. Mặc định <b>bật sẵn + tự ghi</b>; nếu brain có git thì mỗi lần học còn được <b>git-commit để hoàn tác 1 chạm</b>.</p>
+      <p style="color:var(--text3);font-size:15px;max-width:660px;margin:0 0 14px">Sau mỗi hội thoại, Javis tự rút <b>ký ức</b>, đúc <b>tri thức Wiki</b>, <b>kỹ năng</b>, <b>vai (agent)</b>, <b>chuỗi bước (workflow)</b> và <b>việc</b> - qua tiến trình học <b>chỉ-đọc, cô lập</b> (0 MCP, không xoá). Người ghi file là code tin cậy. Mặc định <b>bật sẵn + tự ghi</b>; nếu brain có git thì mỗi lần học còn được <b>git-commit để hoàn tác 1 chạm</b>.</p>
       <div class="si-grid">
         <div class="si-field"><label>Bật tự học</label>
           <button class="si-chip ${cfg.enabled ? "sel" : ""}" id="lnEnabled">${cfg.enabled ? "● Đang bật" : "○ Đang tắt"}</button>
@@ -2120,7 +2129,7 @@
         <div class="si-field"><label>Chế độ ghi</label><div class="si-row" id="lnModes">${modeChips}</div>
           <div class="dim" id="lnModeDesc" style="font-size:14px;margin-top:6px;color:var(--text3)">${esc(modeDesc)}</div>${gitWarn}</div>
         <div class="si-field"><label>Học cái gì</label><div class="si-row" id="lnCaps">${capRow}</div>
-          <div class="dim" style="font-size:13px;margin-top:6px;color:var(--text3)">Wiki/Skill nên bật sau khi đã quen với Ký ức (lộ trình Phase 2/3). Việc = học xong đề xuất task nền vào bảng Việc (Kanban) - chỉ tạo thật ở chế độ Tự ghi, và task luôn chờ bạn duyệt.</div></div>
+          <div class="dim" style="font-size:13px;margin-top:6px;color:var(--text3)">Wiki/Skill nên bật sau khi đã quen với Ký ức (lộ trình Phase 2/3). Vai (Agent) / Chuỗi bước (Workflow) = học từ hội thoại ra agent/workflow mới trong Studio - chỉ tạo MỚI không ghi đè, workflow tạo ở trạng thái tắt, và có vòng kiểm chứng riêng nên mặc định tắt. Việc = học xong đề xuất task nền vào bảng Việc (Kanban) - chỉ tạo thật ở chế độ Tự ghi, và task luôn chờ bạn duyệt.</div></div>
         <div class="si-field"><label>Curator (bảo trì định kỳ)</label>
           <button class="si-chip ${(cfg.curator||{}).enabled ? "sel" : ""}" id="lnCurator">${(cfg.curator||{}).enabled ? "● Bật" : "○ Tắt"}</button>
           <div class="dim" style="font-size:13px;margin-top:6px;color:var(--text3)">Dọn index, LINT Wiki (chỉ đề xuất), nén MEMORY.md. Không xoá.</div></div>
@@ -2143,10 +2152,10 @@
           <li>Dán URL repo + token vào đây, bấm <b>Kiểm tra</b>, rồi <b>Đồng bộ ngay</b>. Bật tự động để định kỳ tự khớp giữa các máy.</li>
         </ol>
         <div style="max-width:680px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface-1);color:var(--text3);font-size:13.5px;line-height:1.7">
-          <b style="color:var(--text)">Chỉ đồng bộ THÔNG TIN, không đồng bộ media.</b>
+          <b style="color:var(--text)">Mặc định chỉ đồng bộ THÔNG TIN, không đồng bộ media.</b>
           Lên GitHub là ghi chú, Wiki, ký ức, skill, cấu hình việc định kỳ, script - tức là file chữ
           (<code>.md .txt .html .csv .json .canvas .py</code>…). <b>Ảnh, video, âm thanh, PDF và các file nhị phân khác KHÔNG lên</b>;
-          chúng vẫn nằm nguyên trên máy này và dùng bình thường, chỉ là không đi vào lịch sử git.
+          chúng vẫn nằm nguyên trên máy này và dùng bình thường, chỉ là không đi vào lịch sử git. Riêng ẢNH nhỏ thì bật được bằng công tắc "Đồng bộ cả ảnh" bên dưới, sau khi đọc kỹ đánh đổi.
           <div style="margin-top:6px">Vì sao: git được thiết kế để <b>nhớ mãi mãi</b>. Một file video đã commit là nằm đó vĩnh viễn,
           xoá về sau cũng không đòi lại được dung lượng, và mỗi lần xuất lại clip là thêm nguyên một bản mới.
           Vài trăm MB media cộng thói quen render vài lượt sẽ đẩy repo lên nhiều GB trong ít tháng, máy mới clone về phải tải cả những bản đã bỏ từ lâu.
@@ -2160,7 +2169,9 @@
             <div class="si-field"><label>Nhánh</label><input id="bkBranch" value="main" style="max-width:120px"></div>
             <div class="si-field"><label>Tự đồng bộ mỗi (giờ)</label><input type="number" id="bkInterval" min="1" value="6" style="max-width:120px"></div>
             <div class="si-field"><label>Tự động</label><button class="si-chip" id="bkAuto">○ Tắt</button></div>
+            <div class="si-field"><label>Đồng bộ cả ảnh</label><button class="si-chip" id="bkAnh">○ Tắt</button></div>
           </div>
+          <div class="dim" style="font-size:12.5px;color:var(--text3);max-width:680px;margin-top:-4px">Bật "Đồng bộ cả ảnh" thì ảnh trong brain (jpg, png, gif, webp - mỗi ảnh tối đa 10MB) cũng lên repo và theo bạn sang máy khác. Cân nhắc trước khi bật: <b>git nhớ mãi mãi</b> - ảnh đã đẩy lên nằm vĩnh viễn trong lịch sử repo, tắt sau cũng không lấy lại dung lượng; dùng nhiều máy chung repo thì <b>bật trên mọi máy</b>. Video và file nặng vẫn không bao giờ lên. Khi bật, Javis <b>ngừng tự dọn ảnh cũ trong attachments</b> để ảnh đã backup không tự biến mất theo hạn dọn.</div>
           <div class="si-actions">
             <button class="s-btn-ghost" id="bkTest">${ic("plug")} Kiểm tra kết nối</button>
             <button class="s-btn" id="bkNow">⇅ Đồng bộ ngay</button>
@@ -2176,7 +2187,8 @@
     </div>`;
 
     let cur = { enabled: !!cfg.enabled, mode: cfg.mode || "dry-run",
-                caps: { memory: !!caps.memory, wiki: !!caps.wiki, skill: !!caps.skill, task: !!caps.task },
+                caps: { memory: !!caps.memory, wiki: !!caps.wiki, skill: !!caps.skill,
+                        agent: !!caps.agent, workflow: !!caps.workflow, task: !!caps.task },
                 curator: !!(cfg.curator || {}).enabled };
     const modeDescEl = el.querySelector("#lnModeDesc");
     el.querySelectorAll("#lnModes .si-chip").forEach(c => c.onclick = () => {
@@ -2211,6 +2223,8 @@
       f.append("cap_memory", cur.caps.memory ? "1" : "0");
       f.append("cap_wiki", cur.caps.wiki ? "1" : "0");
       f.append("cap_skill", cur.caps.skill ? "1" : "0");
+      f.append("cap_agent", cur.caps.agent ? "1" : "0");
+      f.append("cap_workflow", cur.caps.workflow ? "1" : "0");
       f.append("cap_task", cur.caps.task ? "1" : "0");
       f.append("curator_enabled", cur.curator ? "1" : "0");
       f.append("brain", fbrain());
@@ -2263,9 +2277,11 @@
             `<div class="dim" style="color:var(--text3)">Chưa có nhật ký học.</div>`);
     }
     // ── Backup GitHub ──
-    let bkAutoOn = false;
+    let bkAutoOn = false, bkAnhOn = false;
     const bkAutoBtn = el.querySelector("#bkAuto");
     bkAutoBtn.onclick = () => { bkAutoOn = !bkAutoOn; bkAutoBtn.classList.toggle("sel", bkAutoOn); bkAutoBtn.textContent = bkAutoOn ? "● Bật" : "○ Tắt"; };
+    const bkAnhBtn = el.querySelector("#bkAnh");
+    bkAnhBtn.onclick = () => { bkAnhOn = !bkAnhOn; bkAnhBtn.classList.toggle("sel", bkAnhOn); bkAnhBtn.textContent = bkAnhOn ? "● Bật" : "○ Tắt"; };
     async function bkSaveCfg() {
       const f = new FormData();
       f.append("repo_url", el.querySelector("#bkRepo").value.trim());
@@ -2274,6 +2290,7 @@
       f.append("branch", el.querySelector("#bkBranch").value.trim() || "main");
       f.append("interval_hours", el.querySelector("#bkInterval").value || "6");
       f.append("enabled", bkAutoOn ? "1" : "0");
+      f.append("sync_images", bkAnhOn ? "1" : "0");
       return (await fetch("/backup/config", { method: "POST", body: f })).json();
     }
     el.querySelector("#bkSave").onclick = async () => { const b = el.querySelector("#bkSave"); b.textContent = "Đang lưu..."; await bkSaveCfg(); b.innerHTML = CHECK_ICON + " Đã lưu"; setTimeout(() => b.innerHTML = SAVE_ICON + " Lưu cấu hình", 1500); loadBackup(); };
@@ -2298,7 +2315,7 @@
         // Media bị bỏ qua phải NÓI RA. Im lặng thì có ngày người dùng tưởng ảnh của mình
         // cũng đã được sao lưu, tới lúc mất máy mới biết là không.
         const mq = r.media_bo_qua
-          ? `<div style="color:var(--text3);font-size:12.5px;margin-top:3px">Bỏ qua ${r.media_bo_qua} file media${r.media_bytes ? " (" + _humanSize(r.media_bytes) + ")" : ""} - git chỉ giữ chữ. Chúng vẫn nằm nguyên trên máy này; muốn có bản sao thì dùng Drive hoặc ổ ngoài.</div>` : "";
+          ? `<div style="color:var(--text3);font-size:12.5px;margin-top:3px">Bỏ qua ${r.media_bo_qua} file media${r.media_bytes ? " (" + _humanSize(r.media_bytes) + ")" : ""}${bkAnhOn ? " (video, file nặng, ảnh quá 10MB)" : " - git chỉ giữ chữ"}. Chúng vẫn nằm nguyên trên máy này; muốn có bản sao thì dùng Drive hoặc ổ ngoài.</div>` : "";
         el.querySelector("#bkStatus").innerHTML = `<span style="color:var(--green)">${CHECK_ICON} Đồng bộ xong${bits.length ? " - " + bits.join(", ") : " - hai bên đã khớp nhau"}.</span>${cf}${mq}`;
       } else {
         el.querySelector("#bkStatus").innerHTML = `<span style="color:var(--red)">${ic("circle-x")} ${esc(r.error || "lỗi")}</span>`;
@@ -2311,6 +2328,7 @@
       el.querySelector("#bkInterval").value = s.interval_hours || 6;
       if (s.token_set && !el.querySelector("#bkToken").value) el.querySelector("#bkToken").placeholder = "Đã lưu, để trống nếu giữ nguyên";
       bkAutoOn = !!s.enabled; bkAutoBtn.classList.toggle("sel", bkAutoOn); bkAutoBtn.textContent = bkAutoOn ? "● Bật" : "○ Tắt";
+      bkAnhOn = !!s.sync_images; bkAnhBtn.classList.toggle("sel", bkAnhOn); bkAnhBtn.textContent = bkAnhOn ? "● Bật" : "○ Tắt";
       const when = s.last_backup ? new Date(s.last_backup * 1000).toLocaleString() : "chưa đồng bộ";
       const gitNote = s.has_git ? "" : " · " + WARN_ICON + " máy chưa cài git (cần git để đồng bộ)";
       const brainsNote = s.brains_count != null ? ` · ${s.brains_count} brain trong thư mục brains` : "";
@@ -2331,59 +2349,62 @@
     const spec = _PRIO[p];
     return spec ? ic(spec[0], { cls: spec[1] }) : "";
   }
+  // Bảng TÊN KHOÁ chứ không phải chữ: file này nạp trước khi từ điển i18n về, đọc t() ở đây
+  // là đóng băng nhãn ở giá trị lúc chưa có. Tra chữ bằng _kstatus() tại thời điểm vẽ.
   const _KSTATUS = {
-    triage: "AI đang đặc tả", todo: "Chờ phụ thuộc", ready: "Trong hàng đợi",
-    running: "Đang chạy", review: "Cần duyệt ngoại lệ", blocked: "Cần xử lý",
-    done: "Hoàn thành", cancelled: "Đã huỷ",
+    triage: "kanban.st_triage", todo: "kanban.st_todo", ready: "kanban.st_ready",
+    running: "kanban.st_running", review: "kanban.st_review", blocked: "kanban.st_blocked",
+    done: "kanban.st_done", cancelled: "kanban.st_cancelled",
   };
+  const _kstatus = (s) => (_KSTATUS[s] ? t(_KSTATUS[s]) : s);
   async function renderKanban(el) {
     _injectExtraCss();
     if (window._javisKanbanDrawerCleanup) window._javisKanbanDrawerCleanup();
-    el.innerHTML = `<div class="cview-section"><div class="empty">Đang tải...</div></div>`;
+    el.innerHTML = `<div class="cview-section"><div class="empty">${esc(t("common.loading"))}</div></div>`;
     let wfs = [];
     try { wfs = (await (await fetch(`/workflows?brain=${encodeURIComponent(fbrain())}`)).json()).workflows || []; } catch (e) {}
-    const routeOpts = `<option value="auto">AI tự chọn worker</option>` +
+    const routeOpts = `<option value="auto">${esc(t("kanban.route_auto"))}</option>` +
       wfs.map(w => `<option value="wf:${esc(w.slug)}">Workflow: ${esc(w.name || w.slug)}</option>`).join("");
 
     el.innerHTML = `<div class="cview-section">
       <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap">
         <div>
           <div style="font-size:16px;color:var(--text);font-weight:650"><span class="kn-dot off" id="knLiveDot"></span><span id="knLiveText">Dispatcher</span></div>
-          <p style="color:var(--text3);font-size:13px;max-width:680px;margin:6px 0 0">AI tự đặc tả goal, chọn capability, claim task và chạy worker nền. Màn hình này dùng để quan sát và xử lý ngoại lệ.</p>
+          <p style="color:var(--text3);font-size:13px;max-width:680px;margin:6px 0 0">${esc(t("kanban.intro"))}</p>
         </div>
         <div class="si-actions" style="margin:0">
-          <button class="s-btn" id="knAdd">+ Giao goal</button>
-          <button class="s-btn-ghost" id="knNudge">Chạy nhịp ngay</button>
+          <button class="s-btn" id="knAdd">${esc(t("kanban.add"))}</button>
+          <button class="s-btn-ghost" id="knNudge">${esc(t("kanban.nudge"))}</button>
           <button class="s-btn-ghost" id="knRefresh">↻</button>
-          <button class="s-btn-ghost" id="knStop" style="color:var(--warn-ink)">Tạm dừng AI</button>
+          <button class="s-btn-ghost" id="knStop" style="color:var(--warn-ink)">${esc(t("kanban.stop"))}</button>
         </div>
       </div>
       <div class="kn-health">
-        <div class="kn-kpi"><span>Worker đang chạy</span><b id="knKpiActive">0</b></div>
-        <div class="kn-kpi"><span>Đang chờ</span><b id="knKpiQueue">0</b></div>
-        <div class="kn-kpi"><span>Cần bạn xử lý</span><b id="knKpiAttention">0</b></div>
-        <div class="kn-kpi"><span>Hoàn thành 24h</span><b id="knKpiDone">0</b></div>
+        <div class="kn-kpi"><span>${esc(t("kanban.kpi_active"))}</span><b id="knKpiActive">0</b></div>
+        <div class="kn-kpi"><span>${esc(t("kanban.kpi_queue"))}</span><b id="knKpiQueue">0</b></div>
+        <div class="kn-kpi"><span>${esc(t("kanban.kpi_attention"))}</span><b id="knKpiAttention">0</b></div>
+        <div class="kn-kpi"><span>${esc(t("kanban.kpi_done"))}</span><b id="knKpiDone">0</b></div>
       </div>
-      <div class="si-field" style="margin-bottom:14px"><label>Chế độ dispatcher</label><div class="si-row" id="knOrch"></div></div>
+      <div class="si-field" style="margin-bottom:14px"><label>${esc(t("kanban.orch_label"))}</label><div class="si-row" id="knOrch"></div></div>
       <div id="knForm" style="display:none;margin-bottom:14px;padding:14px;border:1px solid var(--hairline);border-radius:10px;background:var(--surface-1)">
-        <div class="si-field"><label>Goal</label><input id="knTitle" placeholder="Ví dụ: Phân tích sản phẩm bán chạy tuần này và soạn 3 bài đăng"></div>
-        <div class="si-field"><label>Ngữ cảnh và đầu ra mong muốn</label><textarea id="knIntent" placeholder="Có thể viết tự nhiên. AI specifier sẽ chuẩn hoá, chọn worker và điều kiện hoàn thành."></textarea></div>
+        <div class="si-field"><label>Goal</label><input id="knTitle" placeholder="${esc(t("kanban.title_ph"))}"></div>
+        <div class="si-field"><label>${esc(t("kanban.intent_label"))}</label><textarea id="knIntent" placeholder="${esc(t("kanban.intent_ph"))}"></textarea></div>
         <div class="si-row" style="gap:14px;flex-wrap:wrap">
           <div class="si-field" style="flex:1;min-width:220px"><label>Route</label><select id="knRoute" class="loop-sel">${routeOpts}</select></div>
-          <div class="si-field"><label>Ưu tiên</label><select id="knPrio" class="loop-sel"><option value="1">Cao</option><option value="2" selected>Vừa</option><option value="3">Thấp</option></select></div>
-          <div class="si-field"><label>Ngoại lệ</label><label class="auto-learn" style="margin-top:8px"><input type="checkbox" id="knApprove"><span>Yêu cầu duyệt kết quả</span></label></div>
+          <div class="si-field"><label>${esc(t("kanban.prio"))}</label><select id="knPrio" class="loop-sel"><option value="1">${esc(t("kanban.prio_high"))}</option><option value="2" selected>${esc(t("kanban.prio_mid"))}</option><option value="3">${esc(t("kanban.prio_low"))}</option></select></div>
+          <div class="si-field"><label>${esc(t("kanban.exception"))}</label><label class="auto-learn" style="margin-top:8px"><input type="checkbox" id="knApprove"><span>${esc(t("kanban.need_approve"))}</span></label></div>
         </div>
-        <div class="si-actions"><button class="s-btn" id="knSave">Giao cho AI</button><button class="s-btn-ghost" id="knCancel">Huỷ</button></div>
+        <div class="si-actions"><button class="s-btn" id="knSave">${esc(t("kanban.save"))}</button><button class="s-btn-ghost" id="knCancel">${esc(t("common.cancel"))}</button></div>
       </div>
       <div class="kn-layout" id="knOps">
-        <div style="display:flex;flex-direction:column;gap:14px">
-          <section class="kn-panel"><div class="kn-panel-head"><b>Đang hoạt động</b><span id="knActiveCount">0 worker</span></div><div class="kn-list" id="knActive"></div></section>
-          <section class="kn-panel"><div class="kn-panel-head"><b>Hàng đợi AI</b><span id="knQueueCount">0 task</span></div><div class="kn-list" id="knQueue"></div></section>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:14px">
-          <section class="kn-panel"><div class="kn-panel-head"><b style="color:var(--accent-ink)">Cần bạn xử lý</b><span id="knAttentionCount">0 ngoại lệ</span></div><div class="kn-list" id="knAttention"></div></section>
-          <section class="kn-panel"><div class="kn-panel-head"><b>Lịch sử gần đây</b><span>24 giờ và mới nhất</span></div><div class="kn-list" id="knHistory"></div></section>
-        </div>
+        <section class="kn-panel"><div class="kn-panel-head"><b style="color:var(--accent-ink)">${esc(t("kanban.kpi_attention"))}</b>
+          <span class="kn-head-right"><span id="knAttentionCount">0 ${esc(t("kanban.exceptions"))}</span>
+          <button class="kn-wipe" id="knWipeAttention" data-panel="attention">${esc(t("kanban.wipe"))}</button></span></div><div class="kn-list" id="knAttention"></div></section>
+        <section class="kn-panel"><div class="kn-panel-head"><b>${esc(t("kanban.p_active"))}</b><span id="knActiveCount">0 worker</span></div><div class="kn-list" id="knActive"></div></section>
+        <section class="kn-panel"><div class="kn-panel-head"><b>${esc(t("kanban.p_queue"))}</b><span id="knQueueCount">0 task</span></div><div class="kn-list" id="knQueue"></div></section>
+        <section class="kn-panel"><div class="kn-panel-head"><b>${esc(t("kanban.p_history"))}</b>
+          <span class="kn-head-right"><span>${esc(t("kanban.p_history_sub"))}</span>
+          <button class="kn-wipe" id="knWipeHistory" data-panel="history">${esc(t("kanban.wipe"))}</button></span></div><div class="kn-list" id="knHistory"></div></section>
       </div>
     </div>`;
 
@@ -2395,10 +2416,10 @@
       <div class="kn-drawer-backdrop" id="knDrawerBackdrop"></div>
       <aside class="kn-drawer" id="knDrawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="knDrawerTitle">
         <div class="kn-drawer-head">
-          <b id="knDrawerTitle">Chi tiết task</b>
-          <button id="knDrawerClose" type="button" aria-label="Đóng chi tiết" title="Đóng (Esc)">×</button>
+          <b id="knDrawerTitle">${esc(t("kanban.detail"))}</b>
+          <button id="knDrawerClose" type="button" aria-label="${esc(t("kanban.close_detail"))}" title="${esc(t("kanban.close_esc"))}">×</button>
         </div>
-        <div class="kn-drawer-body" id="knDrawerBody">Đang tải...</div>
+        <div class="kn-drawer-body" id="knDrawerBody">${esc(t("common.loading"))}</div>
       </aside>`;
     document.body.appendChild(drawerPortal);
     const drawer = drawerPortal.querySelector("#knDrawer");
@@ -2440,7 +2461,7 @@
     el.querySelector("#knNudge").onclick = async () => { const b = el.querySelector("#knNudge"); b.disabled = true; await post("/kanban/nudge"); b.disabled = false; load(); };
     el.querySelector("#knSave").onclick = async () => {
       const title = el.querySelector("#knTitle").value.trim();
-      if (!title) { alert("Nhập tiêu đề"); return; }
+      if (!title) { alert(t("kanban.need_title")); return; }
       await post("/kanban/task", {
         title, intent: el.querySelector("#knIntent").value.trim() || title,
         route: el.querySelector("#knRoute").value, priority: el.querySelector("#knPrio").value,
@@ -2452,18 +2473,23 @@
 
     function ago(ts) {
       const sec = Math.max(0, Date.now() / 1000 - Number(ts || 0));
-      if (sec < 60) return "vừa xong";
-      if (sec < 3600) return `${Math.floor(sec / 60)} phút`;
-      if (sec < 86400) return `${Math.floor(sec / 3600)} giờ`;
-      return `${Math.floor(sec / 86400)} ngày`;
+      if (sec < 60) return t("kanban.ago_now");
+      if (sec < 3600) return t("kanban.ago_min", { n: Math.floor(sec / 60) });
+      if (sec < 86400) return t("kanban.ago_hour", { n: Math.floor(sec / 3600) });
+      return t("kanban.ago_day", { n: Math.floor(sec / 86400) });
     }
 
     function taskActions(t) {
       const acts = [];
-      if (t.status === "review") acts.push(`<button data-act="done" data-id="${esc(t.id)}">${CHECK_ICON} Duyệt ngoại lệ</button>`);
-      if (t.status === "blocked" || t.status === "review") acts.push(`<button data-act="retry" data-id="${esc(t.id)}">↻ Thử lại</button>`);
-      if (t.status === "running") acts.push(`<button data-act="cancel" data-id="${esc(t.id)}">Dừng task</button>`);
-      if (t.status !== "running") acts.push(`<button class="danger" data-act="archive" data-id="${esc(t.id)}">Xóa khỏi bảng</button>`);
+      // Việc dừng lại vì CHƯA ĐƯỢC CẤP QUYỀN thao tác ra ngoài: nút đầu tiên phải là nút cấp
+      // quyền, và "Thử lại" thì BỎ ĐI. Thử lại ở đây chạy lại đúng nhánh chặn rồi chặn lại y
+      // hệt, kèm một tiếng chuông nữa - bày ra một cái nút không bao giờ dẫn tới đâu.
+      const canQuyen = t.status === "blocked" && t.block_kind === "capability";
+      if (canQuyen) acts.push(`<button data-act="grant" data-id="${esc(t.id)}">${esc(window.t("kanban.act_grant"))}</button>`);
+      if (t.status === "review") acts.push(`<button data-act="done" data-id="${esc(t.id)}">${CHECK_ICON} ${esc(window.t("kanban.act_approve"))}</button>`);
+      if (!canQuyen && (t.status === "blocked" || t.status === "review")) acts.push(`<button data-act="retry" data-id="${esc(t.id)}">↻ ${esc(window.t("kanban.act_retry"))}</button>`);
+      if (t.status === "running") acts.push(`<button data-act="cancel" data-id="${esc(t.id)}">${esc(window.t("kanban.act_stop"))}</button>`);
+      if (t.status !== "running") acts.push(`<button class="danger" data-act="archive" data-id="${esc(t.id)}">${esc(window.t("kanban.act_archive"))}</button>`);
       return acts;
     }
 
@@ -2472,7 +2498,7 @@
       const reason = t.block_reason ? `<div class="kn-task-result" style="color:var(--red)">${esc(t.block_reason)}</div>` : "";
       const result = !reason && t.result ? `<div class="kn-task-result">${esc(t.result.slice(0, 240))}</div>` : "";
       return `<div class="kn-task" data-task="${esc(t.id)}">
-        <div class="kn-task-top"><div class="kn-task-title">${_prioIcon(t.priority)} ${esc(t.title)}</div><span class="kn-pill">${esc(_KSTATUS[t.status] || t.status)}</span></div>
+        <div class="kn-task-top"><div class="kn-task-title">${_prioIcon(t.priority)} ${esc(t.title)}</div><span class="kn-pill">${esc(_kstatus(t.status))}</span></div>
         <div class="kn-task-meta"><span>${esc(t.capability || "auto")}</span><span>attempt ${Number(t.attempts || 0)}/${Number(t.max_attempts || 3)}</span><span>${ago(t.updated_at)}</span></div>
         ${reason}${result}
         ${acts.length ? `<div class="kn-actions">${acts.join("")}</div>` : ""}
@@ -2480,18 +2506,22 @@
     }
 
     function fillList(node, items, area) {
-      node.innerHTML = items.length ? items.map(t => taskHtml(t, area)).join("") : `<div class="kn-empty">${area === "attention" ? "Không có ngoại lệ. AI đang tự vận hành bình thường." : "Chưa có task."}</div>`;
+      node.innerHTML = items.length ? items.map(x => taskHtml(x, area)).join("") : `<div class="kn-empty">${esc(area === "attention" ? t("kanban.empty_attention") : t("kanban.empty"))}</div>`;
     }
 
     async function doTaskAction(id, act) {
-      if (act === "archive" && !confirm("Xóa task này khỏi bảng? Task sẽ được lưu trữ để không mất lịch sử.")) return false;
+      if (act === "archive" && !confirm(t("kanban.confirm_archive"))) return false;
+      // Cấp toàn quyền là cho việc TỰ THAO TÁC THẬT ra ngoài và không hoàn tác được, nên phải
+      // hỏi lại bằng đúng chữ nói ra hậu quả, không phải một câu "bạn chắc chứ".
+      if (act === "grant" && !confirm(t("kanban.confirm_grant"))) return false;
       let result;
       if (act === "retry") result = await post("/kanban/task/retry", { id });
+      else if (act === "grant") result = await post("/kanban/task/grant", { id });
       else if (act === "cancel") result = await post("/kanban/task/cancel", { id });
       else if (act === "archive") result = await post("/kanban/task/delete", { id });
       else result = await post("/kanban/task/move", { id, status: act });
       if (!result || !result.ok) {
-        alert((result && result.error) || "Không thể cập nhật task");
+        alert((result && result.error) || t("kanban.cant_update"));
         return false;
       }
       closeDrawer();
@@ -2513,22 +2543,34 @@
       bindActionButtons(el);
     }
 
+    // Xoá tất cả của một khu. Hai khu hai hậu quả khác nhau nên hỏi bằng hai câu khác nhau:
+    // khu Cần bạn xử lý chỉ dọn khỏi bảng (vẫn tra lại được), khu Lịch sử là xoá hẳn.
+    el.querySelectorAll(".kn-wipe").forEach(b => b.onclick = async () => {
+      const khu = b.dataset.panel;
+      if (!confirm(t(khu === "attention" ? "kanban.confirm_wipe_attention" : "kanban.confirm_wipe_history"))) return;
+      b.disabled = true;
+      const r = await post("/kanban/panel/clear", { panel: khu });
+      b.disabled = false;
+      if (!r || !r.ok) { alert((r && r.error) || t("kanban.cant_update")); return; }
+      await load();
+    });
+
     async function showTask(id) {
       openDrawer();
-      drawerBody.innerHTML = "Đang tải...";
+      drawerBody.innerHTML = esc(t("common.loading"));
       let d = {}; try { d = await (await fetch(`/kanban/task/show?brain=${encodeURIComponent(fbrain())}&id=${encodeURIComponent(id)}`)).json(); } catch (e) {}
-      if (!d.ok) { drawerBody.innerHTML = `<span style="color:var(--red)">${esc(d.error || "Không tải được task")}</span>`; return; }
+      if (!d.ok) { drawerBody.innerHTML = `<span style="color:var(--red)">${esc(d.error || t("kanban.cant_load"))}</span>`; return; }
       const t = d.task || {}, events = d.events || [], runs = d.runs || [];
       const acts = taskActions(t);
-      drawerTitle.textContent = t.title || "Chi tiết task";
+      drawerTitle.textContent = t.title || window.t("kanban.detail");
       drawerBody.innerHTML = `
         <div style="color:var(--text);white-space:pre-wrap">${esc(t.intent || "")}</div>
-        <div class="kn-task-meta" style="margin-top:10px"><span>${esc(_KSTATUS[t.status] || t.status)}</span><span>${esc(t.capability || "auto")}</span><span>mode ${esc(t.execution_mode || "auto")}</span><span>ưu tiên ${Number(t.priority || 2)}</span></div>
+        <div class="kn-task-meta" style="margin-top:10px"><span>${esc(_kstatus(t.status))}</span><span>${esc(t.capability || "auto")}</span><span>mode ${esc(t.execution_mode || "auto")}</span><span>${esc(window.t("kanban.prio_lc"))} ${Number(t.priority || 2)}</span></div>
         ${acts.length ? `<div class="kn-actions" style="margin-top:14px">${acts.join("")}</div>` : ""}
-        ${t.block_reason ? `<div class="kn-detail-block"><h4>Lý do bị chặn</h4><div style="color:var(--red)">${esc(t.block_reason)}</div></div>` : ""}
-        ${t.result ? `<div class="kn-detail-block"><h4>Kết quả</h4><div style="white-space:pre-wrap">${esc(t.result)}</div></div>` : ""}
-        <div class="kn-detail-block"><h4>Lần chạy (${runs.length})</h4>${runs.length ? runs.map(r => `<div class="kn-event"><b>${esc(r.status)}</b> · ${new Date(Number(r.started_at || 0) * 1000).toLocaleString()}${r.error ? `<div style="color:var(--red)">${esc(r.error)}</div>` : ""}</div>`).join("") : `<div class="dim">Chưa chạy</div>`}</div>
-        <div class="kn-detail-block"><h4>Nhật ký lifecycle</h4>${events.length ? events.map(v => `<div class="kn-event"><b>${esc(v.event_type)}</b> · ${new Date(Number(v.created_at || 0) * 1000).toLocaleString()}<div>${esc(v.message || "")}</div></div>`).join("") : `<div class="dim">Chưa có sự kiện</div>`}</div>`;
+        ${t.block_reason ? `<div class="kn-detail-block"><h4>${esc(window.t("kanban.blocked_reason"))}</h4><div style="color:var(--red)">${esc(t.block_reason)}</div></div>` : ""}
+        ${t.result ? `<div class="kn-detail-block"><h4>${esc(window.t("kanban.result"))}</h4><div style="white-space:pre-wrap">${esc(t.result)}</div></div>` : ""}
+        <div class="kn-detail-block"><h4>${esc(window.t("kanban.runs"))} (${runs.length})</h4>${runs.length ? runs.map(r => `<div class="kn-event"><b>${esc(r.status)}</b> · ${new Date(Number(r.started_at || 0) * 1000).toLocaleString()}${r.error ? `<div style="color:var(--red)">${esc(r.error)}</div>` : ""}</div>`).join("") : `<div class="dim">${esc(window.t("kanban.no_runs"))}</div>`}</div>
+        <div class="kn-detail-block"><h4>${esc(window.t("kanban.lifecycle"))}</h4>${events.length ? events.map(v => `<div class="kn-event"><b>${esc(v.event_type)}</b> · ${new Date(Number(v.created_at || 0) * 1000).toLocaleString()}<div>${esc(v.message || "")}</div></div>`).join("") : `<div class="dim">${esc(window.t("kanban.no_events"))}</div>`}</div>`;
       bindActionButtons(drawerBody);
     }
 
@@ -2539,22 +2581,26 @@
       const ops = d.operations || {}, active = ops.active || [], attention = ops.attention || [], queue = ops.queue || [], history = ops.history || [];
       const live = !!(d.dispatcher && d.dispatcher.running), dot = el.querySelector("#knLiveDot");
       dot.classList.toggle("live", live); dot.classList.toggle("off", !live);
-      el.querySelector("#knLiveText").textContent = live ? `Dispatcher đang chạy · tối đa ${Number(d.dispatcher.max_workers || 0)} worker` : "Dispatcher chưa chạy";
+      el.querySelector("#knLiveText").textContent = live ? t("kanban.disp_on", { n: Number(d.dispatcher.max_workers || 0) }) : t("kanban.disp_off");
       el.querySelector("#knKpiActive").textContent = Number(d.dispatcher.active_workers || active.length);
       el.querySelector("#knKpiQueue").textContent = queue.length;
       el.querySelector("#knKpiAttention").textContent = attention.length;
       el.querySelector("#knKpiDone").textContent = Number(d.completed_24h || 0);
       el.querySelector("#knActiveCount").textContent = `${active.length} worker`;
       el.querySelector("#knQueueCount").textContent = `${queue.length} task`;
-      el.querySelector("#knAttentionCount").textContent = `${attention.length} ngoại lệ`;
+      el.querySelector("#knAttentionCount").textContent = `${attention.length} ${t("kanban.exceptions")}`;
       const orch = el.querySelector("#knOrch");
-      orch.innerHTML = [["off", "Tắt"], ["manual", "Quan sát"], ["auto", "AI tự vận hành"]]
-        .map(([v, l]) => `<button class="si-chip ${d.orchestration === v ? "sel" : ""}" data-orch="${v}">${l}</button>`).join("");
+      orch.innerHTML = [["off", t("settings.tag_off")], ["manual", t("kanban.orch_manual")], ["auto", t("kanban.orch_auto")]]
+        .map(([v, l]) => `<button class="si-chip ${d.orchestration === v ? "sel" : ""}" data-orch="${v}">${esc(l)}</button>`).join("");
       orch.querySelectorAll(".si-chip").forEach(c => c.onclick = async () => { await post("/kanban/orchestration", { mode: c.dataset.orch }); load(); });
       fillList(el.querySelector("#knActive"), active, "active");
       fillList(el.querySelector("#knQueue"), queue, "queue");
       fillList(el.querySelector("#knAttention"), attention, "attention");
       fillList(el.querySelector("#knHistory"), history.slice(0, 20), "history");
+      // Khu rỗng thì nút Xoá tất cả xám đi: bấm được một nút không xoá gì cả chỉ làm người ta
+      // nghi ngờ là nó có chạy hay không.
+      el.querySelector("#knWipeAttention").disabled = !attention.length;
+      el.querySelector("#knWipeHistory").disabled = !history.length;
       bindActions();
     }
     load();
@@ -2582,7 +2628,7 @@
 
   // ---- Trang Tổng quan ----
   async function renderOverview(el) {
-    el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>Đang tải...</div></div>`;
+    el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>${esc(t("common.loading"))}</div></div>`;
     const s = await freshSettings();
     const m = s.model || {};
     // Đọc từ model.main + model.providers (nguồn thật của trang Models), KHÔNG từ m.engine -
@@ -2865,8 +2911,404 @@
   }
 
   // ---- Trang Models: (A) Main Model + (B) Providers ----
+  // ===== Trang Models: hai tab =====
+  // Cloud (nhà cung cấp gọi qua mạng) và Local (Ollama chạy trên máy). Tách vì hai bên trả
+  // lời hai câu hỏi khác nhau - "dùng khoá của ai" với "máy nào chạy, model nào vừa sức" -
+  // và nhồi chung một trang thì phần Local bị đẩy xuống dưới mười cái card không liên quan.
+  // Tab đang chọn giữ trong biến module: nó là chỗ đứng trên MỘT máy, không phải cấu hình.
+  let _modelTab = "cloud";
+
   async function renderModels(el) {
-    el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>Đang tải...</div></div>`;
+    const tab = (k, ico, nhan) =>
+      `<button class="mtab${_modelTab === k ? " act" : ""}" data-mtab="${k}" type="button">` +
+      ic(ico) + " " + esc(nhan) + "</button>";
+    el.innerHTML =
+      '<div class="mtabs">' +
+        tab("cloud", "globe", t("models.tab_cloud")) +
+        tab("local", "cpu", t("models.tab_local")) +
+      '</div><div class="mtab-pane" id="mTabPane"></div>';
+    el.querySelectorAll(".mtab").forEach((b) => {
+      b.onclick = () => { _modelTab = b.dataset.mtab; renderModels(el); };
+    });
+    const pane = el.querySelector("#mTabPane");
+    if (_modelTab === "local") await renderModelsLocalTab(pane);
+    else await renderModelsCloudTab(pane);
+  }
+
+  // ===== Tab Local Model (Ollama chạy trên máy) =====
+  // HAI trạng thái chứ không ba như bản demo. Demo có "đang cài Ollama" vì nó giả định Javis
+  // tự chạy được lệnh cài trên máy người dùng - chỉ đúng khi Javis chạy native. Bản Docker/VPS
+  // không có quyền, cũng không có đường, chạy lệnh trên máy vật lý của người ta. Nên ở đây
+  // chỉ còn: CHƯA NỐI (hiện lệnh cài để người dùng tự chạy trong terminal máy thật) và ĐÃ NỐI.
+  const OL_LENH = {
+    linux: "curl -fsSL https://ollama.com/install.sh | sh",
+    mac: "brew install ollama   # hoặc tải bản .dmg ở ollama.com/download",
+    windows: "winget install Ollama.Ollama",
+  };
+  // Bản Docker cần NHIỀU HƠN một lệnh cài. Bản 0.55.0 chỉ nói "cài trên máy thật rồi điền địa
+  // chỉ", và chủ repo dán ngay lệnh đó vào terminal của Javis (02/09) - dễ hiểu, vì nút copy
+  // nằm ngay cạnh mà app thì có sẵn một cái terminal. Nhưng kể cả cài đúng chỗ vẫn còn hai bức
+  // tường nữa: Ollama mặc định chỉ nghe 127.0.0.1 nên container không với tới, và không ai
+  // đoán được phải điền địa chỉ cầu nối Docker. Thiếu một trong hai là "không nối được" mà
+  // không hiểu vì sao.
+  // Gắn vào ĐÚNG địa chỉ cầu nối Docker chứ không phải 0.0.0.0: chỉ container trên máy này gọi
+  // được, nên không cần bước tường lửa nào nữa. Vụ thật 02/09: Ollama trên VPS đã chạy sẵn,
+  // thiếu đúng bước này; mà hướng dẫn cũ bảo mở 0.0.0.0 rồi bật ufw - VPS đó ufw đang tắt,
+  // bật mù là có thể tự khoá luôn SSH. Dò không ra cổng thì mới rơi về 0.0.0.0, kèm cảnh báo.
+  // Ghi bằng file override thay vì lệnh sửa unit của systemd (mở trình soạn thảo, không dán được).
+  function olLenhNghe(st) {
+    const host = (st && st.docker_gateway ? st.docker_gateway : "0.0.0.0") + ":11434";
+    return "sudo mkdir -p /etc/systemd/system/ollama.service.d\n" +
+      "printf '[Service]\\nEnvironment=\"OLLAMA_HOST=" + host + "\"\\n' | sudo tee /etc/systemd/system/ollama.service.d/override.conf\n" +
+      "sudo systemctl daemon-reload && sudo systemctl restart ollama";
+  }
+  // (Hằng OL_DIA_CHI_DOCKER = "http://172.17.0.1:11434" ĐÃ BỎ.) 172.17.0.1 là cổng của mạng
+  // bridge MẶC ĐỊNH, chỉ đúng với `docker run` trần. Javis cài bằng compose thì nằm trên mạng
+  // riêng của project (172.18.x trở đi), nên con số đó SAI với gần như mọi bản cài - điền
+  // đúng theo hướng dẫn vẫn không nối được. Nay server dò cổng thật và trả về `goi_y_endpoint`.
+
+  const OL_LENH_TIM_CONG = "docker exec javis ip route | grep default";
+
+  function olGb(n) { return (Math.round((n || 0) * 10) / 10) + " GB"; }
+
+  async function renderModelsLocalTab(el) {
+    el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>${esc(t("common.loading"))}</div></div>`;
+    let st = {};
+    try { st = await (await fetch("/ollama-local/status")).json(); } catch (e) { st = {}; }
+    if (!st.reachable) return olVeChuaNoi(el, st);
+    return olVeDaNoi(el, st);
+  }
+
+  function olVeChuaNoi(el, st) {
+    const lenh = OL_LENH[st.host_platform] || OL_LENH.linux;
+    // Docker/VPS: máy chạy Javis KHÔNG phải máy người dùng, nên câu hướng dẫn phải khác hẳn -
+    // bảo họ chạy lệnh "trên máy này" là bảo họ cài Ollama vào trong container.
+    const xa = st.deploy_mode === "docker";
+    const lenhNghe = olLenhNghe(st);
+    el.innerHTML =
+      '<div class="gcard ol-empty">' +
+        '<div class="ol-empty-ico">' + ic("cpu", { cls: "ic-xl" }) + "</div>" +
+        '<div class="ol-empty-title">' + esc(t("ol.title")) + "</div>" +
+        '<div class="ol-empty-desc">' + esc(t("ol.desc")) + "</div>" +
+        (xa ? '<div class="ol-note">' + ic("info") + "<span>" + esc(t("ol.note_docker")) + "</span></div>"
+            : '<div class="ol-note">' + ic("info") + "<span>" + esc(t("ol.note_native")) + "</span></div>") +
+        (xa
+          ? '<div class="ol-note ol-warn">' + ic("triangle-alert") + "<span>" + esc(t("ol.dk_cham")) + "</span></div>" +
+            '<div class="ol-step">' + esc(t("ol.dk_title")) + "</div>" +
+            '<div class="ol-buoc">1. ' + esc(t("ol.dk_b1")) + "</div>" +
+            '<div class="ol-buoc">2. ' + esc(t("ol.dk_b2")) + "</div>" +
+            '<div class="ol-cmd"><code>' + esc(lenh) + "</code>" +
+              '<button class="gcard-btn ol-copy" type="button">' + ic("copy") + " " + esc(t("common.copy")) + "</button></div>" +
+            '<div class="ol-buoc">3. ' + esc(t("ol.dk_b3")) + "</div>" +
+            '<div class="ol-cmd"><code>' + esc(lenhNghe) + "</code>" +
+              '<button class="gcard-btn ol-copy2" type="button">' + ic("copy") + " " + esc(t("common.copy")) + "</button></div>" +
+            '<div class="ol-note ol-warn">' + ic("shield") + "<span>" + esc(t("ol.dk_canh_bao")) + "</span></div>" +
+            '<div class="ol-step">' + esc(t("ol.dk_b4")) + "</div>"
+          : '<div class="ol-step">1. ' + esc(t("ol.step_install")) + "</div>" +
+            '<div class="ol-cmd"><code>' + esc(lenh) + "</code>" +
+              '<button class="gcard-btn ol-copy" type="button">' + ic("copy") + " " + esc(t("common.copy")) + "</button></div>" +
+            '<div class="ol-step">2. ' + esc(t("ol.step_endpoint")) + "</div>") +
+        // ĐIỀN SẴN chứ không để trong placeholder. Chủ repo báo 02/09: "ghi điền địa chỉ này
+        // mà không biết là địa chỉ nào" - đúng, vì chữ xám trong ô nhập trông như gợi ý chứ
+        // không như một giá trị, lại còn bị ô hẹp cắt cụt giữa chừng. Dò ra được thì điền
+        // thẳng vào: người dùng chỉ việc bấm Kết nối.
+        '<div class="ol-row">' +
+          '<input class="ol-in ol-ep" placeholder="Ví dụ: http://127.0.0.1:11434"' +
+            (st.goi_y_endpoint ? ' value="' + esc(st.goi_y_endpoint) + '"' : "") + ">" +
+          '<button class="gcard-btn primary ol-noi" type="button">' + esc(t("ol.connect")) + "</button>" +
+        "</div>" +
+        // Dò không ra cổng (mạng Docker lạ, hoặc chạy --network=host) thì nói thẳng là phải
+        // tự tìm, kèm đúng một lệnh tìm. Im lặng để ô trống là đẩy người dùng vào ngõ cụt.
+        (xa && !st.goi_y_endpoint
+          ? '<div class="ol-note ol-warn">' + ic("triangle-alert") + "<span>" +
+            esc(t("ol.dk_khong_do_duoc")) + "</span></div>" +
+            '<div class="ol-cmd"><code>' + esc(OL_LENH_TIM_CONG) + "</code>" +
+              '<button class="gcard-btn ol-copy3" type="button">' + ic("copy") + " " +
+              esc(t("common.copy")) + "</button></div>"
+          : "") +
+        (st.error ? '<div class="ol-err">' + ic("triangle-alert") + "<span>" + esc(st.error) + "</span></div>" : "") +
+        // Đã lưu địa chỉ mà vẫn không nối được thì từ trong container Javis không phân biệt
+        // nổi "chưa cài" với "đã chạy nhưng chỉ nghe 127.0.0.1". Máy chủ thì phân biệt được
+        // bằng đúng một lệnh - đưa lệnh đó và cách đọc kết quả, thay vì để người dùng đoán.
+        (st.error && xa ? '<div class="ol-note">' + ic("terminal") + "<span>" + esc(t("ol.dk_chan_doan")) + "</span></div>" : "") +
+      "</div>";
+    const cop3 = el.querySelector(".ol-copy3");
+    if (cop3) cop3.onclick = () => {
+      try { navigator.clipboard.writeText(OL_LENH_TIM_CONG); } catch (e) {}
+    };
+    const cop = el.querySelector(".ol-copy2");
+    if (cop) cop.onclick = () => {
+      try { navigator.clipboard.writeText(lenhNghe); } catch (e) {}
+    };
+    const inp = el.querySelector(".ol-ep");
+    const noi = async () => {
+      const v = (inp.value || inp.placeholder || "").trim();
+      if (!v) return;
+      const b = el.querySelector(".ol-noi");
+      b.disabled = true; b.textContent = t("ol.connecting");
+      const fd = new FormData(); fd.append("endpoint", v);
+      let r = {};
+      try { r = await (await fetch("/ollama-local/endpoint", { method: "POST", body: fd })).json(); }
+      catch (e) { r = { error: String(e) }; }
+      if (r.reachable) {
+        // Nối được rồi mới cảnh báo: Ollama không có mật khẩu, nên một địa chỉ công khai
+        // nghĩa là cả Internet gọi được model đó. Nói lúc này thì người dùng còn nhớ mình
+        // vừa gõ gì; nói trong đoạn hướng dẫn phía trên thì ai cũng lướt qua.
+        if (r.canh_bao_cong_khai) alert(t("ol.canh_bao_cong_khai"));
+        return renderModelsLocalTab(el);
+      }
+      b.disabled = false; b.textContent = t("ol.connect");
+      alert((r.error || t("ol.err_connect")));
+      // Địa chỉ đã được lưu dù chưa nối được; vẽ lại để /status trả lỗi kèm dòng chẩn đoán.
+      renderModelsLocalTab(el);
+    };
+    el.querySelector(".ol-noi").onclick = noi;
+    inp.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); noi(); } };
+    el.querySelector(".ol-copy").onclick = () => {
+      try { navigator.clipboard.writeText(lenh); } catch (e) {}
+    };
+  }
+
+  async function olVeDaNoi(el, st) {
+    el.innerHTML =
+      '<div class="gcard ol-conn">' +
+        '<span class="ol-dot on"></span>' +
+        '<div class="grow"><div class="ol-conn-name">' + esc(t("ol.connected")) + "</div>" +
+          '<div class="ol-conn-ep">' + esc(st.endpoint) + "</div></div>" +
+        '<button class="gcard-btn ol-doi" type="button">' + esc(t("ol.change_ep")) + "</button>" +
+      "</div>" +
+      '<div class="ol-sect" id="olSpecs"></div>' +
+      '<div class="ol-sect" id="olRec"></div>' +
+      '<div class="ol-sect" id="olInst"></div>' +
+      '<div class="ol-sect" id="olSearch"></div>';
+    el.querySelector(".ol-doi").onclick = async () => {
+      if (!confirm(t("ol.confirm_change"))) return;
+      const fd = new FormData(); fd.append("endpoint", "");
+      try { await fetch("/ollama-local/endpoint", { method: "POST", body: fd }); } catch (e) {}
+      renderModelsLocalTab(el);
+    };
+    await Promise.all([olVeSpecs(el), olVeGoiY(el), olVeDaCai(el)]);
+    olVeTimKiem(el);
+  }
+
+  async function olVeSpecs(el) {
+    const host = el.querySelector("#olSpecs");
+    let d = {};
+    try { d = await (await fetch("/ollama-local/specs")).json(); } catch (e) { return; }
+    const sp = d.specs || {};
+    const tu = sp.source === "auto";
+    const chip = (ico, nhan) => '<span class="ol-chip">' + ic(ico) + esc(nhan) + "</span>";
+    let than = "";
+    if (sp.source === "unknown") {
+      // Không đoán bừa: nói thẳng là chưa biết, và vì sao lại chưa biết được.
+      than = '<div class="ol-note">' + ic("triangle-alert") + "<span>" + esc(t("ol.specs_unknown")) + "</span></div>";
+    } else {
+      than = '<div class="ol-chips">' +
+        chip("cpu", t("ol.ram") + ": " + olGb(sp.ram_gb)) +
+        (sp.has_gpu ? chip("zap", "GPU" + (sp.vram_gb ? " " + olGb(sp.vram_gb) : "")) 
+                    : chip("circle", t("ol.no_gpu"))) +
+        chip(tu ? "circle-check" : "pencil", tu ? t("ol.specs_auto") : t("ol.specs_manual")) +
+        "</div>";
+    }
+    host.innerHTML = '<h3 class="ol-h">' + ic("cpu") + " " + esc(t("ol.specs_title")) + "</h3>" + than +
+      '<div class="ol-row ol-specs-form">' +
+        '<input class="ol-in ol-ram" type="number" min="0" step="1" placeholder="' + esc(t("ol.ram_ph")) + '" value="' + (sp.ram_gb || "") + '">' +
+        '<input class="ol-in ol-vram" type="number" min="0" step="1" placeholder="' + esc(t("ol.vram_ph")) + '" value="' + (sp.vram_gb || "") + '">' +
+        '<button class="gcard-btn ol-luu-specs" type="button">' + esc(t("ol.save_specs")) + "</button>" +
+      "</div>" +
+      '<div class="ol-hint">' + esc(t("ol.specs_hint")) + "</div>";
+    host.querySelector(".ol-luu-specs").onclick = async () => {
+      const ram = parseFloat(host.querySelector(".ol-ram").value || "0");
+      const vram = parseFloat(host.querySelector(".ol-vram").value || "0");
+      const fd = new FormData();
+      fd.append("ram_gb", ram); fd.append("vram_gb", vram);
+      fd.append("has_gpu", vram > 0 ? "1" : "0");
+      try { await fetch("/ollama-local/specs", { method: "POST", body: fd }); } catch (e) {}
+      await olVeSpecs(el);
+      await olVeGoiY(el);           // gợi ý ăn theo cấu hình, đổi specs mà không vẽ lại là nói dối
+    };
+  }
+
+  function olTheModel(m, ctx) {
+    const nut = m.installed
+      ? '<span class="ol-done">' + ic("circle-check") + " " + esc(t("ol.installed")) + "</span>"
+      : '<button class="gcard-btn primary ol-tai" type="button" data-model="' + esc(m.name) + '">' +
+        ic("download") + " " + esc(t("ol.pull")) + "</button>";
+    return '<div class="ol-card" data-model="' + esc(m.name) + '">' +
+      '<div class="ol-card-top"><span class="ol-card-name">' + esc(m.name) + "</span>" +
+        '<span class="ol-card-size">' + olGb(m.size_gb) + "</span></div>" +
+      '<div class="ol-card-desc">' + esc(m.description || "") + "</div>" +
+      (m.note ? '<div class="ol-card-note">' + esc(m.note) + "</div>" : "") +
+      '<div class="ol-tags">' + (m.tags || []).map(x => '<span class="ol-tag">' + esc(x) + "</span>").join("") + "</div>" +
+      '<div class="ol-card-act">' + nut + "</div>" +
+      "</div>";
+  }
+
+  function olNoiNutTai(host, xong) {
+    host.querySelectorAll(".ol-tai").forEach((b) => {
+      b.onclick = () => olTai(b, xong);
+    });
+  }
+
+  /** Tải một model, đổ tiến độ ngay trên thẻ đó. Huỷ = đóng luồng; Ollama tự tiếp tục từ chỗ
+   *  dở ở lần tải sau nên không mất phần đã tải, và không có gì phải dọn. */
+  function olTai(btn, xong) {
+    const the = btn.closest(".ol-card") || btn.parentElement;
+    const model = btn.dataset.model;
+    const act = btn.parentElement;
+    act.innerHTML =
+      '<div class="ol-prog"><div class="ol-prog-track"><div class="ol-prog-fill"></div></div>' +
+      '<div class="ol-prog-lbl"><span class="ol-prog-txt">' + esc(t("ol.pulling")) + "</span>" +
+      '<button class="gcard-btn ol-huy" type="button">' + esc(t("ol.cancel")) + "</button></div></div>";
+    const fill = act.querySelector(".ol-prog-fill");
+    const txt = act.querySelector(".ol-prog-txt");
+    const ctrl = new AbortController();
+    act.querySelector(".ol-huy").onclick = () => { ctrl.abort(); };
+
+    const fd = new FormData(); fd.append("model", model);
+    fetch("/ollama-local/pull", { method: "POST", body: fd, signal: ctrl.signal })
+      .then(async (r) => {
+        const reader = r.body.getReader();
+        const dec = new TextDecoder();
+        let dem = "";
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          dem += dec.decode(value, { stream: true });
+          const dong = dem.split("\n");
+          dem = dong.pop();
+          for (const d of dong) {
+            if (!d.startsWith("data: ")) continue;
+            let mo = {};
+            try { mo = JSON.parse(d.slice(6)); } catch (e) { continue; }
+            if (mo.status === "__done__") continue;
+            if (mo.status === "error") { txt.textContent = mo.error || t("ol.err_pull"); continue; }
+            if (mo.total) {
+              const pc = Math.round((mo.completed || 0) / mo.total * 100);
+              fill.style.width = pc + "%";
+              txt.textContent = t("ol.pulling") + " " + pc + "%";
+            } else if (mo.status) {
+              txt.textContent = mo.status;
+            }
+          }
+        }
+        if (typeof xong === "function") xong();
+      })
+      .catch(() => {
+        // Huỷ tay cũng rơi vào đây. Trả thẻ về nút Tải: người dùng bấm lại là Ollama tiếp tục
+        // từ chỗ dở, không tải lại từ đầu.
+        act.innerHTML = '<button class="gcard-btn primary ol-tai" type="button" data-model="' +
+          esc(model) + '">' + ic("download") + " " + esc(t("ol.pull")) + "</button>";
+        olNoiNutTai(act, xong);
+      });
+  }
+
+  async function olVeGoiY(el) {
+    const host = el.querySelector("#olRec");
+    if (!host) return;
+    let d = {};
+    try { d = await (await fetch("/ollama-local/recommended")).json(); } catch (e) { return; }
+    const ds = d.models || [];
+    host.innerHTML = '<h3 class="ol-h">' + ic("sparkles") + " " + esc(t("ol.rec_title")) +
+      '<span class="ol-h-sub">' + esc(t("ol.rec_sub")) + "</span></h3>" +
+      (ds.length ? '<div class="ol-grid">' + ds.map(m => olTheModel(m)).join("") + "</div>"
+                 : '<div class="ol-empty-line">' + esc(t("ol.rec_none")) + "</div>") +
+      (d.catalog_source === "builtin"
+        ? '<div class="ol-hint">' + esc(t("ol.catalog_builtin")) + "</div>" : "");
+    olNoiNutTai(host, () => { olVeGoiY(el); olVeDaCai(el); });
+  }
+
+  async function olVeDaCai(el, vuaDat) {
+    const host = el.querySelector("#olInst");
+    if (!host) return;
+    let d = {};
+    try { d = await (await fetch("/ollama-local/installed")).json(); } catch (e) { return; }
+    const ds = d.models || [];
+    // Tải model về xong mà vẫn phải mò sang tab Cloud, bấm Đặt Main Model, tìm nhà Ollama
+    // trong danh sách dài mới chọn được nó - là tính năng nửa vời. Đặt ngay tại đây.
+    let main = {};
+    try { main = ((await freshSettings()).model || {}).main || {}; } catch (e) {}
+    const laChinh = (ten) => main.provider === "ollama-local" && main.model === ten;
+    // Model embedding sinh vector cho tìm kiếm, KHÔNG sinh được câu trả lời, nên không có nút
+    // đặt làm model chính. Câu trả lời đến từ SERVER (nó hỏi thẳng Ollama qua /api/show);
+    // phép thử theo tên dưới đây chỉ là lưới đỡ khi server cũ chưa trả trường đó, và nó sai
+    // cả hai chiều - `all-minilm`, `bge-m3` là model embedding mà tên không có chữ "embed".
+    const chatDuoc = (m) => (m && typeof m.chat_duoc === "boolean")
+      ? m.chat_duoc : !/embed/i.test((m && m.name) || "");
+    host.innerHTML = '<h3 class="ol-h">' + ic("database") + " " + esc(t("ol.inst_title")) +
+      '<span class="ol-h-sub">' + ds.length + "</span></h3>" +
+      (vuaDat ? '<div class="ol-hint ol-ok">' + esc(t("ol.set_main_ok", { ten: vuaDat })) + "</div>" : "") +
+      (ds.length ? '<div class="ol-list">' + ds.map(m =>
+          '<div class="ol-row-item">' +
+            '<span class="ol-row-ico">' + ic("cpu") + "</span>" +
+            '<span class="grow"><span class="ol-row-name">' + esc(m.name) +
+              (laChinh(m.name) ? '<span class="ol-badge ol-badge-main">' + esc(t("ol.is_main")) + "</span>" : "") +
+              (m.loaded ? '<span class="ol-badge">' + esc(t("ol.loaded")) + "</span>" : "") + "</span>" +
+              '<span class="ol-row-meta">' + olGb(m.size_gb) + "</span></span>" +
+            // 02/09: chủ repo hỏi "sao có 2 model mà chỉ 1 dùng được". Bản cũ chỉ LẶNG LẼ
+            // bỏ nút đi, nên không có cách nào biết vì sao ngoài việc đi hỏi. Nói ra.
+            (!chatDuoc(m)
+              ? '<span class="ol-row-note">' + ic("info") + " " + esc(t("ol.embed_note")) + "</span>"
+              : (laChinh(m.name) ? ""
+                 : '<button class="gcard-btn primary ol-main" type="button" data-model="' + esc(m.name) + '">' +
+                     ic("star") + " " + esc(t("ol.use_main")) + "</button>")) +
+            '<button class="gcard-btn ol-go" type="button" data-model="' + esc(m.name) + '">' +
+              ic("trash-2") + " " + esc(t("ol.remove")) + "</button>" +
+          "</div>").join("") + "</div>"
+        : '<div class="ol-empty-line">' + esc(t("ol.inst_none")) + "</div>");
+    host.querySelectorAll(".ol-main").forEach((b) => {
+      b.onclick = async () => {
+        b.disabled = true;
+        await saveSetting("model", { main: { provider: "ollama-local", model: b.dataset.model } });
+        olVeDaCai(el, b.dataset.model);
+      };
+    });
+    host.querySelectorAll(".ol-go").forEach((b) => {
+      b.onclick = async () => {
+        if (!confirm(t("ol.confirm_remove", { ten: b.dataset.model }))) return;
+        const fd = new FormData(); fd.append("model", b.dataset.model);
+        try { await fetch("/ollama-local/delete", { method: "POST", body: fd }); } catch (e) {}
+        olVeDaCai(el); olVeGoiY(el);
+      };
+    });
+  }
+
+  function olVeTimKiem(el) {
+    const host = el.querySelector("#olSearch");
+    if (!host) return;
+    const chip = (k, nhan) => '<button class="ol-fchip" data-cap="' + k + '" type="button">' + esc(nhan) + "</button>";
+    host.innerHTML = '<h3 class="ol-h">' + ic("search") + " " + esc(t("ol.find_title")) + "</h3>" +
+      '<div class="ol-row"><input class="ol-in ol-q" placeholder="' + esc(t("ol.find_ph")) + '"></div>' +
+      '<div class="ol-chips ol-filters">' + chip("", t("ol.cap_all")) + chip("tools", "tools") +
+        chip("thinking", "thinking") + chip("vision", "vision") + chip("embedding", "embedding") + "</div>" +
+      '<div class="ol-grid ol-kq"></div>';
+    const kq = host.querySelector(".ol-kq");
+    const o = host.querySelector(".ol-q");
+    let cap = "";
+    let timer = null;
+    const chay = async () => {
+      const p = new URLSearchParams({ q: o.value.trim(), capability: cap });
+      let d = {};
+      try { d = await (await fetch("/ollama-local/search?" + p)).json(); } catch (e) { return; }
+      const ds = d.models || [];
+      kq.innerHTML = ds.length ? ds.map(m => olTheModel(m)).join("")
+                               : '<div class="ol-empty-line">' + esc(t("ol.find_none")) + "</div>";
+      olNoiNutTai(kq, () => { olVeDaCai(el); chay(); });
+    };
+    o.oninput = () => { clearTimeout(timer); timer = setTimeout(chay, 300); };
+    host.querySelectorAll(".ol-fchip").forEach((b) => {
+      b.onclick = () => {
+        cap = b.dataset.cap;
+        host.querySelectorAll(".ol-fchip").forEach(x => x.classList.toggle("on", x === b));
+        chay();
+      };
+    });
+    host.querySelector('.ol-fchip[data-cap=""]').classList.add("on");
+    chay();
+  }
+
+  async function renderModelsCloudTab(el) {
+    el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>${esc(t("common.loading"))}</div></div>`;
     const s = await freshSettings();
     const m = s.model || {};
     const providers = m.providers || [];
@@ -2878,8 +3320,8 @@
     // nằm chễm chệ trên cùng. Một request cục bộ, rẻ.
     let claudeOn = false;
     try { claudeOn = !!(await (await fetch("/claude/status")).json()).connected; } catch (e) {}
-    // kind "cli" nay có HAI bộ não (Claude Code, Gemini CLI). Chỉ Claude mới phải hỏi
-    // /claude/status; Gemini CLI đã có `configured` thật từ server (đọc file đăng nhập).
+    // kind "cli" nay có ba bộ não (Claude Code, Grok Build, Antigravity). Chỉ Claude mới phải
+    // hỏi /claude/status; hai cái kia đã có `configured` thật từ server (đọc file đăng nhập).
     const provOn = (p) => (p.id === "anthropic-cli" ? claudeOn : !!p.configured);
     const provList = providers.map((p, i) => ({ p, i }))
       .sort((a, b) => (provOn(b.p) - provOn(a.p)) || (a.i - b.i))
@@ -2894,15 +3336,24 @@
     // cột provider, tự nạp model live) - đúng cái đang dùng cho model chính ngay phía trên.
     const auxProvDef = providers.find(p => p.id === auxProv) || {};
     const auxReady = auxProv === "anthropic-cli" || auxProvDef.configured;
+    // Model RIÊNG cho Telegram. provider rỗng = theo model chính (mặc định). Ghim thì đổi
+    // model trên web không kéo Telegram theo - chủ repo đổi model liên tục để thử, mỗi lần
+    // thử là điện thoại của cả nhà bị kéo theo (02/09).
+    const tgCfg = m.telegram || {};
+    const tgPinned = !!tgCfg.provider;
+    const tgProv = tgCfg.provider || main.provider;
+    const tgModel = tgPinned ? (tgCfg.model || "") : (main.model || "");
+    const tgProvDef = providers.find(p => p.id === tgProv) || {};
+    const tgReady = !tgPinned || tgProv === "anthropic-cli" || tgProvDef.configured;
     const reasoning = m.reasoning || "off";
     // Thang này phải KHỚP engine.REASONING_LEVELS bên server và EFFORT trong model-picker.js.
     // Mỗi nấc kèm một dòng RẤT ngắn nói nó đánh đổi gì - đủ để chọn, không phải đọc bài.
-    const REASON = [["off", "Tắt", "nhanh nhất"], ["low", "Thấp", "nghĩ sơ"],
-                    ["medium", "Vừa", "cân bằng"], ["high", "Cao", "kỹ hơn"],
-                    ["xhigh", "Rất cao", "rất kỹ"], ["ultra", "Tối đa", "tốn token nhất"]];
+    const REASON = [["off", t("models.r_off"), t("models.r_off_d")], ["low", t("models.r_low"), t("models.r_low_d")],
+                    ["medium", t("models.r_med"), t("models.r_med_d")], ["high", t("models.r_high"), t("models.r_high_d")],
+                    ["xhigh", t("models.r_xhigh"), t("models.r_xhigh_d")], ["ultra", t("models.r_ultra"), t("models.r_ultra_d")]];
     const reasonChips = REASON.map(([v, l, d]) =>
       `<button class="seg-btn ${reasoning === v ? "sel" : ""}" data-reason="${v}" title="${esc(d)}">` +
-      `<span class="seg-lb">${l}</span><span class="seg-d">${esc(d)}</span></button>`).join("");
+      `<span class="seg-lb">${esc(l)}</span><span class="seg-d">${esc(d)}</span></button>`).join("");
 
     const KEYFIELD = { "openrouter": "openrouter_key", "anthropic-api": "anthropic_api_key", "openai": "openai_api_key", "gemini": "gemini_api_key", "groq": "groq_api_key", "ollama": "ollama_key" };
     const provHead = (p, on, kindLabel, statusText) => `
@@ -2920,24 +3371,51 @@
       // vỡ (báo cáo 16/08: người mới cài "kết nối được nhưng không sử dụng được").
       // cli_found === false mới cảnh báo - undefined nghĩa là thẻ không thuộc diện kiểm.
       const cliWarn = (ten) => p.cli_found === false
-        ? `<div class="prov-note warn">${WARN_ICON} <b>Máy chạy Javis chưa có lệnh <code>${ten}</code></b>
-             - ${on ? "đăng nhập đã xong nhưng" : ""} chat bằng thẻ này sẽ lỗi cho tới khi cài.
-             Bản Docker: <b>cập nhật Javis lên bản mới nhất</b> là có sẵn. Bản cài tay: mở trang
-             Code &gt; Terminal chạy <code>${esc(p.cai_lenh || "")}</code> rồi khởi động lại Javis.</div>`
+        ? `<div class="prov-note warn">${WARN_ICON} <b>${esc(t("models.cli_missing"))} <code>${ten}</code></b>
+             - ${on ? esc(t("models.cli_missing2")) + " " : ""}${esc(t("models.cli_missing3"))}
+             <code>${esc(p.cai_lenh || "")}</code> ${esc(t("models.cli_missing4"))}</div>`
         : "";
       if (p.kind === "oauth") {
         const st = on
-          ? "● Đã kết nối" + (p.plan ? " · " + esc(p.plan) : "") + " · " + p.models.length + " model"
-          : "○ Chưa kết nối · " + p.models.length + " model";
+          ? t("models.st_connected") + (p.plan ? " · " + esc(p.plan) : "") + " · " + p.models.length + " model"
+          : t("models.st_not_connected") + " · " + p.models.length + " model";
         return `<div class="prov-card ${p.is_main ? "main" : ""}">
           ${provHead(p, on, "Device code", st)}
           ${cliWarn("codex")}
           <div class="prov-action" style="flex-wrap:wrap">
             ${on
-              ? `<button class="gcard-btn ghost" data-oauth-disc="1">Ngắt</button>`
-              : `<button class="gcard-btn" data-oauth-login="1">Đăng nhập ChatGPT</button>
-                 <button class="gcard-btn ghost" data-oauth-browser="1">Qua trình duyệt</button>`}
+              ? `<button class="gcard-btn ghost" data-oauth-disc="1">${esc(t("models.disconnect"))}</button>`
+              : `<button class="gcard-btn" data-oauth-login="1">${esc(t("models.login_gpt"))}</button>
+                 <button class="gcard-btn ghost" data-oauth-browser="1">${esc(t("models.via_browser"))}</button>`}
             <span id="oauthMsg" class="gcard-meta" style="margin-left:10px;flex:1;min-width:220px"></span>
+          </div>
+        </div>`;
+      }
+      if (p.id === "grok-cli") {
+        // Bộ não thứ 11. Đây là thẻ CLI DUY NHẤT có nút "Đăng nhập" thật sự bấm được trên VPS:
+        // `grok login --device-auth` in ra một link và một mã rồi tự đứng hỏi máy chủ, nên
+        // Javis chỉ cần bóc link + mã đưa lên đây, không phải giả lập terminal như bản `agy`
+        // 0.30-0.32.1 từng thử (và tắc trên Windows vì không có pseudo-terminal).
+        const dn = p.dang_nhap || {};
+        const st = on
+          ? t("models.st_logged_in") + (p.account ? " · " + esc(p.account) : "")
+            + (p.plan ? " · " + esc(p.plan) : "") + " · " + p.models.length + " model"
+          : (p.cli_found ? t("models.st_cli_no_login") : t("models.st_no_cli", { ten: "Grok Build CLI" }));
+        return `<div class="prov-card ${p.is_main ? "main" : ""}">
+          ${provHead(p, on, "MCP/skill", st)}
+          <div class="prov-note">${esc(t("models.grok_note"))}</div>
+          ${cliWarn("grok")}
+          ${p.cli_found ? "" : `<div class="prov-steps">
+            <div>${esc(t("models.cli_install"))}<br><code>${esc(p.cai_lenh || "")}</code></div>
+          </div>`}
+          <div id="grokBox" class="prov-steps" style="display:none"></div>
+          <div class="prov-action" style="flex-wrap:wrap">
+            ${on
+              ? `<button class="gcard-btn ghost" data-grokcheck="1">${esc(t("qs.recheck"))}</button>
+                 <button class="gcard-btn ghost" data-grokdisc="1">${esc(t("models.disconnect"))}</button>`
+              : `<button class="gcard-btn" data-groklogin="1">${esc(t("auth.submit"))}</button>
+                 <button class="gcard-btn ghost" data-grokcheck="1">${esc(t("qs.recheck"))}</button>`}
+            <span id="grokMsg" class="gcard-meta" style="margin-left:10px;flex:1;min-width:200px">${on ? "" : esc(p.auth_error || "")}</span>
           </div>
         </div>`;
       }
@@ -2950,60 +3428,24 @@
         // một lệnh nhanh hơn hẳn. Nên thẻ này chỉ đưa đúng lệnh cần gõ.
         const dn = p.dang_nhap || {};
         const st = on
-          ? "● Đã đăng nhập" + (p.auth_method ? " · " + esc(p.auth_method) : "")
+          ? t("models.st_logged_in") + (p.auth_method ? " · " + esc(p.auth_method) : "")
             + " · " + p.models.length + " model"
-          : (p.cli_found ? "○ Đã cài CLI, chưa đăng nhập" : "○ Chưa cài Antigravity CLI");
+          : (p.cli_found ? t("models.st_cli_no_login") : t("models.st_no_cli", { ten: "Antigravity CLI" }));
         return `<div class="prov-card ${p.is_main ? "main" : ""}">
           ${provHead(p, on, "MCP/skill", st)}
-          <div class="prov-note">Dùng <b>gói Google của bạn</b>, không cần mua API key. Đây là
-            bản Google chỉ định thay cho Gemini CLI, và cho chọn <b>đúng dàn model của
-            Antigravity IDE</b> - gồm cả model không phải của Google.</div>
+          <div class="prov-note">${esc(t("models.agy_note"))}</div>
           ${p.cli_found ? "" : `<div class="prov-steps">
-            <div>Chưa thấy CLI trên máy. Cài một lần trên máy chạy Javis:<br><code>${esc(p.cai_lenh || "")}</code></div>
+            <div>${esc(t("models.cli_install"))}<br><code>${esc(p.cai_lenh || "")}</code></div>
           </div>`}
           ${on ? "" : `<div class="prov-steps">
-            <div><b>Đăng nhập trong terminal của máy chạy Javis:</b> <code>${esc(dn.dang_nhap || "agy")}</code></div>
+            <div><b>${esc(t("models.agy_login"))}</b> <code>${esc(dn.dang_nhap || "agy")}</code></div>
             <div>${esc(dn.ghi_chu || "")}</div>
-            <div>Xong rồi bấm <b>Kiểm tra lại</b> ở dưới.</div>
+            <div>${esc(t("models.agy_done"))}</div>
           </div>`}
           <div class="prov-action" style="flex-wrap:wrap">
-            <button class="gcard-btn ghost" data-agycheck="1">Kiểm tra lại</button>
+            <button class="gcard-btn ghost" data-agycheck="1">${esc(t("qs.recheck"))}</button>
             <span id="agyMsg" class="gcard-meta" style="margin-left:10px;flex:1;min-width:200px">${on ? "" : esc(p.auth_error || "")}</span>
           </div>
-        </div>`;
-      }
-      if (p.id === "gemini-cli") {
-        // Gemini CLI: đăng nhập bằng tài khoản Google, KHÔNG cần mua API key. Không có nút
-        // "Đăng nhập" ở đây là cố ý - luồng đăng nhập của nó là giao diện bàn phím trong
-        // terminal rồi mở trình duyệt, không có cờ headless nào để bọc cho tử tế. Dựng một
-        // cái nút chỉ chạy được trên máy có màn hình thì trên VPS nó là nút chết.
-        const st = on
-          ? "● Đã đăng nhập Google" + (p.account ? " · " + esc(p.account) : "")
-            + (p.auth_method ? " · " + esc(p.auth_method) : "") + " · " + p.models.length + " model"
-          : (p.cli_found ? "○ Đã cài CLI, chưa đăng nhập" : "○ Chưa cài Gemini CLI");
-        return `<div class="prov-card ${p.is_main ? "main" : ""}">
-          ${provHead(p, on, "MCP/skill", st)}
-          <div class="prov-note warn"><b>Google đã ngắt đường này với tài khoản cá nhân từ 18/06/2026</b>
-            - cả gói miễn phí, Google AI Pro lẫn Ultra. Đăng nhập vẫn xong nhưng lúc chat sẽ báo
-            <code>IneligibleTierError</code>. Chặn từ phía Google, không sửa được bên Javis.
-            Thẻ này giờ chỉ còn dùng được với <b>giấy phép Code Assist doanh nghiệp</b> hoặc khi
-            chạy CLI bằng API key.</div>
-          <div class="prov-steps">
-            <div><b>Muốn dùng model Gemini thì đi đường khác:</b> thẻ <b>OpenRouter</b> (nhiều model
-              một chỗ, có cả Gemini lẫn Claude - gần nhất với trình chọn model của Antigravity),
-              hoặc thẻ <b>Google Gemini (API)</b> bên dưới.</div>
-          </div>
-          ${p.cli_found ? "" : `<div class="prov-steps">
-            <div>Chưa thấy CLI trên máy. Cài tay: <code>npm install -g @google/gemini-cli</code></div>
-          </div>`}
-          <div class="prov-action" style="flex-wrap:wrap">
-            ${on
-              ? (p.auth_by_javis ? `<button class="gcard-btn ghost" data-glogout="1">Ngắt</button>` : "")
-              : `<button class="gcard-btn" data-glogin="1">Đăng nhập Google</button>`}
-            <button class="gcard-btn ghost" data-gcheck="1">Kiểm tra lại</button>
-            <span id="gcliMsg" class="gcard-meta" style="margin-left:10px;flex:1;min-width:200px">${on ? "" : esc(p.auth_error || "")}</span>
-          </div>
-          <div id="gcliLogin"></div>
         </div>`;
       }
       if (p.kind === "cli") {   // Claude Code - trạng thái + login/logout nạp động qua /claude/status
@@ -3016,105 +3458,131 @@
             <span class="prov-shield on">${_shield(true)}</span>
             <div class="prov-info">
               <div class="prov-name">${esc(p.label)} <span class="prov-kind">MCP/skill</span></div>
-              <div class="prov-status" id="cliStatus">đang kiểm tra…</div>
+              <div class="prov-status" id="cliStatus">${esc(t("models.checking"))}</div>
             </div>
             ${p.is_main ? '<span class="prov-badge">MAIN</span>' : ""}
           </div>
           ${cliWarn("claude")}
           <div class="prov-action" id="cliAction"></div>
           <div class="prov-auth">
-            <div class="prov-auth-title">Chạy bằng</div>
-            <div class="prov-auth-note">Ô này chỉ đổi <b>ai trả tiền</b>. Cả hai đều chạy qua
-              Claude Code nên <b>giữ nguyên lệnh máy, WebFetch, MCP native và nối phiên cũ</b> -
-              khác hẳn thẻ "Anthropic (API)" bên dưới, thẻ đó gọi API thẳng nên không chạy được
-              lệnh máy.</div>
+            <div class="prov-auth-title">${esc(t("models.auth_title"))}</div>
+            <div class="prov-auth-note">${esc(t("models.auth_note"))}</div>
             <label class="prov-auth-opt"><input type="radio" name="claudeAuth" value="subscription" ${byKey ? "" : "checked"}>
-              <span><b>Gói đang đăng nhập</b> - không tốn thêm tiền. Hợp với một người dùng cá nhân ngồi gõ.</span></label>
+              <span><b>${esc(t("models.auth_sub"))}</b> ${esc(t("models.auth_sub_d"))}</span></label>
             <label class="prov-auth-opt"><input type="radio" name="claudeAuth" value="api_key" ${byKey ? "checked" : ""}>
-              <span><b>API key Anthropic</b> - trả theo lượt dùng. Đây là cách duy nhất để việc nền
-              (loop, nhắc hẹn, Kanban) chạy <b>vừa hợp lệ vừa còn lệnh máy</b>.
-              ${p.auth_api_key_set ? "" : ` <i>Chưa có key: dán ở thẻ "${esc("Anthropic (API)")}" bên dưới - dán xong quay lại đây chọn ô này.</i>`}</span></label>
+              <span><b>${esc(t("models.auth_key"))}</b> ${esc(t("models.auth_key_d"))}
+              ${p.auth_api_key_set ? "" : ` <i>${esc(t("models.auth_key_none"))}</i>`}</span></label>
             ${p.auth_warning ? `<div class="prov-auth-warn">${WARN_ICON} ${esc(p.auth_warning)}</div>` : ""}
           </div>
         </div>`;
       }
       const masked = (m[KEYFIELD[p.id]] || "").slice(-4);
       return `<div class="prov-card ${p.is_main ? "main" : ""}">
-        ${provHead(p, on, p.kind === "cli" ? "MCP/skill" : "MCP Javis", (on ? "● Đã kết nối" : "○ Chưa kết nối") + " · " + p.models.length + " model")}
+        ${provHead(p, on, p.kind === "cli" ? "MCP/skill" : "MCP Javis", (on ? t("models.st_connected") : t("models.st_not_connected")) + " · " + p.models.length + " model")}
         ${p.needs_key
-          ? `<div class="prov-action"><input class="js-input" id="pk-${p.id}" type="password" placeholder="${on ? "Đổi key (•••" + esc(masked) + ")" : "Dán API key để kết nối"}"><button class="gcard-btn" data-pk="${p.id}">${on ? "Đổi key" : "Kết nối"}</button>${on ? `<button class="gcard-btn ghost" data-disc="${p.id}">Ngắt</button>` : ""}</div>`
-          : `<div class="prov-note">Dùng đăng nhập Claude Code - không cần key</div>`}
+          ? `<div class="prov-action"><input class="js-input" id="pk-${p.id}" type="password" placeholder="${on ? esc(t("models.key_change_ph", { duoi: masked })) : esc(t("models.key_ph"))}"><button class="gcard-btn" data-pk="${p.id}">${on ? esc(t("models.key_change")) : esc(t("models.connect"))}</button>${on ? `<button class="gcard-btn ghost" data-disc="${p.id}">${esc(t("models.disconnect"))}</button>` : ""}</div>`
+          : `<div class="prov-note">${esc(t("models.no_key_note"))}</div>`}
       </div>`;
     };
 
     el.innerHTML = `
       <div class="cview-section">
-        <h3>◆ Main Model <span style="opacity:.5">model chính cho hội thoại</span></h3>
+        <h3>◆ Main Model <span style="opacity:.5">${esc(t("models.h_main_sub"))}</span></h3>
         <div class="gcard current" style="max-width:540px">
           <div class="gcard-top"><span class="gcard-name">${esc(main.model || "-")}</span><span class="gcard-tag">${esc(mainP.label || main.provider || "")}</span></div>
-          <div class="gcard-meta">${mainP.id === "gemini-cli" ? "Qua Gemini CLI - MCP Javis + skill + loop + chạy lệnh máy (đăng nhập Google)"
-            : mainP.kind === "cli" ? "Qua Claude Code - MCP Javis + skill + loop + chạy lệnh máy"
-            : mainP.kind === "oauth" ? "Qua Codex - MCP Javis + skill + loop + chạy lệnh máy"
-            : mainP.kind === "api" ? "Gọi API thẳng - MCP Javis + skill + loop (không chạy lệnh máy)" : ""}</div>
-          <button class="gcard-btn" id="mdChange">Đổi model ▾</button>
+          <div class="gcard-meta">${esc(mainP.id === "grok-cli" ? t("models.main_grok")
+            : mainP.id === "antigravity-cli" ? t("models.main_agy")
+            : mainP.kind === "cli" ? t("models.main_cli")
+            : mainP.kind === "oauth" ? t("models.main_codex")
+            : mainP.kind === "api" ? t("models.main_api") : "")}</div>
+          <button class="gcard-btn" id="mdChange">${esc(t("models.change_model"))}</button>
         </div>
       </div>
       <div class="cview-section">
-        <h3>◆ Providers <span style="opacity:.5">đăng nhập / kết nối nhà cung cấp model</span></h3>
+        <h3>◆ Providers <span style="opacity:.5">${esc(t("models.h_prov_sub"))}</span></h3>
         <div class="prov-list">${provList.map(provCard).join("")}</div>
       </div>
       <div class="cview-section">
-        <h3>◆ Model việc nền <span style="opacity:.5">loop · việc Kanban · nhắc hẹn · tự học</span></h3>
+        <h3>◆ ${esc(t("models.h_aux"))} <span style="opacity:.5">${esc(t("models.h_aux_sub"))}</span></h3>
         <div class="gcard aux-card">
-          <div class="gcard-meta">Model chạy việc nền. Chọn model rẻ để đỡ hạn mức Claude.</div>
+          <div class="gcard-meta">${esc(t("models.aux_meta"))}</div>
           <div class="aux-now">
             <div class="aux-now-txt">
-              <div class="aux-now-model">${aux ? esc(aux) : "Mặc định của Claude Code"}</div>
-              <div class="aux-now-prov">${aux ? esc(auxProvDef.label || auxProv) : "dùng model mặc định"}</div>
+              <div class="aux-now-model">${aux ? esc(aux) : esc(t("models.aux_default"))}</div>
+              <div class="aux-now-prov">${aux ? esc(auxProvDef.label || auxProv) : esc(t("models.aux_default_sub"))}</div>
             </div>
             <div class="aux-now-act">
-              ${aux ? '<button class="gcard-btn ghost" id="auxReset">Về mặc định</button>' : ""}
-              <button class="gcard-btn" id="auxChange">Đổi model ▾</button>
+              ${aux ? `<button class="gcard-btn ghost" id="auxReset">${esc(t("models.aux_reset"))}</button>` : ""}
+              <button class="gcard-btn" id="auxChange">${esc(t("models.change_model"))}</button>
             </div>
           </div>
-          ${auxReady ? "" : `<div class="aux-note warn">${WARN_ICON} Nhà cung cấp này chưa kết nối - việc nền sẽ tự dùng lại Claude.</div>`}
-          <div class="aux-note">Claude Code và Codex chạy được lệnh máy. Model API chỉ đọc/ghi qua vault - hợp việc đọc, tổng hợp, ghi chú.</div>
+          ${auxReady ? "" : `<div class="aux-note warn">${WARN_ICON} ${esc(t("models.aux_warn"))}</div>`}
+          <div class="aux-note">${esc(t("models.aux_note"))}</div>
         </div>
       </div>
       <div class="cview-section">
-        <h3>◆ Độ sâu suy nghĩ <span style="opacity:.5">nghĩ kỹ hơn trước khi trả lời</span></h3>
+        <h3>◆ ${esc(t("models.h_tg"))} <span style="opacity:.5">${esc(t("models.h_tg_sub"))}</span></h3>
+        <div class="gcard aux-card" id="tgCard">
+          <div class="gcard-meta">${esc(t("models.tg_meta"))}</div>
+          <div class="aux-now">
+            <div class="aux-now-txt">
+              <div class="aux-now-model">${tgPinned ? esc(tgModel || "-") : esc(t("models.tg_follow"))}</div>
+              <div class="aux-now-prov">${tgPinned ? esc(tgProvDef.label || tgProv) : esc(t("models.tg_follow_sub"))}</div>
+            </div>
+            <div class="aux-now-act">
+              ${tgPinned ? `<button class="gcard-btn ghost" id="tgReset">${esc(t("models.tg_reset"))}</button>` : ""}
+              <button class="gcard-btn" id="tgChange">${esc(tgPinned ? t("models.change_model") : t("models.tg_pin"))}</button>
+            </div>
+          </div>
+          ${tgReady ? "" : `<div class="aux-note warn">${WARN_ICON} ${esc(t("models.tg_warn"))}</div>`}
+          <div class="aux-note">${esc(t("models.tg_note"))}</div>
+        </div>
+      </div>
+      <div class="cview-section">
+        <h3>◆ ${esc(t("models.h_reason"))} <span style="opacity:.5">${esc(t("models.h_reason_sub"))}</span></h3>
         <div class="gcard aux-card">
-          <div class="gcard-meta">Nghĩ càng sâu càng chính xác, nhưng chậm và tốn token hơn.</div>
+          <div class="gcard-meta">${esc(t("models.reason_meta"))}</div>
           <div class="seg">${reasonChips}</div>
-          <div class="aux-note">Nhiều nhà cung cấp chỉ nhận 3 nấc, nên hai nấc trên cùng có thể như nhau ở đó. OpenAI cần model o-series, Gemini cần 2.5 trở lên.</div>
+          <div class="aux-note">${esc(t("models.reason_note"))}</div>
         </div>
       </div>`;
 
     const chg = document.getElementById("mdChange");
-    if (chg) chg.onclick = () => openModelPicker(provList, main, () => renderModels(el));
+    if (chg) chg.onclick = () => openModelPicker(provList, main, () => renderModelsCloudTab(el));
     // Nguồn xác thực của gói Claude Code. Vẽ lại cả trang sau khi lưu vì cảnh báo phụ thuộc
     // cả lựa chọn này LẪN model việc nền - chỉ server mới ghép được hai thứ đó.
     el.querySelectorAll('input[name="claudeAuth"]').forEach((r) => {
       r.onchange = async () => {
         if (!r.checked) return;
         await saveSetting("model", { claude_auth: r.value });
-        renderModels(el);
+        renderModelsCloudTab(el);
       };
     });
     const auxChg = document.getElementById("auxChange");
-    if (auxChg) auxChg.onclick = () => openModelPicker(provList, { provider: auxProv, model: aux }, () => renderModels(el), {
-      title: "MODEL VIỆC NỀN",
-      note: "Việc nền: loop · việc Kanban · nhắc hẹn · tự học · tiêu hoá nguồn",
+    if (auxChg) auxChg.onclick = () => openModelPicker(provList, { provider: auxProv, model: aux }, () => renderModelsCloudTab(el), {
+      title: t("models.aux_title"),
+      note: t("models.aux_note2"),
       save: (prov, mod) => saveSetting("model", { auxiliary: { provider: prov, model: mod } }),
     });
     const auxRst = document.getElementById("auxReset");
     if (auxRst) auxRst.onclick = async () => {
       await saveSetting("model", { auxiliary: { provider: "anthropic-cli", model: "" } });
-      renderModels(el);
+      renderModelsCloudTab(el);
+    };
+    const tgChg = document.getElementById("tgChange");
+    if (tgChg) tgChg.onclick = () => openModelPicker(provList, { provider: tgProv, model: tgModel }, () => renderModelsCloudTab(el), {
+      title: t("models.tg_title"),
+      note: t("models.tg_note2"),
+      save: (prov, mod) => saveSetting("model", { telegram: { provider: prov, model: mod } }),
+    });
+    const tgRst = document.getElementById("tgReset");
+    if (tgRst) tgRst.onclick = async () => {
+      await saveSetting("model", { telegram: { provider: "", model: "" } });
+      renderModelsCloudTab(el);
     };
     el.querySelectorAll("[data-reason]").forEach(b => b.onclick = async () => {
       await saveSetting("model", { reasoning: b.dataset.reason });
-      renderModels(el);
+      renderModelsCloudTab(el);
     });
     el.querySelectorAll(".gcard-btn[data-pk]").forEach(b => {
       b.onclick = async () => {
@@ -3122,68 +3590,167 @@
         const inp = document.getElementById("pk-" + pid);
         const val = (inp && inp.value || "").trim();
         if (!val) { if (inp) inp.focus(); return; }
-        b.disabled = true; b.textContent = "Đang lưu...";
+        b.disabled = true; b.textContent = t("settings.saving");
         await saveSetting("model", { [KEYFIELD[pid]]: val });
-        renderModels(el);
+        renderModelsCloudTab(el);
       };
     });
     el.querySelectorAll(".gcard-btn[data-disc]").forEach(b => {
       b.onclick = async () => {
-        b.disabled = true; b.textContent = "Đang ngắt...";
+        b.disabled = true; b.textContent = t("models.disconnecting");
         await saveSetting("model", { clear_key: b.dataset.disc });
-        renderModels(el);
+        renderModelsCloudTab(el);
       };
     });
     const ol = el.querySelector("[data-oauth-login]");
     if (ol) ol.onclick = () => startOauthLogin(el);
     const ob = el.querySelector("[data-oauth-browser]");
     if (ob) ob.onclick = () => startOauthBrowser(el);
-    const gl = el.querySelector("[data-glogin]");
-    if (gl) gl.onclick = () => startGeminiLogin(el);
-    const glo = el.querySelector("[data-glogout]");
-    if (glo) glo.onclick = async () => {
-      if (!confirm("Ngắt tài khoản Google khỏi Javis?")) return;
-      glo.disabled = true; glo.textContent = "Đang ngắt...";
-      try { await fetch("/gemini-cli/logout", { method: "POST" }); } catch (e) {}
-      _daHoiModel.delete("gemini-cli");
-      renderModels(el);
-    };
-    const gk = el.querySelector("[data-gcheck]");
-    if (gk) gk.onclick = async () => {
-      const msg = el.querySelector("#gcliMsg");
-      gk.disabled = true; const cu = gk.textContent; gk.textContent = "Đang thử…";
-      if (msg) msg.textContent = "Đang chạy thử một lượt thật…";
-      let r = null;
-      try { r = await (await fetch("/gemini-cli/check", { method: "POST" })).json(); }
-      catch (e) { r = { ok: false, error: "Lỗi mạng." }; }
-      gk.disabled = false; gk.textContent = cu;
-      if (r && r.ok) {
-        if (msg) msg.innerHTML = OK_ICON + " Dùng được.";
-        _daHoiModel.delete("gemini-cli");
-        setTimeout(() => renderModels(el), 700);
-      } else if (msg) msg.innerHTML = Icons.warn((r && r.error) || "Chưa dùng được.");
-    };
     const agk = el.querySelector("[data-agycheck]");
     if (agk) agk.onclick = async () => {
       const msg = el.querySelector("#agyMsg");
-      agk.disabled = true; const cu2 = agk.textContent; agk.textContent = "Đang thử…";
-      if (msg) msg.textContent = "Đang chạy thử một lượt thật…";
+      agk.disabled = true; const cu2 = agk.textContent; agk.textContent = t("models.trying");
+      if (msg) msg.textContent = t("models.testing");
       let r = null;
-      try { r = await (await fetch("/antigravity/check", { method: "POST" })).json(); }
-      catch (e) { r = { ok: false, error: "Lỗi mạng." }; }
+      // Gửi kèm brain đang mở: phần `mcp` của câu trả lời soi cấu hình theo ĐÚNG brain đó
+      // (header X-Javis-Vault khoá tool file/lịch vào một brain), nên hỏi trống là soi nhầm.
+      const _br = window.currentBrainPath ? currentBrainPath() : "brain";
+      try { r = await (await fetch(`/antigravity/check?brain=${encodeURIComponent(_br)}`,
+                                   { method: "POST" })).json(); }
+      catch (e) { r = { ok: false, error: t("common.net_err") }; }
       agk.disabled = false; agk.textContent = cu2;
+      // Nói RIÊNG chuyện tool của Javis. "Chat được" và "gọi được tool của Javis" là hai
+      // chuyện khác nhau, và suốt các bản 0.30-0.42 cái thứ hai luôn hỏng trong khi cái thứ
+      // nhất vẫn xanh - nên thẻ này chỉ báo "Dùng được" là báo thiếu đúng chỗ đau.
+      const mcpTxt = (r && r.mcp)
+        ? (r.mcp.ok ? " · " + esc(t("models.mcp_ok"))
+           : (r.mcp.hub_bat === false ? " · " + esc(t("models.mcp_off"))
+              : " · <b>" + esc(t("models.mcp_fail")) + "</b>"))
+        : "";
       if (r && r.ok) {
-        if (msg) msg.innerHTML = OK_ICON + " Dùng được.";
+        if (msg) msg.innerHTML = OK_ICON + " " + esc(t("models.works")) + mcpTxt;
         _daHoiModel.delete("antigravity-cli");
-        setTimeout(() => renderModels(el), 700);
-      } else if (msg) msg.innerHTML = Icons.warn((r && r.error) || "Chưa dùng được.");
+        setTimeout(() => renderModelsCloudTab(el), 700);
+      } else if (msg) msg.innerHTML = Icons.warn((r && r.error) || t("models.not_works")) + mcpTxt;
+    };
+    // ---- Grok Build CLI: đăng nhập device code ngay trên trang ----
+    const gkl = el.querySelector("[data-groklogin]");
+    if (gkl) gkl.onclick = async () => {
+      const msg = el.querySelector("#grokMsg"), box = el.querySelector("#grokBox");
+      gkl.disabled = true; const cu = gkl.textContent; gkl.textContent = t("models.opening");
+      if (msg) msg.textContent = t("models.grok_ask");
+      let r = null;
+      try { r = await (await fetch("/grok/login-start", { method: "POST" })).json(); }
+      catch (e) { r = { ok: false, error: t("common.net_err") }; }
+      gkl.disabled = false; gkl.textContent = cu;
+      if (!r || !r.ok) { if (msg) msg.innerHTML = Icons.warn((r && r.error) || t("models.cant_open")); return; }
+      if (r.xong) { renderModelsCloudTab(el); return; }
+      // Link + mã hiện ra để người dùng mở trên MÁY CỦA HỌ - đây là cả lý do tồn tại của
+      // đường device code: máy chạy Javis (VPS) không cần có trình duyệt.
+      if (box) {
+        box.style.display = "";
+        box.innerHTML = `<div>${esc(t("models.grok_open"))}<br><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a></div>`
+          + (r.code ? `<div>${esc(t("models.grok_code"))} <code>${esc(r.code)}</code></div>` : "")
+          + `<div>${esc(t("models.grok_back"))}</div>`;
+      }
+      if (msg) msg.textContent = t("models.wait_browser");
+      // Vẽ lại phần "CLI đang nói gì" dưới link. Bản 0.50.0 chỉ có một dòng "đang chờ" quay
+      // mãi, nên người dùng xác nhận xong trên accounts.x.ai mà thẻ vẫn im thì không ai biết
+      // `grok login` đang kẹt ở đâu - đúng lỗi báo ngày 28/08/2026.
+      const veLog = (d, xong) => {
+        if (!box || !d || !d.nhat_ky || !d.nhat_ky.length) return;
+        const dong = d.nhat_ky.filter(x => !/^\[/.test(x));
+        const cuoi = dong.length ? dong[dong.length - 1] : "";
+        let h = box.querySelector("#grokLog");
+        if (!h) {
+          h = document.createElement("div");
+          h.id = "grokLog"; h.className = "gcard-meta"; h.style.marginTop = "6px";
+          box.appendChild(h);
+        }
+        h.innerHTML = xong
+          ? `${esc(t("models.grok_log"))}<br><code style="white-space:pre-wrap">${esc(d.nhat_ky.slice(-8).join("\n"))}</code>`
+          : (cuoi ? `Grok CLI: <code>${esc(cuoi.slice(0, 160))}</code>` : "");
+      };
+      // Hỏi lại tới khi CLI báo xong. Trần 5 phút cho khớp vòng device code của xAI; hết giờ
+      // thì nói thẳng là hết giờ chứ không quay mãi.
+      const han = Date.now() + 300000;
+      const quay = async () => {
+        let d = null;
+        try { d = await (await fetch("/grok/login-poll")).json(); } catch (e) {}
+        if (d && d.connected) { _daHoiModel.delete("grok-cli"); renderModelsCloudTab(el); return; }
+        if (Date.now() > han) {
+          if (msg) msg.innerHTML = Icons.warn(t("models.timeout_login"));
+          veLog(d, true);
+          return;
+        }
+        if (d && !d.dang_cho) {
+          if (msg) msg.innerHTML = Icons.warn(d.error || t("models.login_incomplete"));
+          veLog(d, true);
+          return;
+        }
+        veLog(d, false);
+        setTimeout(quay, 2000);
+      };
+      setTimeout(quay, 2000);
+    };
+    const gkd = el.querySelector("[data-grokdisc]");
+    if (gkd) gkd.onclick = async () => {
+      gkd.disabled = true; gkd.textContent = t("models.disconnecting");
+      try { await fetch("/grok/logout", { method: "POST" }); } catch (e) {}
+      _daHoiModel.delete("grok-cli");
+      renderModelsCloudTab(el);
+    };
+    const gkc = el.querySelector("[data-grokcheck]");
+    if (gkc) gkc.onclick = async () => {
+      const msg = el.querySelector("#grokMsg");
+      gkc.disabled = true; const cu3 = gkc.textContent; gkc.textContent = t("models.trying");
+      if (msg) msg.textContent = t("models.testing");
+      let r = null;
+      // Gửi kèm brain đang mở, cùng lý do với nút của `agy`: phần `mcp` soi cấu hình theo
+      // ĐÚNG brain đó, hỏi trống là soi nhầm chỗ.
+      const _br2 = window.currentBrainPath ? currentBrainPath() : "brain";
+      try { r = await (await fetch(`/grok/check?brain=${encodeURIComponent(_br2)}`,
+                                   { method: "POST" })).json(); }
+      catch (e) { r = { ok: false, error: t("common.net_err") }; }
+      gkc.disabled = false; gkc.textContent = cu3;
+      // Nói RIÊNG chuyện tool của Javis: "chat được" và "gọi được tool của Javis" là hai
+      // chuyện khác nhau, và cái thứ hai mới là chỗ đã ba lần hỏng câm với `agy`.
+      const mcpTxt2 = (r && r.mcp)
+        ? (r.mcp.co_javis ? " · " + esc(t("models.mcp_ok"))
+           : (r.mcp.hub_bat === false ? " · " + esc(t("models.mcp_off"))
+              : " · <b>" + esc(t("models.mcp_fail")) + "</b>"))
+        : "";
+      if (r && r.ok) {
+        if (msg) msg.innerHTML = OK_ICON + " " + esc(t("models.works")) + mcpTxt2;
+        _daHoiModel.delete("grok-cli");
+        setTimeout(() => renderModelsCloudTab(el), 700);
+      } else if (msg) {
+        msg.innerHTML = Icons.warn((r && r.error) || t("models.not_works")) + mcpTxt2;
+        // Chưa dùng được thì hiện luôn chỗ Javis đã nhìn: binary nào, thư mục nào, trong đó
+        // có file gì. Chỉ TÊN file và TÊN khoá - giá trị trong auth.json là token thật.
+        const cd = r && r.chan_doan, box2 = el.querySelector("#grokBox");
+        if (cd && box2) {
+          box2.style.display = "";
+          const fs = (cd.files || []).map(x => x.ten).join(", ") || t("models.diag_empty");
+          box2.innerHTML = `<div class="gcard-meta">${esc(t("models.diag_intro"))}<br>`
+            + `binary <code>${esc(cd.cli_path || t("models.diag_missing"))}</code><br>`
+            + `${esc(t("models.diag_dir"))} <code>${esc(cd.home || "")}</code> - ${esc(cd.home_ton_tai ? t("models.diag_yes") : t("models.diag_no_have"))}<br>`
+            + `${esc(t("models.diag_files"))} <code>${esc(fs)}</code><br>`
+            + `${esc(t("models.diag_token"))} <b>${esc(cd.co_token ? t("models.diag_yes") : t("models.diag_no"))}</b>`
+            + (cd.khoa_cap_cao && cd.khoa_cap_cao.length
+               ? `<br>${esc(t("models.diag_keys"))} <code>${esc(cd.khoa_cap_cao.slice(0, 20).join(", "))}</code>` : "")
+            + (cd.nhat_ky && cd.nhat_ky.length
+               ? `<br>${esc(t("models.diag_last"))}<br><code style="white-space:pre-wrap">${esc(cd.nhat_ky.slice(-8).join("\n"))}</code>` : "")
+            + `</div>`;
+        }
+      }
     };
     const od = el.querySelector("[data-oauth-disc]");
     if (od) od.onclick = async () => {
-      od.disabled = true; od.textContent = "Đang ngắt...";
+      od.disabled = true; od.textContent = t("models.disconnecting");
       try { await fetch("/oauth/openai/disconnect", { method: "POST" }); } catch (e) {}
       _daHoiModel.delete("openai-oauth");
-      renderModels(el);
+      renderModelsCloudTab(el);
     };
     refreshClaudeCard(el);   // nạp trạng thái đăng nhập Claude Code (bất đồng bộ)
     hoiModelConNo(el, provList);   // thẻ "0 model" của provider đã kết nối: hỏi danh sách thật
@@ -3214,7 +3781,7 @@
         }
       } catch (e) {}
     }
-    if (coThem && el.isConnected) renderModels(el);
+    if (coThem && el.isConnected) renderModelsCloudTab(el);
   }
 
   // ---- Card Claude Code: status + login/logout (giống OpenAI OAuth) ----
@@ -3223,21 +3790,21 @@
     if (!st || !act) return;
     let d;
     try { d = await (await fetch("/claude/status" + (ep ? "?refresh=1" : ""))).json(); }
-    catch (e) { st.textContent = "không kiểm tra được"; return; }
+    catch (e) { st.textContent = t("models.cant_check"); return; }
     // KHÔNG hỏi được KHÁC hẳn "chưa đăng nhập", và trước bản này hai thứ đó vẽ y như nhau: một
     // lần hết giờ (hay gặp lúc đổi Main Model, khi trang cùng lúc gọi mấy tiến trình con) là
     // thẻ bày ra nút Đăng nhập, người dùng tưởng mất tài khoản rồi đi nối lại - trong khi
     // chẳng có gì mất cả (chủ repo báo 2026-08-13). Chưa biết thì nói là chưa biết.
     if (!d.connected && d.unknown) {
       st.className = "prov-status";
-      st.textContent = "◐ Chưa kiểm được trạng thái" + (d.error ? " · " + d.error : "");
+      st.textContent = t("models.st_unknown") + (d.error ? " · " + d.error : "");
       act.innerHTML = `
-        <button class="gcard-btn ghost" id="cliRecheck">↻ Kiểm tra lại</button>
-        <button class="gcard-btn ghost" id="cliLogin">Đăng nhập Claude</button>
+        <button class="gcard-btn ghost" id="cliRecheck">${esc(t("models.recheck"))}</button>
+        <button class="gcard-btn ghost" id="cliLogin">${esc(t("models.login_claude"))}</button>
         <span id="cliMsg" class="gcard-meta" style="margin-left:10px;flex:1"></span>
         <div class="prov-note" style="margin-top:8px;line-height:1.6">
-          Chưa hỏi được Claude Code lần này (thường là máy đang bận). <b>Không có nghĩa là bạn bị
-          đăng xuất</b> - bấm Kiểm tra lại trước khi nghĩ tới chuyện đăng nhập lại.
+          ${esc(t("models.cli_unk1"))} <b>${esc(t("models.cli_unk2"))}</b>
+          ${esc(t("models.cli_unk3"))}
         </div>`;
       el.querySelector("#cliRecheck").onclick = () => refreshClaudeCard(el, true);
       el.querySelector("#cliLogin").onclick = () => startClaudeLogin(el);
@@ -3245,24 +3812,23 @@
     }
     if (d.connected) {
       st.className = "prov-status on";
-      st.textContent = "● Đã kết nối" + (d.email ? " · " + d.email : "") + (d.plan ? " · " + d.plan : "")
-        + (d.stale ? " · (chưa hỏi lại được, đang hiện trạng thái lần trước)" : "");
-      act.innerHTML = `<button class="gcard-btn ghost" id="cliLogout">Ngắt</button>`;
+      st.textContent = t("models.st_connected") + (d.email ? " · " + d.email : "") + (d.plan ? " · " + d.plan : "")
+        + (d.stale ? " · " + t("models.st_stale") : "");
+      act.innerHTML = `<button class="gcard-btn ghost" id="cliLogout">${esc(t("models.disconnect"))}</button>`;
       el.querySelector("#cliLogout").onclick = async () => {
-        const b = el.querySelector("#cliLogout"); b.disabled = true; b.textContent = "Đang ngắt…";
+        const b = el.querySelector("#cliLogout"); b.disabled = true; b.textContent = t("models.disconnecting");
         try { await fetch("/claude/logout", { method: "POST" }); } catch (e) {}
         refreshClaudeCard(el);
       };
     } else {
       st.className = "prov-status";
-      st.textContent = d.error ? "○ " + esc(d.error) : "○ Chưa đăng nhập";
+      st.textContent = d.error ? "○ " + esc(d.error) : t("models.st_no_login");
       act.innerHTML = `
-        <button class="gcard-btn" id="cliLogin">Đăng nhập Claude</button>
-        <button class="gcard-btn ghost" id="cliRecheck">↻ Kiểm tra lại</button>
+        <button class="gcard-btn" id="cliLogin">${esc(t("models.login_claude"))}</button>
+        <button class="gcard-btn ghost" id="cliRecheck">${esc(t("models.recheck"))}</button>
         <span id="cliMsg" class="gcard-meta" style="margin-left:10px;flex:1"></span>
         <div class="prov-note" style="margin-top:8px;line-height:1.6">
-          Bấm <b>Đăng nhập Claude</b> → hiện link → mở link đăng nhập claude.ai → dán code (nếu trang yêu cầu) vào ô.
-          Chạy được cả trên VPS. (Hoặc terminal: <code>claude auth login --claudeai</code>.)
+          ${esc(t("models.cli_login_note"))} <code>claude auth login --claudeai</code>
         </div>`;
       el.querySelector("#cliLogin").onclick = () => startClaudeLogin(el);
       el.querySelector("#cliRecheck").onclick = () => refreshClaudeCard(el, true);
@@ -3272,19 +3838,19 @@
   async function startClaudeLogin(el) {
     const act = el.querySelector("#cliAction");
     const msg = el.querySelector("#cliMsg");
-    if (msg) msg.textContent = "Đang lấy link đăng nhập…";
+    if (msg) msg.textContent = t("models.getting_link");
     let r;
     try { r = await (await fetch("/claude/login-start", { method: "POST" })).json(); }
-    catch (e) { if (msg) msg.textContent = "Lỗi mạng."; return; }
-    if (!r.ok) { if (msg) msg.innerHTML = Icons.warn(r.error || "Không bắt đầu được đăng nhập."); return; }
+    catch (e) { if (msg) msg.textContent = t("common.net_err"); return; }
+    if (!r.ok) { if (msg) msg.innerHTML = Icons.warn(r.error || t("models.cant_start")); return; }
     if (act) act.innerHTML = `
       <div class="prov-note" style="line-height:1.7">
-        <b>1)</b> Mở link này để đăng nhập claude.ai:<br>
-        <a href="${esc(safeHref(r.url))}" target="_blank" rel="noopener" style="color:var(--link-ink);word-break:break-all">${esc(r.url || "(không có link)")}</a><br>
-        <b>2)</b> Đăng nhập xong, nếu trang hiện <b>một mã code</b> thì dán vào đây:
+        <b>1)</b> ${esc(t("models.cli_s1"))}<br>
+        <a href="${esc(safeHref(r.url))}" target="_blank" rel="noopener" style="color:var(--link-ink);word-break:break-all">${esc(r.url || t("models.no_link"))}</a><br>
+        <b>2)</b> ${esc(t("models.cli_s2"))}
         <div style="margin-top:6px;display:flex;gap:8px;max-width:520px">
-          <input class="js-input" id="cliCode" placeholder="Dán code (nếu có)" style="flex:1">
-          <button class="gcard-btn" id="cliCodeBtn">Gửi code</button>
+          <input class="js-input" id="cliCode" placeholder="${esc(t("models.code_ph"))}" style="flex:1">
+          <button class="gcard-btn" id="cliCodeBtn">${esc(t("models.code_send"))}</button>
         </div>
         <span id="cliMsg2" class="gcard-meta"></span>
       </div>`;
@@ -3293,7 +3859,7 @@
     const t0 = Date.now();
     const poll = async () => {   // tự hoàn tất (một số luồng không cần dán code)
       if (stopped) return;
-      if (Date.now() - t0 > 5 * 60 * 1000) { if (m2) m2.textContent = "Hết thời gian, thử lại."; return; }
+      if (Date.now() - t0 > 5 * 60 * 1000) { if (m2) m2.textContent = t("models.timeout_retry"); return; }
       let d; try { d = await (await fetch("/claude/status")).json(); } catch (e) { setTimeout(poll, 3000); return; }
       if (d.connected) { stopped = true; refreshClaudeCard(el); return; }
       setTimeout(poll, 3000);
@@ -3302,88 +3868,39 @@
     const cb = el.querySelector("#cliCodeBtn");
     if (cb) cb.onclick = async () => {
       const code = (el.querySelector("#cliCode").value || "").trim();
-      if (m2) m2.textContent = "Đang xác nhận…";
+      if (m2) m2.textContent = t("models.confirming");
       const fd = new FormData(); fd.append("code", code);
       let rr;
       try { rr = await (await fetch("/claude/login-code", { method: "POST", body: fd })).json(); }
-      catch (e) { if (m2) m2.textContent = "Lỗi mạng."; return; }
+      catch (e) { if (m2) m2.textContent = t("common.net_err"); return; }
       if (rr.ok) { stopped = true; refreshClaudeCard(el); }
-      else if (m2) m2.innerHTML = Icons.warn(rr.error || "Code sai, thử lại.");
-    };
-  }
-
-  // ---- Gemini CLI: đăng nhập Google ngay trên trang, không phải mở terminal ----
-  // Dùng đúng đường "mã dán" của chính Gemini CLI: Google redirect về trang codeassist của họ,
-  // trang đó HIỆN RA một mã cho người dùng chép. Không có localhost nào ở giữa nên chạy được
-  // cả khi Javis nằm trên VPS còn trình duyệt ở máy người dùng - y như đăng nhập Claude Code.
-  async function startGeminiLogin(el) {
-    const hop = el.querySelector("#gcliLogin");
-    const msg = el.querySelector("#gcliMsg");
-    if (msg) msg.textContent = "Đang lấy link đăng nhập…";
-    let r;
-    try { r = await (await fetch("/gemini-cli/login-start", { method: "POST" })).json(); }
-    catch (e) { if (msg) msg.textContent = "Lỗi mạng."; return; }
-    if (!r.ok || !r.authorize_url) {
-      if (msg) msg.innerHTML = Icons.warn(r.error || "Không bắt đầu được đăng nhập.");
-      return;
-    }
-    if (msg) msg.textContent = "";
-    try { window.open(r.authorize_url, "_blank"); } catch (e) {}
-    if (hop) hop.innerHTML = `
-      <div class="prov-steps">
-        <div><b>1)</b> Mở link này rồi đăng nhập bằng tài khoản Google của bạn:<br>
-          <a href="${esc(safeHref(r.authorize_url))}" target="_blank" rel="noopener"
-             style="color:var(--link-ink);word-break:break-all">${esc(r.authorize_url.slice(0, 90))}…</a></div>
-        <div><b>2)</b> Đồng ý xong, Google hiện ra <b>một mã</b>. Chép mã đó dán vào đây:</div>
-        <div class="gcli-code-row">
-          <input class="js-input" id="gcliCode" placeholder="Dán mã Google vừa hiện" autocomplete="off"
-                 spellcheck="false">
-          <button class="gcard-btn" id="gcliCodeBtn">Xong</button>
-        </div>
-        <div id="gcliCodeMsg" class="gcard-meta" style="margin-top:4px"></div>
-      </div>`;
-    const btn = el.querySelector("#gcliCodeBtn");
-    if (btn) btn.onclick = async () => {
-      const m2 = el.querySelector("#gcliCodeMsg");
-      const code = (el.querySelector("#gcliCode").value || "").trim();
-      if (!code) { if (m2) m2.textContent = "Dán mã vào đã."; return; }
-      btn.disabled = true; if (m2) m2.textContent = "Đang xác nhận…";
-      let d;
-      try {
-        const fd = new FormData(); fd.append("code", code);
-        d = await (await fetch("/gemini-cli/login-code", { method: "POST", body: fd })).json();
-      } catch (e) { d = { ok: false, error: "Lỗi mạng." }; }
-      btn.disabled = false;
-      if (!d.ok) { if (m2) m2.innerHTML = Icons.warn(d.error || "Chưa được, thử lại."); return; }
-      if (m2) m2.innerHTML = OK_ICON + " Đã kết nối" + (d.email ? " · " + esc(d.email) : "") + ".";
-      _daHoiModel.delete("gemini-cli");
-      setTimeout(() => renderModels(el), 900);
+      else if (m2) m2.innerHTML = Icons.warn(rr.error || t("models.code_wrong"));
     };
   }
 
   // ---- ChatGPT OAuth device-code: lấy mã → mở link → poll tới khi kết nối ----
   async function startOauthLogin(el) {
     const msg = el.querySelector("#oauthMsg");
-    if (msg) msg.textContent = "Đang khởi tạo…";
+    if (msg) msg.textContent = t("models.initing");
     let d;
     try { d = await (await fetch("/oauth/openai/start", { method: "POST" })).json(); }
-    catch (e) { if (msg) msg.textContent = "Lỗi kết nối server."; return; }
-    if (d.error) { if (msg) msg.textContent = "Lỗi: " + d.error; return; }
+    catch (e) { if (msg) msg.textContent = t("models.server_err"); return; }
+    if (d.error) { if (msg) msg.textContent = t("models.err") + " " + d.error; return; }
     try { window.open(d.verification_uri, "_blank"); } catch (e) {}
-    if (msg) msg.innerHTML = `Mở <a href="${esc(safeHref(d.verification_uri))}" target="_blank">${esc(d.verification_uri)}</a> · nhập mã <b style="font-size:1.15em;letter-spacing:1px">${esc(d.user_code)}</b> <span style="opacity:.6">- đang chờ…</span>`;
+    if (msg) msg.innerHTML = `${esc(t("models.oauth_open"))} <a href="${esc(safeHref(d.verification_uri))}" target="_blank">${esc(d.verification_uri)}</a> ${esc(t("models.oauth_enter"))} <b style="font-size:1.15em;letter-spacing:1px">${esc(d.user_code)}</b> <span style="opacity:.6">${esc(t("models.oauth_wait"))}</span>`;
     const iv = Math.max(2, (d.interval || 5)) * 1000;
     const t0 = Date.now();
     const poll = async () => {
-      if (Date.now() - t0 > 16 * 60 * 1000) { if (msg) msg.textContent = "Hết hạn, thử lại."; return; }
+      if (Date.now() - t0 > 16 * 60 * 1000) { if (msg) msg.textContent = t("models.expired"); return; }
       let p;
       try { p = await (await fetch("/oauth/openai/poll", { method: "POST" })).json(); }
       catch (e) { setTimeout(poll, iv); return; }
       if (p.status === "connected") {
-        if (msg) msg.innerHTML = CHECK_ICON + " Đã kết nối! Đang hỏi Codex xem gói này có model nào…";
+        if (msg) msg.innerHTML = CHECK_ICON + " " + esc(t("models.oauth_done"));
         _daHoiModel.delete("openai-oauth");   // vừa đăng nhập xong: cho phép hỏi lại danh sách
-        renderModels(el); return;
+        renderModelsCloudTab(el); return;
       }
-      if (p.status === "error") { if (msg) msg.textContent = "Lỗi: " + (p.error || ""); return; }
+      if (p.status === "error") { if (msg) msg.textContent = t("models.err") + " " + (p.error || ""); return; }
       setTimeout(poll, iv);
     };
     setTimeout(poll, iv);
@@ -3392,40 +3909,39 @@
   // ---- ChatGPT OAuth qua trình duyệt: mở link → user dán lại URL callback → đổi token ----
   async function startOauthBrowser(el) {
     const msg = el.querySelector("#oauthMsg");
-    if (msg) msg.textContent = "Đang khởi tạo…";
+    if (msg) msg.textContent = t("models.initing");
     let d;
     try { d = await (await fetch("/oauth/openai/browser/start", { method: "POST" })).json(); }
-    catch (e) { if (msg) msg.textContent = "Lỗi kết nối server."; return; }
-    if (d.error) { if (msg) msg.textContent = "Lỗi: " + d.error; return; }
-    if (!d.authorize_url) { if (msg) msg.textContent = "Máy chủ chưa có chức năng này - khởi động lại Javis rồi tải lại trang (Ctrl+Shift+R)."; return; }
+    catch (e) { if (msg) msg.textContent = t("models.server_err"); return; }
+    if (d.error) { if (msg) msg.textContent = t("models.err") + " " + d.error; return; }
+    if (!d.authorize_url) { if (msg) msg.textContent = t("models.no_feature"); return; }
     try { window.open(d.authorize_url, "_blank"); } catch (e) {}
     if (msg) msg.innerHTML =
-      `Đã mở trang <a href="${esc(safeHref(d.authorize_url))}" target="_blank">đăng nhập ChatGPT</a>. `
-      + `Đăng nhập xong, trình duyệt sẽ nhảy sang <b>localhost</b> (có thể báo không tải được trang - không sao). `
-      + `Copy toàn bộ đường dẫn trên thanh địa chỉ rồi dán vào đây:`
+      `${esc(t("models.br_1"))} <a href="${esc(safeHref(d.authorize_url))}" target="_blank">${esc(t("models.br_link"))}</a>. `
+      + `${esc(t("models.br_2"))}`
       + `<div style="display:flex;gap:6px;margin-top:6px">`
-      + `<input id="oauthCb" class="js-input" placeholder="Ví dụ: http://localhost:1455/auth/callback?code=…" style="flex:1;min-width:180px">`
-      + `<button class="gcard-btn" id="oauthCbBtn">Xác nhận</button></div>`
+      + `<input id="oauthCb" class="js-input" placeholder="${esc(t("models.cb_ph"))}" style="flex:1;min-width:180px">`
+      + `<button class="gcard-btn" id="oauthCbBtn">${esc(t("models.confirm"))}</button></div>`
       + `<div id="oauthCbMsg" class="gcard-meta" style="margin-top:4px;opacity:.75"></div>`;
     const btn = el.querySelector("#oauthCbBtn");
     if (btn) btn.onclick = async () => {
       const cb = (el.querySelector("#oauthCb").value || "").trim();
       const m2 = el.querySelector("#oauthCbMsg");
-      if (!cb) { if (m2) m2.textContent = "Dán đường dẫn callback vào đã."; return; }
-      btn.disabled = true; if (m2) m2.textContent = "Đang xác nhận…";
+      if (!cb) { if (m2) m2.textContent = t("models.cb_first"); return; }
+      btn.disabled = true; if (m2) m2.textContent = t("models.confirming");
       let p;
       try {
         p = await (await fetch("/oauth/openai/browser/finish", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ callback: cb }),
         })).json();
-      } catch (e) { if (m2) m2.textContent = "Lỗi mạng."; btn.disabled = false; return; }
+      } catch (e) { if (m2) m2.textContent = t("common.net_err"); btn.disabled = false; return; }
       if (p.status === "connected") {
-        if (msg) msg.innerHTML = CHECK_ICON + " Đã kết nối! Đang hỏi Codex xem gói này có model nào…";
+        if (msg) msg.innerHTML = CHECK_ICON + " " + esc(t("models.oauth_done"));
         _daHoiModel.delete("openai-oauth");
-        renderModels(el); return;
+        renderModelsCloudTab(el); return;
       }
-      if (m2) m2.innerHTML = Icons.warn(p.error || "Chưa được, thử lại.");
+      if (m2) m2.innerHTML = Icons.warn(p.error || t("models.not_yet"));
       btn.disabled = false;
     };
   }
@@ -3448,7 +3964,7 @@
 
     const modelsFor = (pid) => (liveCache[pid] && liveCache[pid].models) || (providers.find(x => x.id === pid) || {}).models || [];
     const tagFor = (pid) => {
-      if (loadingProv === pid && !liveCache[pid]) return " · đang tải…";
+      if (loadingProv === pid && !liveCache[pid]) return " · " + t("models.mp_loading_tag");
       if (!liveCache[pid]) return "";
       return liveCache[pid].live ? " · live" : " · catalog";
     };
@@ -3481,25 +3997,25 @@
       modal.innerHTML = `
         <div class="mp-box">
           <div class="mp-head">
-            <div><div class="mp-title">${esc(opts.title || "SET MAIN MODEL")}</div><div class="mp-sub">hiện tại: ${esc(main.model || "mặc định")} · ${esc(main.provider || "")}</div></div>
+            <div><div class="mp-title">${esc(opts.title || "SET MAIN MODEL")}</div><div class="mp-sub">${esc(t("models.mp_current"))} ${esc(main.model || t("models.mp_default"))} · ${esc(main.provider || "")}</div></div>
             <button class="mp-x" data-act="close">${X_ICON}</button>
           </div>
-          <input class="mp-filter" placeholder="Lọc provider / model…" value="${esc(filterQ)}">
+          <input class="mp-filter" placeholder="${esc(t("models.mp_filter"))}" value="${esc(filterQ)}">
           <div class="mp-body">
             <div class="mp-provs">${providers.map(p => `
               <button class="mp-prov ${p.id === selProv ? "active" : ""}" data-prov="${p.id}">
                 <div class="mp-prov-l">${esc(p.label)}</div>
-                <div class="mp-prov-c">${esc(p.id)}${p.id === main.provider ? " · ĐANG DÙNG" : ""}${esc(tagFor(p.id))}${p.configured ? "" : " · " + WARN_ICON + " cần kết nối"}</div>
+                <div class="mp-prov-c">${esc(p.id)}${p.id === main.provider ? " · " + esc(t("models.mp_using")) : ""}${esc(tagFor(p.id))}${p.configured ? "" : " · " + WARN_ICON + " " + esc(t("models.mp_need_conn"))}</div>
               </button>`).join("")}</div>
             <div class="mp-models">${models.length ? models.map(mod => `
-              <button class="mp-model ${mod === selModel ? "sel" : ""}" data-mod="${esc(mod)}">${esc(mod)}${(selProv === main.provider && mod === main.model) ? ' <span class="mp-cur">ĐANG DÙNG</span>' : ""}</button>`).join("")
-                : (loadingProv === selProv ? '<div class="mp-empty">Đang tải model…</div>'
+              <button class="mp-model ${mod === selModel ? "sel" : ""}" data-mod="${esc(mod)}">${esc(mod)}${(selProv === main.provider && mod === main.model) ? ` <span class="mp-cur">${esc(t("models.mp_using"))}</span>` : ""}</button>`).join("")
+                : (loadingProv === selProv ? '<div class="mp-empty">' + esc(t("models.mp_loading")) + '</div>'
                     : '<div class="mp-empty">' + esc((liveCache[selProv] && liveCache[selProv].error)
-                        || "Provider chưa kết nối hoặc không có model. Kết nối ở Providers (hoặc thêm vào settings.json → model.catalog).") + '</div>')}</div>
+                        || t("models.mp_empty")) + '</div>')}</div>
           </div>
           <div class="mp-foot">
-            <span class="mp-note">${esc(opts.note || "Model load động theo provider · lưu cho phiên mới")}</span>
-            <div><button class="mp-btn" data-act="close">Huỷ</button><button class="mp-btn primary" data-act="switch" ${selModel ? "" : "disabled"}>${esc(opts.title ? "Chọn" : "Switch")}</button></div>
+            <span class="mp-note">${esc(opts.note || t("models.mp_note"))}</span>
+            <div><button class="mp-btn" data-act="close">${esc(t("common.cancel"))}</button><button class="mp-btn primary" data-act="switch" ${selModel ? "" : "disabled"}>${esc(opts.title ? t("models.mp_pick") : "Switch")}</button></div>
           </div>
         </div>`;
       modal.querySelectorAll(".mp-prov").forEach(b => b.onclick = () => {
@@ -3519,7 +4035,7 @@
       const sw = modal.querySelector('[data-act="switch"]');
       if (sw) sw.onclick = async () => {
         if (!selModel) return;
-        sw.disabled = true; sw.textContent = "Đang lưu...";
+        sw.disabled = true; sw.textContent = t("settings.saving");
         await SAVE(selProv, selModel);
         modal.classList.remove("open");
         if (onDone) onDone();
@@ -3541,7 +4057,7 @@
       return await r.json();
     } catch (e) {
       return { ok: false, error: (ctl && e && e.name === "AbortError")
-        ? "Máy chủ không phản hồi sau " + Math.round(timeoutMs / 1000) + "s. Thử lại giúp em."
+        ? t("common.timeout", { s: Math.round(timeoutMs / 1000) })
         : String(e) };
     } finally { if (timer) clearTimeout(timer); }
   }
@@ -3563,7 +4079,9 @@
     full: { label: "Toàn quyền", color: "var(--red)" },
   };
   // Nhãn cách đăng nhập bằng tiếng người - dân thường không cần biết OAuth là gì
-  const AUTH_BADGE = { apikey: "Dán key", qr: "Quét QR", oauth: "Đăng nhập tài khoản", none: "Bấm là xong" };
+  // "none" = connector KHÔNG cần thông tin đăng nhập nào (vd Shopify: endpoint công khai,
+  // chỉ cần biết địa chỉ cửa hàng). Nhãn phải nói đúng chuyện đó, đừng để user đi tìm key.
+  const AUTH_BADGE = { apikey: "Dán key", qr: "Quét QR", oauth: "Đăng nhập tài khoản", none: "Không cần key" };
   let _connPoll = null;
 
   function closeConnModal() {
@@ -3766,14 +4284,21 @@
     openApikeyFlow(el, con, isFirst, ctx);
   }
 
-  function openApikeyFlow(el, con, isFirst, ctx) {
-    const hasSteps = con.steps && con.steps.length;
-    const fields = (con.fields || []).map(f =>
+  // Ô đăng nhập của connector. `default` điền SẴN vào ô: có connector đòi một giá trị kỹ
+  // thuật mà người thường không thể tự biết (vd URL hồ sơ agent UCP của Shopify) - để trống
+  // thì họ đứng hình, mà ghi cứng trong code thì hết đổi được. Điền sẵn + cho sửa là vừa.
+  function fieldsHtml(con, rows) {
+    return (con.fields || []).map(f =>
       '<label class="mcp-lb">' + esc(f.label || f.key)
       + (f.multiline
-        ? '<textarea class="js-input" data-f="' + esc(f.key) + '" rows="5" placeholder="' + esc(f.placeholder || "") + '"></textarea>'
-        : '<input class="js-input" data-f="' + esc(f.key) + '" placeholder="' + esc(f.placeholder || "") + '">')
+        ? '<textarea class="js-input" data-f="' + esc(f.key) + '" rows="' + rows + '" placeholder="' + esc(f.placeholder || "") + '">' + esc(f.default || "") + '</textarea>'
+        : '<input class="js-input" data-f="' + esc(f.key) + '" placeholder="' + esc(f.placeholder || "") + '" value="' + esc(f.default || "") + '">')
       + '</label>').join("");
+  }
+
+  function openApikeyFlow(el, con, isFirst, ctx) {
+    const hasSteps = con.steps && con.steps.length;
+    const fields = fieldsHtml(con, 5);
     const m = connModal(mHead("KẾT NỐI " + esc((con.name || "").toUpperCase()))
       + '<div class="conn-form">'
       // Cảnh báo rủi ro phải hiện NGAY LÚC QUYẾT ĐỊNH, không đợi tới hộp thoại đổi quyền.
@@ -4001,12 +4526,7 @@
     // Có ô multiline (vd google-ads cho dán sẵn file ADC làm đường lui) nên render y như luồng
     // apikey, đừng ép hết thành input 1 dòng.
     const hasSteps = con.steps && con.steps.length;
-    const fields = (con.fields || []).map(f =>
-      '<label class="mcp-lb">' + esc(f.label || f.key)
-      + (f.multiline
-        ? '<textarea class="js-input" data-f="' + esc(f.key) + '" rows="4" placeholder="' + esc(f.placeholder || "") + '"></textarea>'
-        : '<input class="js-input" data-f="' + esc(f.key) + '" placeholder="' + esc(f.placeholder || "") + '">')
-      + '</label>').join("");
+    const fields = fieldsHtml(con, 4);
     const m = connModal(mHead("KẾT NỐI " + esc((con.name || "").toUpperCase()))
       + '<div class="conn-form">'
       // Cảnh báo rủi ro phải hiện NGAY LÚC QUYẾT ĐỊNH, không đợi tới hộp thoại đổi quyền.
@@ -4146,7 +4666,7 @@
     </div>`;
   }
   async function renderConnect(el) {
-    el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>Đang tải...</div></div>`;
+    el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>${esc(t("common.loading"))}</div></div>`;
     let d;
     try { d = await (await fetch("/connect/catalog")).json(); } catch (e) { el.innerHTML = placeholder("mcp", "Không tải được."); return; }
     const cat = d.catalog || [];
@@ -4301,7 +4821,7 @@
 
   // ---- Trang Kênh (Telegram) - form đầy đủ ----
   async function renderChannels(el) {
-    el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>Đang tải...</div></div>`;
+    el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>${esc(t("common.loading"))}</div></div>`;
     const s = await freshSettings();
     const tg = s.telegram || {};
     const zl = s.zalo_bot || {};
@@ -4441,7 +4961,7 @@
 
   // ---- Trang Tài khoản: workspace + đăng nhập ----
   async function renderAccount(el) {
-    el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>Đang tải...</div></div>`;
+    el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>${esc(t("common.loading"))}</div></div>`;
     const s = await freshSettings();
     const auth = s.auth || {};
     el.innerHTML = `
@@ -4772,7 +5292,6 @@
   // đầu hội thoại (badge trong trang chat soi gương từ badge HUD nên chỉ cần làm mới HUD).
   function refreshModelUi() {
     try { if (window.initModelBar) window.initModelBar(); } catch (e) {}
-    try { if (window.refreshEngineBadge) window.refreshEngineBadge(); } catch (e) {}
   }
   if (typeof window !== "undefined") window.JavisRefreshModelUi = refreshModelUi;
 
@@ -4826,7 +5345,7 @@
   async function renderSettings(el) {
     const gen = _renderGen;               // chốt token: nếu user đổi trang trong lúc await → bỏ render này
     parkQuickSet();                       // giữ #quickSet an toàn TRƯỚC khi ghi đè cviewBody
-    el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>Đang tải...</div></div>`;
+    el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>${esc(t("common.loading"))}</div></div>`;
     const s = await freshSettings();
     if (gen !== _renderGen) return;       // đã sang trang khác → KHÔNG ghi đè trang mới bằng nội dung cũ
     const v = s.voice || {};
@@ -4841,7 +5360,7 @@
     const mainProviderId = model.main?.provider || (model.engine === "openrouter" ? "openrouter" : "anthropic-cli");
     const mainProvider = (model.providers || []).find(p => p.id === mainProviderId);
     const engine = mainProvider?.label || ({ "openrouter": "OpenRouter", "openai": "OpenAI API", "openai-oauth": "ChatGPT OAuth", "anthropic-cli": "Claude CLI" }[mainProviderId] || mainProviderId);
-    const currentModel = model.main?.model || (mainProviderId === "openrouter" ? model.openrouter_model : model.claude_model) || "Mặc định";
+    const currentModel = model.main?.model || (mainProviderId === "openrouter" ? model.openrouter_model : model.claude_model) || t("common.default");
     const opt = (val, label, cur) => `<option value="${esc(val)}"${val === cur ? " selected" : ""}>${esc(label)}</option>`;
     const oaVoices = ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"];
     // NGÔN NGỮ TRẢ LỜI. Danh sách lấy từ /lang/list (sổ đăng ký phía server) chứ KHÔNG khai
@@ -4872,87 +5391,87 @@
     // Nhà cung cấp giọng đọc - gộp NGAY trong nhóm giọng nói (render vào #ttsProviderHost), không tách section riêng.
     const provHtml = `
       <div class="qs-block">
-        <div class="popover-label">NHÀ CUNG CẤP GIỌNG ĐỌC</div>
+        <div class="popover-label">${esc(t("settings.tts_provider"))}</div>
         <select class="js-input" id="vpProvider">
-          ${opt("edge", "Edge TTS - miễn phí (mặc định)", prov)}
-          ${opt("openai", "OpenAI - mượt, đa ngôn ngữ", prov)}
-          ${opt("elevenlabs", "ElevenLabs - tự nhiên nhất", prov)}
+          ${opt("edge", t("settings.tts_edge"), prov)}
+          ${opt("openai", t("settings.tts_openai"), prov)}
+          ${opt("elevenlabs", t("settings.tts_eleven"), prov)}
         </select>
         <div id="vpOpenai" style="display:none">
-          <label class="js-lbl">OpenAI API key ${oaSet ? '<span class="dim">(đã có - để trống nếu không đổi)</span>' : ""}</label>
-          <input class="js-input" id="vpOaKey" type="password" placeholder="Ví dụ: sk-...">
-          <label class="js-lbl">Giọng OpenAI</label>
+          <label class="js-lbl">OpenAI API key ${oaSet ? `<span class="dim">${esc(t("settings.key_set"))}</span>` : ""}</label>
+          <input class="js-input" id="vpOaKey" type="password" placeholder="${esc(t("settings.oa_key_ph"))}">
+          <label class="js-lbl">${esc(t("settings.tts_openai_voice"))}</label>
           <select class="js-input" id="vpOaVoice">${oaVoices.map(x => opt(x, x, v.openai_tts_voice || "alloy")).join("")}</select>
         </div>
         <div id="vpEleven" style="display:none">
-          <label class="js-lbl">ElevenLabs API key ${elSet ? '<span class="dim">(đã có - để trống nếu không đổi)</span>' : ""}</label>
-          <input class="js-input" id="vpElKey" type="password" placeholder="Dán API key ElevenLabs">
-          <label class="js-lbl">Voice ID <span class="dim">(lấy ở ElevenLabs → Voices)</span></label>
-          <input class="js-input" id="vpElVoice" value="${esc(v.elevenlabs_voice || "")}" placeholder="Ví dụ: 21m00Tcm4TlvDq8ikWAM (Rachel)">
+          <label class="js-lbl">ElevenLabs API key ${elSet ? `<span class="dim">${esc(t("settings.key_set"))}</span>` : ""}</label>
+          <input class="js-input" id="vpElKey" type="password" placeholder="${esc(t("settings.eleven_ph"))}">
+          <label class="js-lbl">Voice ID <span class="dim">${esc(t("settings.voice_id_hint"))}</span></label>
+          <input class="js-input" id="vpElVoice" value="${esc(v.elevenlabs_voice || "")}" placeholder="${esc(t("settings.eleven_voice_ph"))}">
         </div>
-        <div class="js-actions"><button class="gcard-btn" id="vpSave">Lưu nhà cung cấp</button></div>
-        <div class="gcard-meta" id="vpStatus">Đang dùng: <b>${esc(prov)}</b>. Provider trả phí lỗi sẽ tự về Edge. Bấm ▶ Nghe thử ở dưới để nghe.</div>
+        <div class="js-actions"><button class="gcard-btn" id="vpSave">${esc(t("settings.save_provider"))}</button></div>
+        <div class="gcard-meta" id="vpStatus">${esc(t("settings.tts_using"))} <b>${esc(prov)}</b>. ${esc(t("settings.tts_note"))}</div>
       </div>`;
     el.innerHTML = `<div class="settings-page">
       <details class="settings-group" open>
-        <summary><span><b>Hệ thống</b><small>Trạng thái hiện tại và lối tắt tới các nhóm chuyên sâu</small></span><span class="settings-caret">${ic("chevron-down")}</span></summary>
+        <summary><span><b>${esc(t("settings.grp_system"))}</b><small>${esc(t("settings.grp_system_sub"))}</small></span><span class="settings-caret">${ic("chevron-down")}</span></summary>
         <div class="settings-group-body">
           <div class="settings-status-grid">
             <div><span>Engine</span><b>${esc(engine)}</b></div>
             <div><span>Model</span><b>${esc(currentModel)}</b></div>
             <div><span>Workspace</span><b>${esc(s.workspace_name || "Javis OS")}</b></div>
-            <div><span>Telegram</span><b>${telegram.enabled ? "Đang bật" : "Đang tắt"}</b></div>
+            <div><span>Telegram</span><b>${esc(telegram.enabled ? t("settings.on") : t("settings.off"))}</b></div>
           </div>
           <div class="settings-links">
-            <button data-settings-go="models"><span>◈</span><b>Models</b><small>Model và nhà cung cấp</small></button>
-            <button data-settings-go="channels"><span>${ic("send")}</span><b>Kênh</b><small>Telegram và kết nối chat</small></button>
-            <button data-settings-go="account"><span>${ic("circle-user")}</span><b>Tài khoản</b><small>Đăng nhập, workspace, token API cho CLI</small></button>
-            <button data-settings-go="logs"><span>${ic("scroll-text")}</span><b>Cập nhật</b><small>Phiên bản và nhật ký mới</small></button>
+            <button data-settings-go="models"><span>◈</span><b>${esc(t("page.models.label"))}</b><small>${esc(t("settings.link_models_sub"))}</small></button>
+            <button data-settings-go="channels"><span>${ic("send")}</span><b>${esc(t("page.channels.label"))}</b><small>${esc(t("settings.link_channels_sub"))}</small></button>
+            <button data-settings-go="account"><span>${ic("circle-user")}</span><b>${esc(t("page.account.label"))}</b><small>${esc(t("settings.link_account_sub"))}</small></button>
+            <button data-settings-go="logs"><span>${ic("scroll-text")}</span><b>${esc(t("page.logs.label"))}</b><small>${esc(t("settings.link_logs_sub"))}</small></button>
           </div>
         </div>
       </details>
 
       <details class="settings-group" open>
-        <summary><span><b>Giao diện &amp; Brain</b><small>Hiệu năng đồ thị và cấu trúc dữ liệu</small></span><span class="settings-caret">${ic("chevron-down")}</span></summary>
+        <summary><span><b>${esc(t("settings.grp_ui"))}</b><small>${esc(t("settings.grp_ui_sub"))}</small></span><span class="settings-caret">${ic("chevron-down")}</span></summary>
         <div class="settings-group-body settings-two-col">
           <div class="settings-card">
-            <div class="settings-card-head"><b>Đồ thị não</b><span class="gcard-tag">${graphOn ? "Bật" : "Tắt"}</span></div>
-            <p>Đồ thị canvas nhẹ, không dùng WebGL. Mobile luôn ưu tiên chế độ nhẹ.</p>
+            <div class="settings-card-head"><b>${esc(t("settings.graph"))}</b><span class="gcard-tag">${esc(graphOn ? t("settings.tag_on") : t("settings.tag_off"))}</span></div>
+            <p>${esc(t("settings.graph_desc"))}</p>
             <div class="js-actions">
-              <button class="gcard-btn ${graphOn ? "ghost" : ""}" id="setGraphToggle">${graphOn ? "Tắt đồ thị" : "Bật đồ thị"}</button>
+              <button class="gcard-btn ${graphOn ? "ghost" : ""}" id="setGraphToggle">${esc(graphOn ? t("settings.graph_off") : t("settings.graph_on"))}</button>
             </div>
           </div>
           <div class="settings-card">
-            <div class="settings-card-head"><b>Chuẩn hóa brain</b></div>
-            <p>Gom agents, workflows, memory và skills về cấu trúc phẳng đồng nhất. Chỉ di chuyển khi đích chưa tồn tại.</p>
-            <button class="gcard-btn ghost" id="setBrainMigrate">Chuẩn hóa brain đang chọn</button>
+            <div class="settings-card-head"><b>${esc(t("settings.migrate"))}</b></div>
+            <p>${esc(t("settings.migrate_desc"))}</p>
+            <button class="gcard-btn ghost" id="setBrainMigrate">${esc(t("settings.migrate_btn"))}</button>
             <div class="gcard-meta" id="setBrainMigrateResult"></div>
           </div>
           <div class="settings-card">
-            <div class="settings-card-head"><b>Dấu nguồn gốc ảnh AI</b><span class="gcard-tag">${stripC2pa ? "Đang gỡ" : "Đang giữ"}</span></div>
-            <p>Ảnh Javis tạo ra mang sẵn dấu nguồn gốc (Content Credentials) ghi rằng ảnh do AI sinh ra. Facebook đọc dấu này để gắn nhãn "Nội dung do AI tạo" lên bài. Gỡ dấu đi thì nhãn thường không hiện nữa, nhưng bạn vẫn phải tự chịu trách nhiệm công bố nội dung AI theo luật và điều khoản của nền tảng nơi bạn đăng. Nhãn tác giả javisos.com luôn được giữ dù bật hay tắt.</p>
+            <div class="settings-card-head"><b>${esc(t("settings.c2pa"))}</b><span class="gcard-tag">${esc(stripC2pa ? t("settings.c2pa_stripping") : t("settings.c2pa_keeping"))}</span></div>
+            <p>${esc(t("settings.c2pa_desc"))}</p>
             <div class="js-actions">
-              <button class="gcard-btn ${stripC2pa ? "ghost" : ""}" id="setC2paKeep">Giữ dấu</button>
-              <button class="gcard-btn ${stripC2pa ? "" : "ghost"}" id="setC2paStrip">Gỡ dấu</button>
+              <button class="gcard-btn ${stripC2pa ? "ghost" : ""}" id="setC2paKeep">${esc(t("settings.c2pa_keep"))}</button>
+              <button class="gcard-btn ${stripC2pa ? "" : "ghost"}" id="setC2paStrip">${esc(t("settings.c2pa_strip"))}</button>
             </div>
-            <div class="gcard-meta" id="setC2paMeta">${stripC2pa
-              ? "Đang GỠ dấu nguồn gốc khỏi ảnh mới tạo. Ảnh đã tạo trước đó không đổi."
-              : "Mặc định: giữ nguyên dấu nguồn gốc."}</div>
+            <div class="gcard-meta" id="setC2paMeta">${esc(stripC2pa
+              ? t("settings.c2pa_meta_strip")
+              : t("settings.c2pa_meta_keep"))}</div>
           </div>
         </div>
       </details>
 
       <details class="settings-group" open>
-        <summary><span><b>Giọng nói, thương hiệu &amp; truy cập</b><small>TTS, avatar và tên miền riêng</small></span><span class="settings-caret">${ic("chevron-down")}</span></summary>
+        <summary><span><b>${esc(t("settings.grp_voice"))}</b><small>${esc(t("settings.grp_voice_sub"))}</small></span><span class="settings-caret">${ic("chevron-down")}</span></summary>
         <div class="settings-group-body cs-host"></div>
       </details>
 
       <details class="settings-group" id="setAutostartSec" style="display:none">
-        <summary><span><b>Khởi động cùng Windows</b><small>Tự chạy Javis ở nền khi đăng nhập</small></span><span class="settings-caret">${ic("chevron-down")}</span></summary>
+        <summary><span><b>${esc(t("settings.grp_autostart"))}</b><small>${esc(t("settings.grp_autostart_sub"))}</small></span><span class="settings-caret">${ic("chevron-down")}</span></summary>
         <div class="settings-group-body">
           <div class="settings-card compact">
-            <div class="settings-card-head"><b>Tự bật Javis</b><span class="gcard-tag" id="setAutoTag">…</span></div>
-            <p id="setAutoMeta">Đang kiểm tra…</p>
+            <div class="settings-card-head"><b>${esc(t("settings.autostart"))}</b><span class="gcard-tag" id="setAutoTag">…</span></div>
+            <p id="setAutoMeta">${esc(t("settings.checking"))}</p>
             <button class="gcard-btn ghost" id="setAutoToggle" style="display:none"></button>
             <div class="gcard-meta" id="setAutoStatus"></div>
           </div>
@@ -4985,6 +5504,9 @@
         // không được phụ thuộc vào việc gọi mạng có thành công hay không.
         try { await JavisI18n.setLang(selUi.value); } catch (e) { /* noop */ }
         await saveSetting("locale", { ui_lang: selUi.value });
+        // Vẽ lại trang Cài đặt bằng từ điển mới - không thì phần khung (tiêu đề nhóm, thẻ,
+        // nút) vẫn tiếng cũ tới lần mở sau, nhìn như đổi ngôn ngữ "không ăn".
+        refreshSettings();
       };
     }
     const provHost = document.getElementById("ttsProviderHost");   // điểm neo trong nhóm giọng nói (index.html)
@@ -5006,7 +5528,7 @@
 
       const st = document.getElementById("vpStatus");
       document.getElementById("vpSave").onclick = async () => {
-        st.textContent = "Đang lưu...";
+        st.textContent = t("settings.saving");
         const data = {
           tts_provider: provSel.value,
           openai_tts_voice: document.getElementById("vpOaVoice").value,
@@ -5100,7 +5622,6 @@
   // ============================================
   const CHAT_NODE_IDS = ["chatArea", "bgStrip", "attachBar", "modelBar", "hudVoice"];
   let _chatSlots = [];        // vị trí gốc từng node để trả về đúng chỗ trong HUD
-  let _chatEngObs = null;     // theo dõi engineBadge gốc để phản chiếu badge trong tab
 
   function _injectChatCss() {
     if (document.getElementById("cp-css")) return;
@@ -5116,26 +5637,95 @@
       min-height:0; padding:14px 12px; border-right:1px solid var(--glass-brd); background:var(--surface-1); }
     .chatpage-main{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; min-height:0; padding:14px 20px 16px; }
     .chatpage-bar{ display:flex; align-items:center; gap:10px; padding:0 4px 10px; flex:none; }
-    .cp-title{ font-family:var(--font); font-weight:700; letter-spacing:.5px; color:var(--text); }
-    .cp-engine{ margin-left:auto; font-size:12px; color:var(--text2); font-family:var(--font); white-space:nowrap; }
+    /* Chip project lùi hẳn về mép phải: thanh này giờ chỉ còn hai nút bên trái, để chip
+       dính ngay sau chúng thì nó trông như nút thứ ba chứ không phải nhãn của cuộc chat. */
+    .chatpage-bar .proj-chip-host{ margin-left:auto; }
     .cp-ico-btn{ background:none; border:1px solid var(--border); color:var(--text2); border-radius:8px;
       padding:4px 10px; cursor:pointer; font-size:14px; line-height:1; }
     .cp-ico-btn:hover{ color:var(--accent); border-color:var(--accent); }
     .cp-ico-btn .ic{ vertical-align:-2px; }
-    .cp-side-toggle{ display:none; }
+    /* Thu gọn cột Hội thoại/Thư mục như sidebar (chủ yêu cầu 27/08): desktop thu về dải
+       hẹp chỉ còn nút mở lại (.side-thu, có nhớ), màn hẹp giữ drawer như cũ. Nút thu nằm
+       ngay góc panel (cùng icon panel-left với nút thu rail); nút lịch sử trên thanh tiêu
+       đề cũng toggle được cùng trạng thái. */
+    .cp-side-toggle{ display:inline-block; }
+    .cside-thu-btn, .cside-expand{ display:none; }
+    @media (min-width:861px){
+      .chatpage-side{ position:relative; }
+      .chatpage-side .cside-tabs{ padding-right:34px; }
+      .cside-thu-btn{ display:flex; align-items:center; justify-content:center;
+        position:absolute; top:16px; right:10px; width:27px; height:27px; border-radius:7px;
+        border:1px solid var(--border); background:none; color:var(--text3); cursor:pointer; }
+      .cside-thu-btn:hover{ color:var(--accent); border-color:var(--accent); }
+      .chatpage.side-thu .chatpage-side{ width:46px; padding:14px 8px; align-items:center; overflow:hidden; }
+      .chatpage.side-thu .chatpage-side > :not(.cside-expand){ display:none; }
+      .chatpage.side-thu .chatpage-side > .cside-expand{ display:flex; align-items:center;
+        justify-content:center; width:30px; height:30px; flex:none; border-radius:8px;
+        border:1px solid var(--border); background:none; color:var(--text2); cursor:pointer; }
+      .chatpage.side-thu .chatpage-side > .cside-expand:hover{ color:var(--accent); border-color:var(--accent); }
+    }
     .cp-min{ display:inline-flex; align-items:center; gap:5px; font-family:var(--font); }
     .chatpage-slot{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:10px; }
-    /* Mở file từ tab Thư mục: trình sửa CHIẾM CHỖ khung chat, không đè lên nó. Khung chat chỉ
-       bị display:none - node vẫn nguyên nên đóng trình sửa ra là còn đủ đoạn chat đang dở. */
-    .chatpage-edit{ display:none; position:relative; flex:1 1 auto; min-height:0; }
-    .chatpage-main.edit-on > .chatpage-slot{ display:none; }
+    /* Mở file từ tab Thư mục (desktop): trình sửa bên TRÁI, khung chat co thành CỘT PHẢI
+       y như màn Javis - hội thoại ở trên, ô nhập dưới đáy cột (chủ chỉnh 27/08: bản xếp
+       chồng dọc trước đó để chat nằm TRÊN trình sửa theo thứ tự DOM, nhìn ngược). Grid
+       đặt chỗ theo ô nên thứ tự DOM không còn quyết định vị trí. Màn hẹp giữ lối cũ:
+       trình sửa chiếm chỗ (luật display:none nằm trong khối @media 860px bên dưới),
+       node chat còn nguyên nên đóng trình sửa là chat về đủ. */
+    /* flex-direction COLUMN chứ không để mặc định row: trình sửa là MỘT khối xếp dọc trong
+       khung này. Để row thì nó thành item của một hàng ngang, và item hàng ngang có
+       min-width:auto = min-content -> nó TỪ CHỐI co lại, tràn sang phải đè lên cột hội thoại
+       (lỗi chủ repo báo 27/08: chữ bên phải bị cắt mất mép trái). min-width:0 ở cả hai tầng
+       là chốt thật của chuyện đó. */
+    .chatpage-edit{ display:none; position:relative; flex:1 1 auto; min-height:0;
+      flex-direction:column; min-width:0; }
     .chatpage-main.edit-on > .chatpage-edit{ display:flex; }
+    .cedit-thu-btn, .cedit-expand{ display:none; }
+    /* Icon panel-left lật gương = panel-right: bộ icon chưa đóng gói panel-right, và thêm
+       icon mới cần chạy gen_icons (tải mạng) - lật CSS rẻ hơn mà cùng nghĩa. */
+    .cedit-thu-btn svg, .cedit-expand svg{ transform:scaleX(-1); }
+    @media (min-width:861px){
+      /* Bản 0.47.5 nhét CẢ cụm nhập (file chip + thanh model + ô nhập) vào cột phải 340px
+         nên chật cứng - chủ chỉnh lại: y như màn Javis, các thanh đó phải TRẢI DÀI TOÀN BỀ
+         RỘNG dưới cùng (ở màn Javis chúng nằm NGOÀI .hud-body, vắt ngang đáy), chỉ có
+         HỘI THOẠI đứng cột phải. Slot tan vào lưới bằng display:contents để từng con của
+         nó tự nhận ô grid riêng. */
+      .chatpage-main.edit-on{ display:grid; column-gap:14px;
+        grid-template-columns:minmax(0,1fr) 340px;
+        grid-template-rows:auto minmax(0,1fr) auto auto auto auto; }
+      .chatpage-main.edit-on > .chatpage-bar{ grid-row:1; grid-column:1 / -1; }
+      .chatpage-main.edit-on > .chatpage-edit{ grid-row:2; grid-column:1; min-width:0; }
+      .chatpage-main.edit-on > .chatpage-slot{ display:contents; }
+      .chatpage-main.edit-on > .chatpage-slot > *{ max-width:none; }
+      .chatpage-main.edit-on > .chatpage-slot > .transcript{ grid-row:2; grid-column:2;
+        min-height:0; overflow-y:auto; border-left:1px solid var(--border); padding-left:12px; }
+      .chatpage-main.edit-on > .chatpage-slot > .bg-strip{ grid-row:3; grid-column:1 / -1; }
+      .chatpage-main.edit-on > .chatpage-slot > .attach-bar{ grid-row:4; grid-column:1 / -1; }
+      .chatpage-main.edit-on > .chatpage-slot > .model-bar{ grid-row:5; grid-column:1 / -1; }
+      .chatpage-main.edit-on > .chatpage-slot > .hud-voice{ grid-row:6; grid-column:1 / -1; }
+      /* Nút thu khung hội thoại phải - đè lên góc trên-phải cột hội thoại (grid cho phép
+         hai item cùng ô; slot display:contents nên không dùng position:absolute được). */
+      .chatpage-main.edit-on > .chatpage-slot > .cedit-thu-btn{ display:flex; grid-row:2;
+        grid-column:2; justify-self:end; align-self:start; z-index:3; margin:2px 2px 0 0;
+        align-items:center; justify-content:center; width:26px; height:26px; border-radius:7px;
+        border:1px solid var(--border); background:var(--bg2); color:var(--text3); cursor:pointer; }
+      .chatpage-main.edit-on > .chatpage-slot > .cedit-thu-btn:hover{ color:var(--accent); border-color:var(--accent); }
+      /* Thu: chỉ CỘT HỘI THOẠI co vào phải - ô nhập vẫn trải dài dưới cùng. */
+      .chatpage-main.edit-on.echat-thu{ grid-template-columns:minmax(0,1fr) 44px; }
+      .chatpage-main.edit-on.echat-thu > .chatpage-slot > .transcript,
+      .chatpage-main.edit-on.echat-thu > .chatpage-slot > .cedit-thu-btn{ display:none; }
+      .chatpage-main.edit-on.echat-thu > .chatpage-slot > .cedit-expand{ display:flex; grid-row:2;
+        grid-column:2; justify-self:center; align-self:start; align-items:center;
+        justify-content:center; width:30px; height:30px; border-radius:8px;
+        border:1px solid var(--border); background:none; color:var(--text2); cursor:pointer; }
+      .chatpage-main.edit-on.echat-thu > .chatpage-slot > .cedit-expand:hover{ color:var(--accent); border-color:var(--accent); }
+    }
     /* Trình sửa vốn là lớp nổi neo trong .hud-center; ở đây nó là một khối bình thường của
        cột chat, nên gỡ inset/z-index đi kẻo nó bung ra ngoài khung. TRỪ khi đang phóng to
        (.ne-full) - lúc đó nó cố ý phủ kín màn hình, và :not() giữ cho khối CSS này không
        vô hiệu hoá nút phóng to (hai selector cùng độ ưu tiên, khối này nạp sau nên thắng). */
     .chatpage-edit > .note-editor:not(.ne-full){ position:static; inset:auto; z-index:auto;
-      flex:1 1 auto; min-height:0; border-radius:12px; }
+      flex:1 1 auto; min-height:0; min-width:0; border-radius:12px; }
     .chatpage-slot > *{ width:100%; max-width:900px; margin-left:auto; margin-right:auto; }
     .chatpage-slot .transcript{ flex:1 1 auto; min-height:0; max-height:none; background:transparent; }
     /* Khung nhập giữ NGUYÊN bộ mặt của thanh nhập ở màn Javis (--bg2 + bo 18px). Trước đây
@@ -5144,19 +5734,27 @@
     .chatpage-slot .attach-bar{ flex:none; }
     /* Màn hẹp: cả hàng tiêu đề phải nằm gọn MỘT dòng. Trước đây tiêu đề "Trò chuyện với Javis"
        xuống bốn dòng và chữ "Thu nhỏ" xuống hai dòng, đẩy khung chat tụt hẳn xuống - chủ repo
-       chụp lại đúng cảnh đó. Ba việc: nút chỉ còn icon, tiêu đề cấm xuống dòng và tự cắt,
-       nhãn engine nhường chỗ trước vì nó là thứ ít cần nhất trong ba. */
+       chụp lại đúng cảnh đó. Nay hàng này nhẹ hẳn: tiêu đề tĩnh và nhãn engine đều đã bỏ, chỉ
+       còn hai nút (rút về icon) và chip project ở mép phải (tự cắt, xem style.css). */
     @media (max-width:860px){
+      /* Màn hẹp không đủ chỗ xếp chồng trình sửa + chat → trình sửa chiếm chỗ như cũ. */
+      .chatpage-main.edit-on > .chatpage-slot{ display:none; }
       .chatpage-bar{ gap:6px; min-width:0; }
       .cp-min span{ display:none; }
       .cp-min{ padding:4px 8px; }
-      .cp-title{ font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-        min-width:0; flex:0 1 auto; }
-      .cp-engine{ flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; font-size:11px; }
       .cp-side-toggle{ display:inline-block; }
       .chatpage-side{ position:absolute; left:0; top:0; bottom:0; z-index:6; width:min(84vw,300px);
         transform:translateX(-105%); transition:transform .2s ease; box-shadow:10px 0 40px var(--shadow-veil); background:var(--bg); }
       .chatpage.side-open .chatpage-side{ transform:none; }
+      /* NỀN MỜ. Ngăn kéo này trước đây mở ra mà không có nền, và đóng lại được đúng ba đường -
+         cả ba đều TẮT khi mở một file để sửa: nút bật/tắt nằm trên thanh tiêu đề thì bị chính
+         ngăn kéo (84vw) che, chạm vào khung chat thì khung chat đang bị ẩn nhường chỗ cho
+         trình sửa, còn chạm một dòng hội thoại thì đang ở tab Thư mục làm gì có dòng nào.
+         Kết quả: ngăn kéo dính cứng giữa màn hình, không cách nào đóng (chủ repo báo 01/09).
+         Nền mờ vừa nói cho mắt biết "chạm ra ngoài là đóng", vừa là chỗ hứng cú chạm đó.
+         z-index 5: trên nội dung, dưới chính ngăn kéo (6). */
+      .chatpage.side-open::before{ content:""; position:absolute; inset:0; z-index:5;
+        background:var(--scrim); }
       .chatpage-main{ padding:10px 12px 12px; }
     }`;
     const st = document.createElement("style"); st.id = "cp-css"; st.textContent = css; document.head.appendChild(st);
@@ -5215,10 +5813,11 @@
   // Đúng - cây Vault đã có sẵn tìm theo tên/nội dung, tạo file, tạo thư mục, làm mới, tô sáng
   // file đang mở. Dựng bản thứ hai là chép lại từng đó thứ rồi để hai bản trôi lệch nhau.
   // Mượn node y như cách trang này vẫn mượn #chatArea: cùng một cây, chỉ đổi chỗ đứng.
-  // ===== Trình sửa file CHIẾM CHỖ khung chat khi mở file từ tab Thư mục =====
+  // ===== Trình sửa file đứng TRÊN khung chat khi mở file từ tab Thư mục =====
   // Ở màn chính, trình sửa là lớp nổi đè lên visual não - chỗ đó rỗng nên đè là hợp lý. Ở
-  // trang Trò chuyện thì phía dưới là khung chat đang có nội dung; đè lên nó vừa chật vừa
-  // rối. Yêu cầu của chủ repo: mở file thì khung chat biến mất hẳn, chỉ còn trình sửa.
+  // trang Trò chuyện, desktop XẾP CHỒNG: trình sửa trên, khung chat rút gọn ở dưới - chủ
+  // repo đổi ý 27/08 (trước đó muốn ẩn hẳn): vừa sửa file vừa nhắn Javis về file đó.
+  // Màn hẹp vẫn ẩn hẳn khung chat vì không đủ chỗ. Xem khối CSS .chatpage-main.edit-on.
   // Vẫn MƯỢN chính #noteEditor chứ không dựng trình sửa thứ hai - cùng lý do với cây Vault.
   // `into` = khung sẽ mượn trình sửa. Bỏ trống = khung của trang Trò chuyện (#chatPageEdit).
   // Từ 0.33.4 trang Tệp tin cũng mượn chính node này (#fmEdit) thay vì bật popup riêng - một
@@ -5232,6 +5831,13 @@
     into.appendChild(ed);
     const main = into.parentNode;
     if (main && main.classList) main.classList.add("edit-on");
+    // Màn hẹp: trình sửa vừa chiếm chỗ khung chat, mà ngăn kéo Hội thoại/Thư mục thì vẫn đang
+    // mở đè lên nó. Đóng ngay tại ĐÂY vì đây là chỗ MỌI đường mở file đi qua (bấm file trong
+    // cây, bấm [[wikilink]], bấm chip file đang ghim) - gắn ở từng handler là sót đường.
+    try {
+      const _cp = document.getElementById("chatPage");
+      if (_cp && window.matchMedia("(max-width: 860px)").matches) _cp.classList.remove("side-open");
+    } catch (e) {}
     return true;
   }
   function _returnNoteEditor() {
@@ -5244,6 +5850,9 @@
     if (s.next && s.next.parentNode === s.parent) s.parent.insertBefore(s.node, s.next);
     else s.parent.appendChild(s.node);
     _neSlot = null;
+    // Rời trang trong khi đang phóng to: trình sửa về lại khung cũ nên lớp ne-full-on phải
+    // tắt theo, không thì .cview còn đứng trên rail dù chẳng còn gì phóng to.
+    _neSyncFull();
   }
 
   let _vaultSlot = null;
@@ -5271,7 +5880,6 @@
   }
 
   function _returnChatNodes() {
-    if (_chatEngObs) { try { _chatEngObs.disconnect(); } catch (e) {} _chatEngObs = null; }
     // Rời trang Trò chuyện thì trả cây Vault về cột trái màn chính, nếu không màn chính mất
     // hẳn panel Vault và người dùng tưởng app hỏng. Trình sửa cũng vậy - nó đang nằm trong
     // khung sắp bị xoá, không trả về là mất luôn node và mở file ở màn chính sẽ trắng trơn.
@@ -5306,8 +5914,10 @@
             '<button class="cp-ico-btn cp-min" type="button" id="cpMinBtn" ' +
               'title="Thu nhỏ về màn Javis" aria-label="Thu nhỏ về màn Javis">' +
               ic("chevron-left") + '<span>Thu nhỏ</span></button>' +
-            '<span class="cp-title">Trò chuyện với Javis</span>' +
-            '<span class="cp-engine" id="cpEngine"></span>' +
+            // Tiêu đề tĩnh "Trò chuyện với Javis" ĐÃ BỎ (chủ repo yêu cầu 01/09). Nó nói
+            // đúng một điều mà rail đang tô sáng và khung trống đã ghi bằng chữ in nghiêng
+            // ngay bên dưới, nên nó chỉ ăn chỗ. Chip project lùi về mép phải, chiếm chỗ đó.
+            '<span class="proj-chip-host"></span>' +
           '</div>' +
           '<div class="chatpage-slot" id="chatPageSlot"></div>' +
           // Chỗ đứng cho TRÌNH SỬA khi mở file từ tab Thư mục. Rỗng và ẩn cho tới lúc đó.
@@ -5320,22 +5930,62 @@
 
     // Sidebar lịch sử hội thoại (dùng lại module chung của chat workspace)
     try { if (window.JavisChatSide) window.JavisChatSide.mount(el.querySelector("#chatPageSide")); } catch (e) {}
+    // Thanh tiêu đề vừa dựng lại từ đầu nên chip project trong đó đang trống.
+    try { if (window.JavisChatSide) window.JavisChatSide.chip(); } catch (e) {}
 
-    // Badge engine: phản chiếu từ badge gốc trong HUD (không mượn node để khỏi phá HUD)
-    const eb = document.getElementById("engineBadge"), cpe = el.querySelector("#cpEngine");
-    if (eb && cpe) {
-      const sync = () => { cpe.textContent = (eb.textContent || "").trim(); };
-      sync();
-      try { _chatEngObs = new MutationObserver(sync); _chatEngObs.observe(eb, { childList: true, characterData: true, subtree: true }); } catch (e) {}
-    }
-
-    // Mobile: nút lịch sử mở/đóng drawer lịch sử; bấm vào vùng chat thì đóng drawer
+    // Thu gọn cột Hội thoại/Thư mục: màn hẹp giữ drawer như cũ; desktop thu về dải hẹp
+    // và nhớ lựa chọn. Nút thu/mở gắn SAU khi JavisChatSide.mount vì mount ghi đè innerHTML
+    // của panel - gắn trước là nút biến mất.
     const isNar = () => window.matchMedia("(max-width: 860px)").matches;
-    el.querySelector(".cp-side-toggle").onclick = () => page.classList.toggle("side-open");
+    const sideEl = el.querySelector("#chatPageSide");
+    const datSideThu = (thu) => {
+      page.classList.toggle("side-thu", thu);
+      try { localStorage.setItem("javis_chatside_thu", thu ? "1" : "0"); } catch (e) {}
+    };
+    try { if (localStorage.getItem("javis_chatside_thu") === "1") page.classList.add("side-thu"); } catch (e) {}
+    if (sideEl) {
+      const thuBtn = document.createElement("button");
+      thuBtn.className = "cside-thu-btn"; thuBtn.type = "button";
+      thuBtn.title = "Thu gọn cột này (như sidebar)"; thuBtn.innerHTML = ic("panel-left");
+      thuBtn.onclick = () => datSideThu(true);
+      const moBtn = document.createElement("button");
+      moBtn.className = "cside-expand"; moBtn.type = "button";
+      moBtn.title = "Mở lại cột Hội thoại / Thư mục"; moBtn.innerHTML = ic("panel-left");
+      moBtn.onclick = () => datSideThu(false);
+      sideEl.appendChild(thuBtn); sideEl.appendChild(moBtn);
+    }
+    el.querySelector(".cp-side-toggle").onclick = () => {
+      if (isNar()) { page.classList.toggle("side-open"); return; }
+      datSideThu(!page.classList.contains("side-thu"));
+    };
+    // Khung chat PHẢI khi đang sửa file (.edit-on): nút thu co vào bên phải + nhớ trạng
+    // thái. Nút gắn vào slot SAU khi mượn node chat nên không bị _borrowChatNodes chen chỗ.
+    const mainEl = el.querySelector(".chatpage-main");
+    if (mainEl && slot) {
+      const datEditThu = (thu) => {
+        mainEl.classList.toggle("echat-thu", thu);
+        try { localStorage.setItem("javis_editchat_thu", thu ? "1" : "0"); } catch (e) {}
+      };
+      try { if (localStorage.getItem("javis_editchat_thu") === "1") mainEl.classList.add("echat-thu"); } catch (e) {}
+      const et = document.createElement("button");
+      et.className = "cedit-thu-btn"; et.type = "button";
+      et.title = "Thu khung hội thoại sang phải"; et.innerHTML = ic("panel-left");
+      et.onclick = () => datEditThu(true);
+      const em = document.createElement("button");
+      em.className = "cedit-expand"; em.type = "button";
+      em.title = "Mở lại khung hội thoại"; em.innerHTML = ic("panel-left");
+      em.onclick = () => datEditThu(false);
+      slot.appendChild(et); slot.appendChild(em);
+    }
     // Đường VỀ. Nút phóng to ở màn Javis nay dẫn thẳng sang trang này (lớp nổi .chat-stage đã
     // bỏ), nên trang này phải có nút thu nhỏ, nếu không người dùng chỉ còn cách bấm rail.
     el.querySelector("#cpMinBtn").onclick = () => navigateTo("home");
     slot.addEventListener("click", () => { if (isNar() && page.classList.contains("side-open")) page.classList.remove("side-open"); });
+    // Chạm NỀN MỜ (pseudo-element của chính .chatpage nên cú chạm rơi vào page) = đóng ngăn kéo.
+    // Đây là đường đóng DUY NHẤT còn sống khi trình sửa đang chiếm chỗ khung chat.
+    page.addEventListener("click", (e) => {
+      if (isNar() && e.target === page && page.classList.contains("side-open")) page.classList.remove("side-open");
+    });
     el.querySelector("#chatPageSide").addEventListener("click", (e) => {
       if (isNar() && e.target.closest(".cside-item")) page.classList.remove("side-open");
     });
@@ -5593,12 +6243,39 @@
     });
   }
 
+  // Tìm theo TÊN: hỏi server MỘT phát (`/files/search?mode=name`), y như trang Tệp tin vẫn làm.
+  //
+  // Trước 0.52.9 chỗ này gọi `_vtBuildIndex`, tức là BÒ CẢ VAULT TỪ TRÌNH DUYỆT: mỗi thư mục
+  // một request `/files/list`, và bò TUẦN TỰ. Trên máy mình thì không thấy gì vì round-trip
+  // gần bằng 0; trên VPS mỗi request mất cả trăm mili giây, vault trăm thư mục là hàng chục
+  // giây trắng màn hình. Đúng chỗ chủ repo báo 01/09/2026: "tìm ở panel này rất chậm, trong
+  // khi tìm trong Tệp tin thì file ra cực nhanh" - trang Tệp tin vốn đã hỏi server một phát.
+  //
+  // Đường bò cũ vẫn giữ làm DỰ PHÒNG, đúng lý do nó sinh ra: server cũ chưa có endpoint này
+  // (404) thì panel vẫn phải tìm được, không bắt người dùng khởi động lại mới dùng được.
   async function _vtNameSearch(q) {
     const box = document.getElementById("vaultResults"); if (!box) return;
     box.innerHTML = `<div class="vr-empty">Đang tìm…</div>`;
-    const idx = await _vtBuildIndex();
-    const nq = _vtNoAccent(q);
-    const hits = idx.filter(f => _vtNoAccent(f.name).includes(nq)).slice(0, 120);
+    let hits = null;
+    try {
+      const r = await fetch(`/files/search?brain=${encodeURIComponent(fbrain())}`
+        + `&q=${encodeURIComponent(q)}&mode=name&limit=120`);
+      if (r.ok) {
+        const d = await r.json().catch(() => ({}));
+        // `path` của /files/search tính theo TRẦN DUYỆT - đúng quy ước openNote/_vtRevealInTree
+        // đang dùng, nên không phải đổi gì ở hai chỗ đó.
+        if (d && !d.error) hits = (d.items || []).map(it => ({
+          name: it.name, ext: it.ext, path: it.path,
+          dir: String(it.path || "").includes("/")
+            ? it.path.slice(0, it.path.lastIndexOf("/")) : "",
+        }));
+      }
+    } catch (e) { /* mất mạng chốc lát → thử đường bò bên dưới */ }
+    if (hits === null) {
+      const idx = await _vtBuildIndex();
+      const nq = _vtNoAccent(q);
+      hits = idx.filter(f => _vtNoAccent(f.name).includes(nq)).slice(0, 120);
+    }
     if (!hits.length) { box.innerHTML = `<div class="vr-empty">Không thấy note nào tên khớp "${esc(q)}".</div>`; return; }
     _vtRenderResults(box, hits, false);
   }
@@ -5663,6 +6340,16 @@
       const fd = new FormData(); fd.append("brain", fbrain()); fd.append("path", _vtHome || ""); fd.append("name", n);
       await fetch("/files/mkdir", { method: "POST", body: fd }); _vtCache.clear(); renderVaultTree();
     };
+    // Thu gọn panel Vault như sidebar (yêu cầu chủ 27/08): thu → cột trái chỉ còn một nút
+    // mở lại; nhớ lựa chọn qua localStorage (boot() áp lại lúc tải trang). Trạng thái chỉ
+    // có nghĩa ở màn chính - CSS đã tự vô hiệu khi node bị mượn sang tab Thư mục.
+    const vc = document.getElementById("vtCollapse"), ve = document.getElementById("vtExpand");
+    const datVaultThu = (thu) => {
+      document.body.classList.toggle("vault-thu", thu);
+      try { localStorage.setItem("javis_vault_thu", thu ? "1" : "0"); } catch (e) {}
+    };
+    if (vc) vc.onclick = () => datVaultThu(true);
+    if (ve) ve.onclick = () => datVaultThu(false);
   }
 
   async function renderVaultTree() {
@@ -5712,9 +6399,19 @@
     if (e.button === 3) { e.preventDefault(); _neDiLichSu(-1); }
     else if (e.button === 4) { e.preventDefault(); _neDiLichSu(1); }
   });
+  // Body có lớp `ne-full-on` khi trình sửa đang phóng to. style.css dựa vào đó để nâng
+  // stacking context .cview lên trên rail - không có nó thì phóng to xong rail vẫn phủ
+  // lên mép trái bài viết (chữ bị lẹm). SUY RA từ DOM thật chứ không bật/tắt theo từng
+  // đường: quên một nhánh là lớp treo lại, mà lúc đó .cview đứng trên rail vĩnh viễn.
+  function _neSyncFull() {
+    const ed = document.getElementById("noteEditor");
+    document.body.classList.toggle("ne-full-on",
+      !!(ed && !ed.hidden && ed.classList.contains("ne-full")));
+  }
+
   function closeNote() {
     const ed = document.getElementById("noteEditor"); if (!ed) return;
-    ed.hidden = true; ed.classList.remove("ne-full");
+    ed.hidden = true; ed.classList.remove("ne-full"); _neSyncFull();
     // Đóng trình sửa ở trang Trò chuyện = trả chỗ lại cho khung chat. Không trả thì khung chat
     // vẫn bị ẩn và người dùng nhìn vào một trang trống, tưởng chat hỏng.
     _returnNoteEditor();
@@ -5773,7 +6470,7 @@
     actions.appendChild(mk(ic("trash-2"), "Xoá file", () => _neDeleteCur(rel, it)));
     actions.appendChild(mk("↗", "Mở tab mới", () => window.open(_vtRaw(rel), "_blank")));
     actions.appendChild(mk("⤓ Tải", "Tải file về máy", () => _dlFile(rel)));
-    actions.appendChild(mk(ic("maximize"), "Phóng to / thu nhỏ", () => ed.classList.toggle("ne-full")));
+    actions.appendChild(mk(ic("maximize"), "Phóng to / thu nhỏ", () => { ed.classList.toggle("ne-full"); _neSyncFull(); }));
     actions.appendChild(mk(X_ICON, "Đóng (Esc)", closeNote));
   }
   function _neRenderDownload(body, actions, rel, it) {
@@ -5801,6 +6498,7 @@
     b.innerHTML = X_ICON; b.title = "Đóng (Esc)"; b.onclick = closeNote;
     actions.appendChild(b);
     if (ed) ed.classList.remove("ne-full");
+    _neSyncFull();
     _neTimFileGan(String(rel).split("/").pop(), body.querySelector("#neMissHits"));
   }
   // Link hụt thường KHÔNG phải file đã mất - chỉ là tên trong chat lệch tên trên đĩa (hay gặp
@@ -6021,7 +6719,7 @@
     _neDangDiLichSu = false;
     if (!laLichSu) _neDayLichSu(rel, it);
     _neVeNutLui();
-    ed.hidden = false; ed.classList.remove("ne-full");
+    ed.hidden = false; ed.classList.remove("ne-full"); _neSyncFull();
     _neOpenRel = rel || "";     // để chip "file đang mở" biết có cần nạp lại hay chỉ cần đưa mắt về
     _neLayNoiDung = null; _neGocText = null;   // file mới: mốc so sánh dựng lại ở dưới
     // Đang ở trang Trò chuyện thì trình sửa chiếm chỗ khung chat thay vì đè lên visual não
@@ -6069,12 +6767,14 @@
       let mdGetter = null;
       if (isMd) {
         const wys = document.getElementById("neWys");
-        wys.innerHTML = window.mdToHtml ? window.mdToHtml(ta.value) : esc(ta.value);
+        // {trinhSua:true}: khối code dài giữ nguyên hình khối code thay vì thu thành thẻ
+        // artifact - trong trình sửa, nội dung phải nhìn thấy và sửa được tại chỗ.
+        wys.innerHTML = window.mdToHtml ? window.mdToHtml(ta.value, null, { trinhSua: true }) : esc(ta.value);
         let curMode = wysOk ? "wys" : "source";
         // Tick checkbox task trong bản render -> tự lưu ngay (như Obsidian), khỏi bấm nút Lưu
         wys.addEventListener("jv-task-toggle", () => { if (_neSaveFn) _neSaveFn(); });
         const wysToSrc = () => { const md = _mdFromHtml(wys.innerHTML); if (md != null) ta.value = md; };
-        const srcToWys = () => { wys.innerHTML = window.mdToHtml ? window.mdToHtml(ta.value) : esc(ta.value); };
+        const srcToWys = () => { wys.innerHTML = window.mdToHtml ? window.mdToHtml(ta.value, null, { trinhSua: true }) : esc(ta.value); };
         _neBuildToolbar(body.querySelector(".ne-fmt"), { mode: () => curMode, ta, wys });   // thanh công cụ chạy cả 2 chế độ
         mdGetter = () => (curMode === "wys" ? (_mdFromHtml(wys.innerHTML) != null ? _mdFromHtml(wys.innerHTML) : ta.value) : ta.value);
         const seg = document.createElement("span"); seg.className = "ne-seg";
@@ -6141,6 +6841,14 @@
       if (st) st.i18nTick++;
     } catch (e) { /* Alpine chưa dựng xong - lát nữa nó đọc từ điển đã đầy rồi */ }
     try { window.JavisI18n && JavisI18n.applyDom(); } catch (e) { /* noop */ }
+    // Hai ô chọn ngôn ngữ (đáy rail + trang Cài đặt) phải chỉ cùng một giá trị: đổi ở đâu
+    // thì ô kia tự nhảy theo, không cần F5.
+    try {
+      for (const id of ["railLang", "vpUiLang"]) {
+        const sel = document.getElementById(id);
+        if (sel && window.JavisI18n && sel.value !== JavisI18n.lang()) sel.value = JavisI18n.lang();
+      }
+    } catch (e) { /* noop */ }
   });
 
   function initRailTooltip() {
@@ -6201,6 +6909,19 @@
 
   function boot() {
     document.body.classList.add("has-rail");
+    // Áp lại trạng thái thu gọn panel Vault ĐÃ LƯU ngay lúc tải trang (nút bấm gắn trong
+    // _vtWire, nhưng chờ tới đó mới áp thì panel nháy to rồi mới thu).
+    try { if (localStorage.getItem("javis_vault_thu") === "1") document.body.classList.add("vault-thu"); } catch (e) {}
+    // Thu khung HỘI THOẠI (cột phải màn chính) - co vào bên phải, có nhớ. CSS đã tự vô
+    // hiệu ở màn hẹp (cột đó chính là khung chat mobile) nên chỉ cần gắn handler + áp lại.
+    const cct = document.getElementById("chatColThu"), ccm = document.getElementById("chatColMo");
+    const datChatColThu = (thu) => {
+      document.body.classList.toggle("chatcol-thu", thu);
+      try { localStorage.setItem("javis_chatcol_thu", thu ? "1" : "0"); } catch (e) {}
+    };
+    if (cct) cct.onclick = () => datChatColThu(true);
+    if (ccm) ccm.onclick = () => datChatColThu(false);
+    try { if (localStorage.getItem("javis_chatcol_thu") === "1") document.body.classList.add("chatcol-thu"); } catch (e) {}
     refreshEngineBanner();
     setInterval(refreshEngineBanner, 90000);
     // Báo "chưa kết nối" mà không đưa được người ta tới chỗ kết nối thì chỉ là than phiền.
@@ -6235,6 +6956,26 @@
     initRailTooltip();   // tooltip nhanh cho rail thu gọn
 
     freshSettings().then(s => {
+      // Ô đổi ngôn ngữ giao diện dưới đáy rail. Danh sách từ sổ đăng ký phía server
+      // (s.lang_list) - cùng nguồn với trang Cài đặt, không khai lại ở client. Chỉ hiện khi
+      // có từ 2 ngôn ngữ: một ngôn ngữ thì ô chọn là đồ trang trí.
+      try {
+        const wrap = document.getElementById("railLangWrap");
+        const sel = document.getElementById("railLang");
+        const langs = s.lang_list || [];
+        if (wrap && sel && langs.length > 1) {
+          const cur = (window.JavisI18n && JavisI18n.lang()) || "vi";
+          sel.innerHTML = langs.map(l =>
+            `<option value="${esc(l.ma)}"${l.ma === cur ? " selected" : ""}>${esc(l.ten)}</option>`).join("");
+          sel.onchange = async () => {
+            // Đổi NGAY trên máy này trước rồi mới lưu lên server - ngôn ngữ giao diện là lựa
+            // chọn theo thiết bị, trải nghiệm không được chờ mạng (giống ô ở trang Cài đặt).
+            try { await JavisI18n.setLang(sel.value); } catch (e) { /* noop */ }
+            saveSetting("locale", { ui_lang: sel.value });
+          };
+          wrap.hidden = false;
+        }
+      } catch (e) { /* thiếu ô thì rail vẫn sống */ }
       graphEnabled = !(s.dashboard && s.dashboard.graph_enabled === false);
       // MỞ APP LÀ VÀO MÀN JAVIS, kể cả lite-mode (cờ graph tắt hoặc màn hẹp): màn Javis đã có
       // sẵn ô chat, chỉ khác là không vẽ khoang não. Bản trước tự đẩy sang trang Trò chuyện,

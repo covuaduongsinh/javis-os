@@ -77,6 +77,66 @@
       "default_perm": "readonly"
     },
     {
+      "id": "shopify",
+      "name": "Shopify",
+      "icon": "/static/logos/shopify.svg",
+      "category": "Bán hàng",
+      "description": "Tra cứu sản phẩm, giá, tồn kho và dựng sẵn giỏ hàng của MỘT cửa hàng Shopify qua MCP chính chủ (chuẩn UCP). Không cần API key, không cần cài app, không cần là chủ shop - chỉ cần địa chỉ cửa hàng.",
+      "status": "beta",
+      "transport": "http",
+      "url_template": "{shop_domain}/api/ucp/mcp",
+      "auth": {
+        "type": "none",
+        "fields": [
+          {
+            "key": "shop_domain",
+            "label": "Địa chỉ cửa hàng Shopify",
+            "placeholder": "Ví dụ: cua-hang.myshopify.com",
+            "url_base": true
+          },
+          {
+            "key": "agent_profile",
+            "label": "URL hồ sơ agent UCP (nâng cao - không rõ thì để nguyên)",
+            "placeholder": "Ví dụ: https://trang-cua-ban.com/ucp-agent-profile.json",
+            "optional": true,
+            "default": "https://raw.githubusercontent.com/blogminhquy/javis-os/main/system/ucp-agent-profile.json"
+          }
+        ],
+        "guide": "Chỉ cần địa chỉ cửa hàng, KHÔNG cần API key và không cần bạn là chủ shop - endpoint này công khai.\n\n1. Lấy địa chỉ cửa hàng: tên miền riêng (vd shop-cua-ban.com) hoặc dạng ...myshopify.com đều được.\n2. Dán vào ô dưới rồi bấm Kết nối. Gõ kiểu nào cũng được (thiếu https://, thừa gạch chéo, dán nguyên URL đang mở) - Javis tự cắt về đúng tên miền.\n\nÔ thứ hai đã điền sẵn, cứ để nguyên. Đó là hồ sơ khai báo Javis biết làm gì, phía Shopify tải về để thoả thuận năng lực; mỗi lời gọi Javis tự đính kèm, bạn không phải làm gì.\n\nLƯU Ý: cửa hàng phải bật kênh bán cho agent (Shopify bật sẵn cho phần lớn shop). Shop nào tắt thì Test sẽ báo không kết nối được - đó là thiết lập bên Shopify, không phải lỗi Javis.",
+        "guide_url": "https://shopify.dev/docs/agents/carts-and-checkout/cart-mcp",
+        "steps": [
+          {
+            "text": "Lấy địa chỉ cửa hàng Shopify muốn tra - tên miền riêng hay dạng ...myshopify.com đều được."
+          },
+          {
+            "text": "Dán vào ô Địa chỉ cửa hàng. Không cần API key, không cần đăng nhập, không cần là chủ shop."
+          },
+          {
+            "text": "Ô hồ sơ agent UCP đã điền sẵn - để nguyên. Đó là tờ khai Javis làm được những gì, phía Shopify tải về để thoả thuận năng lực; Javis tự đính kèm ở mọi lời gọi.",
+            "link": "https://shopify.dev/docs/agents/profiles",
+            "link_label": "Hồ sơ agent là gì"
+          },
+          {
+            "text": "Bấm Kết nối. Javis gọi thử cửa hàng ngay để chắc chắn đấu được. Báo đỏ thì thường là shop đó chưa bật kênh bán cho agent - đó là thiết lập bên Shopify, không phải lỗi Javis."
+          }
+        ]
+      },
+      "inject_args": {
+        "meta": {
+          "ucp-agent": {
+            "profile": "{agent_profile}"
+          }
+        }
+      },
+      "tool_meta": {
+        "read": ["search_catalog", "lookup_catalog", "get_product", "get_cart"],
+        "write": ["create_cart", "update_cart"],
+        "danger": ["cancel_cart", "*checkout*", "*payment*", "*order*"]
+      },
+      "default_perm": "readonly",
+      "risk": "Mức Chỉ đọc (mặc định) chỉ TRA CỨU sản phẩm, giá, tồn kho của cửa hàng. Không tiêu tiền, không tạo gì cả.\n\nMức Ghi nháp thêm quyền DỰNG GIỎ HÀNG trên shop thật.\nGiỏ hàng CHƯA phải đơn hàng và chưa trừ tiền: Shopify trả về một đường link để người thật bấm vào thanh toán.\nJavis KHÔNG khai năng lực thanh toán nên không tự trả tiền được.\n\nMức Toàn quyền thêm quyền HUỶ giỏ hàng đã dựng.\n\nĐây là kết nối tới cửa hàng công khai, ai biết địa chỉ shop cũng đấu được.\nNó KHÔNG cho xem doanh thu, đơn hàng hay khách hàng của shop - muốn số liệu quản trị đó thì cần kết nối quản trị viên riêng, không phải kênh này."
+    },
+    {
       "id": "zalo",
       "name": "Zalo Agent MCP",
       "icon": "/static/logos/zalo.png",
@@ -1242,6 +1302,57 @@
       },
       "default_perm": "readonly",
       "risk": "Mức Ghi nháp cho phép Javis TẠO và SỬA workflow thật trên n8n của bạn.\n\nMức Toàn quyền thêm quyền CHẠY workflow - đây là chỗ nguy hiểm nhất.\nMột workflow chạy lên có thể gửi mail, đăng bài, gọi API tính tiền, đẩy dữ liệu ra ngoài.\nJavis không nhìn được bên trong workflow làm gì, và chạy rồi thì không hoàn tác được.\n\nChỉ cần xem và soạn workflow thì giữ mức Chỉ đọc hoặc Ghi nháp.\n\nLưu ý: token này thấy MỌI workflow và cả danh sách credential mà tài khoản n8n của bạn thấy."
+    },
+    {
+      "id": "hostinger",
+      "name": "Hostinger",
+      "icon": "/static/logos/hostinger.svg",
+      "category": "Website",
+      "description": "Quản lý hosting Hostinger ngay trong chat: xem tên miền và ngày hết hạn, sửa bản ghi DNS, xem website và WordPress, VPS, hộp thư, hoá đơn và gói đang chạy. MCP chính chủ của Hostinger, dán API token là xong.",
+      "status": "beta",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "hostinger-api-mcp"],
+      "requires": { "node": ">=20" },
+      "_note": "Server chính chủ hostinger/api-mcp-server (npm hostinger-api-mcp, kiểm 1.50.0 ngày 27/08/2026). Đo thật lúc thêm: 372 tool (hosting, agency-hosting, VPS, domains, DNS, mail, reach, ecommerce, horizons, billing) nên hub tự bật tầng lazy - model tìm tool qua meta-tool search thay vì nhận cả danh sách. Package còn 11 binary con theo mảng (hostinger-vps-mcp, hostinger-domains-mcp...) nếu sau này muốn tách connector nhẹ hơn. Tên tool dạng `mang_verbDoiTuongV1` và nhóm agency-hosting có DẤU GẠCH NGANG trong tiền tố - mẫu tool_meta phải khớp được cả nhóm đó. Token cấp qua env HOSTINGER_API_TOKEN (alias cũ API_TOKEN đang bị khai tử); không cấp token thì server tự mở OAuth trình duyệt - KHÔNG dùng đường đó vì Javis chạy nền, không ai bấm được.",
+      "auth": {
+        "type": "apikey",
+        "fields": [
+          {
+            "key": "api_token",
+            "label": "API token (Hostinger)",
+            "placeholder": "Dán API token từ hPanel...",
+            "env": "HOSTINGER_API_TOKEN"
+          }
+        ],
+        "guide": "Làm 1 lần:\n1. Đăng nhập hPanel rồi vào Hồ sơ > API (hpanel.hostinger.com/profile/api).\n2. Bấm Tạo token, đặt tên (ví dụ 'Javis') và chọn hạn dùng.\n3. Copy token NGAY lúc đó rồi dán vào ô dưới - đóng cửa sổ là không xem lại được nữa.\n\nToken thấy đúng những gì tài khoản Hostinger của bạn thấy: tên miền, website, VPS, hộp thư, hoá đơn. Mất token thì vào lại trang đó thu hồi rồi tạo cái mới.",
+        "guide_url": "https://www.hostinger.com/support/11079316-hostinger-api-mcp-server/",
+        "steps": [
+          { "text": "Đăng nhập hPanel của Hostinger." },
+          { "text": "Vào Hồ sơ > API, bấm Tạo token, đặt tên và chọn hạn dùng.", "link": "https://hpanel.hostinger.com/profile/api", "link_label": "Mở trang API của hPanel" },
+          { "text": "Copy token ngay lúc hiện ra - đóng đi là không xem lại được." },
+          { "text": "Dán token vào ô bên dưới rồi bấm Kết nối.", "link": "https://www.hostinger.com/support/11079316-hostinger-api-mcp-server/", "link_label": "Hướng dẫn của Hostinger" }
+        ]
+      },
+      "validate": {
+        "tool": "domains_getDomainListV1",
+        "args": {}
+      },
+      "tool_meta": {
+        "read": ["*_get*", "*_list*", "*_show*", "*_check*", "*_count*", "*_search*",
+                 "*_preview*", "*_suggest*", "*_detect*", "*_validate*", "*_retrieve*"],
+        "write": ["*_create*", "*_update*", "*_set*", "*_deploy*", "*_install*", "*_enable*",
+                  "*_toggle*", "*_activate*", "*_assign*", "*_generate*", "*_regenerate*",
+                  "*_import*", "*_upload*", "*_sync*", "*_rename*", "*_patch*", "*_attach*",
+                  "*_accept*", "*_resend*", "*_verify*", "*_repair*", "*_change*", "*_start*",
+                  "*_test*", "*_fulfil*", "*_clear*", "*_link*", "*_build*"],
+        "danger": ["*_delete*", "*_purge*", "*_remove*", "*_purchase*", "*purchaseorder*",
+                   "*_renew*", "*_claim*", "*_cancel*", "*_reset*", "*_restore*", "*_revoke*",
+                   "*_recreate*", "*_replace*", "*_uninstall*", "*_stop*", "*_restart*",
+                   "*_disable*", "*_deactivate*", "*_unlink*", "*_unset*", "*_reject*"]
+      },
+      "default_perm": "readonly",
+      "risk": "Đây là chìa khoá vào hạ tầng website của bạn, nên mặc định để mức Chỉ đọc.\n\nMức Ghi nháp cho phép Javis SỬA thật: đổi bản ghi DNS, tạo và sửa website, subdomain, hộp thư, cron, cài plugin WordPress. Sai một bản ghi DNS là website hoặc email tắt ngay.\n\nMức Toàn quyền mở thêm nhóm nguy hiểm: XOÁ website, tên miền, hộp thư, VPS; tắt hoặc khởi động lại VPS; khôi phục và reset bản sao lưu.\nNhóm này còn có các thao tác TIÊU TIỀN: mua tên miền, mua VPS, gia hạn gói. Trừ tiền thật trong tài khoản Hostinger và không hoàn tác được.\n\nChỉ nâng quyền khi bạn thật sự muốn Javis tự tay làm những việc đó."
     }
   ]
 }
