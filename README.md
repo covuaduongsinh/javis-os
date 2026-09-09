@@ -70,8 +70,10 @@ VPS Hostinger → **Docker Manager → Compose → URL** → dán **file Hosting
 https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.hostinger.yml
 ```
 Ô **Environment** của mẫu mới chỉ còn 3 trường cần thiết: `DOMAIN_NAME`,
-`JAVIS_ADMIN_USER`, `JAVIS_ADMIN_PASSWORD`. Các biến kỹ thuật về cổng, state,
-brain và thư mục chạy đã được ẩn vì Docker image tự đặt đúng.
+`JAVIS_ADMIN_USER`, `JAVIS_ADMIN_PASSWORD`, cộng một trường tuỳ chọn
+`JAVIS_AUTO_UPDATE` (đặt `true` là Javis tự cập nhật mỗi ngày, bỏ trống thì cập
+nhật bằng nút trong app). Các biến kỹ thuật về cổng, state, brain và thư mục chạy
+đã được ẩn vì Docker image tự đặt đúng.
 
 Đặt `DOMAIN_NAME` để Traefik của Hostinger cấp HTTPS:
 - **Link miễn phí** (không cần mua tên miền): `DOMAIN_NAME=javis.<hostname-vps>.hstgr.cloud`
@@ -207,7 +209,7 @@ Mọi dòng để trống vẫn chạy được. Sao chép `env.example` → `.e
 | `JAVIS_STATE_DIR` | Nơi ghi state (settings, sessions, khoá mã hoá, cấu hình việc định kỳ) | `server/` (Docker: `/data/state`) |
 | `BRAINS_DIR` | Thư mục CHA chứa mọi brain | `brains/` (Docker: `/brains`) |
 | `OBSIDIAN_VAULT_PATH` | Vault Second Brain ngoài (nếu bạn đã có vault sẵn) | `vault/` (Docker: `/data/vault`) |
-| `CLAUDE_CWD` | Thư mục làm việc của bộ não Claude | repo root |
+| `CLAUDE_CWD` | Thư mục dự phòng của bộ não Claude (chat chạy trong thư mục brain) | repo root |
 | `JAVIS_ENABLE_USER_PLUGINS` | `true` mới cho phép chạy plugin do bạn cài (code Python thật trong server) | *(tắt)* |
 | `WATCHTOWER_TOKEN` | Token cho nút "Cập nhật ngay" trên bản Docker | `javis-update` |
 | `TTS_VOICE` / `TTS_RATE` | Giọng đọc + tốc độ (Edge TTS) | `vi-VN-HoaiMyNeural` / `+5%` |

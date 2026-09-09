@@ -13,6 +13,20 @@
 (function () {
   "use strict";
 
+  // Chữ hiện ra lấy từ từ điển. Trong trình duyệt là window.t (i18n/index.js nạp trước mọi
+  // module này); dưới node - nơi test require() thẳng file này - `window` CHƯA KHAI BÁO nên
+  // đọc window.t là ReferenceError chứ không phải undefined, phải hỏi bằng typeof. Ở đó đọc
+  // thẳng vi.json để hàm vẫn trả về chữ thật, không phải mã khoá trần.
+  function tw(khoa, bien) {
+    if (typeof window !== "undefined" && window.t) return window.t(khoa, bien);
+    try {
+      var s = require("./i18n/vi.json")[khoa] || khoa;
+      return String(s).replace(/\{(\w+)\}/g, function (m, ten) {
+        return (bien && bien[ten] != null) ? String(bien[ten]) : m;
+      });
+    } catch (e) { return khoa; }
+  }
+
   var IMG = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico"];
 
   function esc(s) {
@@ -67,7 +81,27 @@
       ".jvfe-actions{display:flex;gap:6px;flex:none;align-items:center;flex-wrap:wrap}" +
       // Man hep: thanh nut trum khong du cho -> nut Dong bi day ra ngoai va nguoi dung
       // mac ket trong trinh sua. Cho phep xuong dong va giu nut Dong luon o cuoi.
-      "@media(max-width:700px){.jvfe-head{flex-wrap:wrap;gap:6px}.jvfe-actions{width:100%;justify-content:flex-end}.jvfe-actions .icon{order:99}}" +
+      //
+      // Va tu 0.55.57, o dien thoai thi TOAN MAN HINH thay vi mot the noi giua nen mo. Chu repo
+      // bao 2026-09-08: "mo file.txt trong khung chat hoac khung .md thi khong an nut tat duoc,
+      // khong co cach nao back lai man hinh cu". The noi giua duoc can theo 88vh cua man hinh
+      // DAY DU, ma ban phim ao chiem gan nua man - nen dau the (cho co nut Dong) bi day len
+      // ngoai vung nhin thay, va nguoi dung khong con duong ra. Dan the vao bon canh thi dau
+      // the luon nam dung mep tren, ban phim che gi thi che.
+      "@media(max-width:700px){" +
+        ".jvfe-modal{padding:0;align-items:stretch;justify-content:stretch}" +
+        ".jvfe-card{width:100%;max-width:none;height:100vh;height:100dvh;max-height:none;" +
+        "border-radius:0;border:0}" +
+        // Dau the dinh o tren ke ca khi than cuon: nut Dong khong bao gio troi khoi tam tay.
+        ".jvfe-head{position:sticky;top:0;z-index:2;background:var(--bg2);flex-wrap:wrap;gap:6px}" +
+        ".jvfe-actions{width:100%;justify-content:flex-end}.jvfe-actions .icon{order:99}" +
+        // 32px la co chuot; ngon tay can 40px tro len moi bam trung chac.
+        ".jvfe-btn.icon{width:40px;height:40px}.jvfe-btn{padding:8px 12px}" +
+        ".jvfe-text{min-height:0}" +
+      "}" +
+      // Khoa cuon nen khi dang mo. Lop nay duoc gan tu 0.9.x nhung CHUA BAO GIO co luat CSS
+      // nao - tuc trang phia sau van cuon duoc duoi ngon tay, dung kieu hong am tham.
+      "body.jvfe-open{overflow:hidden}" +
       ".jvfe-seg{display:flex;gap:4px;margin-right:4px}" +
       ".jvfe-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text2);" +
       "border-radius:7px;padding:5px 11px;font-size:13px;cursor:pointer;font-family:inherit}" +
@@ -94,8 +128,26 @@
     document.head.appendChild(s);
   }
 
+  // Man cam ung (dien thoai/tablet) hay khong. Quyet dinh MOT viec duy nhat nhung quan trong:
+  // co tu dat con tro vao o soan khi vua mo file hay khong.
+  //
+  // Tren dien thoai, focus la ban phim ao bat len ngay lap tuc va an mat nua man hinh, keo theo
+  // trinh duyet tu cuon o soan vao giua - dau the cung nut Dong bi day khuat. Nguoi dung mo mot
+  // file .txt de DOC lai bi nem thang vao che do go chu, roi khong thoat ra duoc. Tren may tinh
+  // thi focus san van dung: go duoc ngay, va luon co phim Esc lam duong lui.
+  function laCamUng() {
+    try {
+      return window.matchMedia("(pointer: coarse)").matches || window.innerWidth <= 860;
+    } catch (e) { return false; }
+  }
+  function focusNeuDuocPhep(el) {
+    if (!el || laCamUng()) return;
+    setTimeout(function () { try { el.focus(); } catch (e) {} }, 30);
+  }
+
   // ---------------------------------------------------------------- modal (dung 1 lan, tai su dung)
   var modal = null, card = null, elTitle = null, elActions = null, elBody = null, curSave = null;
+  var daDayLichSu = false;   // da chen mot buoc lich su cho nut Back chua
 
   function build() {
     if (modal) return;
@@ -112,7 +164,19 @@
     elTitle = modal.querySelector(".jvfe-title");
     elActions = modal.querySelector(".jvfe-actions");
     elBody = modal.querySelector(".jvfe-body");
-    modal.addEventListener("mousedown", function (e) { if (e.target === modal) close(); });   // bam nen mo -> dong
+    // Bam nen mo -> dong. Bat CA hai su kien: iOS khong phai luc nao cung sinh mousedown cho
+    // mot the <div> tron, nen chi nghe mousedown la tren dien thoai bam nen khong an gi.
+    modal.addEventListener("mousedown", function (e) { if (e.target === modal) close(); });
+    modal.addEventListener("click", function (e) { if (e.target === modal) close(); });
+    // Nut Back cua dien thoai (va cu vuot canh man hinh) phai dong trinh sua, khong phai thoat
+    // ca app. Truoc day khong co nhanh nay nen nguoi dung bam Back la bay ra khoi Javis - mot
+    // duong "lui" ma khong ai muon. Ca app khong dung History API o cho nao khac, nen chen mot
+    // buoc o day khong dam vao dieu huong nao.
+    window.addEventListener("popstate", function () {
+      if (!isOpen()) return;
+      daDayLichSu = false;      // buoc vua bi go chinh la buoc minh chen
+      close();
+    });
     document.addEventListener("keydown", function (e) {
       if (!isOpen()) return;
       if (e.key === "Escape") { e.stopPropagation(); close(); return; }
@@ -127,10 +191,16 @@
     modal.classList.remove("open");
     elBody.innerHTML = ""; elActions.innerHTML = ""; curSave = null;   // don iframe/textarea
     document.body.classList.remove("jvfe-open");
+    // Dong bang nut X / Esc / bam nen: nha luon buoc lich su da chen, khong thi nguoi dung phai
+    // bam Back mot cai "khong lam gi" truoc khi thuc su roi trang.
+    if (daDayLichSu) {
+      daDayLichSu = false;
+      try { history.back(); } catch (e) {}
+    }
   }
   function closeBtn() {
     var b = document.createElement("button");
-    b.className = "jvfe-btn icon"; b.innerHTML = ic("x"); b.title = "Đóng (Esc)";
+    b.className = "jvfe-btn icon"; b.innerHTML = ic("x"); b.title = tw("fedit.close_esc");
     b.onclick = close; return b;
   }
 
@@ -140,10 +210,13 @@
     build();
     var b = brain();
     elTitle.innerHTML = esc(baseOf(brainRel));
-    elActions.innerHTML = ""; elBody.innerHTML = '<div class="jvfe-note">Đang mở…</div>';
+    elActions.innerHTML = ""; elBody.innerHTML = '<div class="jvfe-note">' + esc(tw("fedit.opening")) + "</div>";
     curSave = null;
     modal.classList.add("open");
     document.body.classList.add("jvfe-open");
+    if (!daDayLichSu) {
+      try { history.pushState({ jvfe: 1 }, ""); daDayLichSu = true; } catch (e) {}
+    }
 
     var ext = extOf(brainRel);
     getHome(b).then(function (home) {
@@ -178,13 +251,13 @@
   }
   function renderError(b, ceil, brainRel, msg) {
     elActions.innerHTML = ""; elActions.appendChild(closeBtn());
-    elBody.innerHTML = '<div class="jvfe-note">' + esc(msg || "Không đọc được file.") +
-      ' - <a href="' + esc(rawUrl(b, ceil)) + '" target="_blank" rel="noopener">Mở tab mới</a>' +
-      ' · <a href="' + esc(rawUrl(b, ceil, 1)) + '">Tải về</a></div>';
+    elBody.innerHTML = '<div class="jvfe-note">' + esc(msg || tw("fedit.read_err")) +
+      ' - <a href="' + esc(rawUrl(b, ceil)) + '" target="_blank" rel="noopener">' + esc(tw("fedit.open_tab")) + "</a>" +
+      ' · <a href="' + esc(rawUrl(b, ceil, 1)) + '">' + esc(tw("common.download")) + "</a></div>";
   }
   function dlLink(b, ceil) {
     var a = document.createElement("a");
-    a.href = rawUrl(b, ceil, 1); a.title = "Tải về";
+    a.href = rawUrl(b, ceil, 1); a.title = tw("common.download");
     a.innerHTML = '<button class="jvfe-btn icon" type="button">⇩</button>';
     return a;
   }
@@ -193,7 +266,7 @@
   // phai co san ngay tren thanh nay. Trinh sua dinh (console.js) da co doi nut nay tu truoc.
   function openLink(b, ceil) {
     var a = document.createElement("a");
-    a.href = rawUrl(b, ceil); a.target = "_blank"; a.rel = "noopener"; a.title = "Mở tab mới";
+    a.href = rawUrl(b, ceil); a.target = "_blank"; a.rel = "noopener"; a.title = tw("fedit.open_tab");
     a.innerHTML = '<button class="jvfe-btn icon" type="button">↗</button>';
     return a;
   }
@@ -201,7 +274,7 @@
   // Nut Luu (dung getContent de lay noi dung THAT theo che do dang mo) + Tai + Dong.
   function appendSaveAndClose(b, ceil, getContent) {
     var save = document.createElement("button");
-    save.className = "jvfe-btn"; save.innerHTML = ic("save") + " Lưu"; save.title = "Lưu (Ctrl+S)";
+    save.className = "jvfe-btn"; save.innerHTML = ic("save") + " " + esc(tw("common.save")); save.title = tw("fedit.save_title");
     curSave = function () {
       var fd = new FormData();
       fd.append("brain", b); fd.append("path", ceil); fd.append("content", getContent());
@@ -211,11 +284,11 @@
         .then(function (r) {
           save.disabled = false;
           if (r && r.ok) {
-            save.innerHTML = ic("check", { cls: "ic-ok" }) + " Đã lưu"; save.classList.add("saved");
-            setTimeout(function () { save.innerHTML = ic("save") + " Lưu"; save.classList.remove("saved"); }, 1400);
-          } else { save.innerHTML = ic("triangle-alert", { cls: "ic-warn" }) + " Lỗi"; setTimeout(function () { save.innerHTML = ic("save") + " Lưu"; }, 1600); }
+            save.innerHTML = ic("check", { cls: "ic-ok" }) + " " + esc(tw("fedit.saved")); save.classList.add("saved");
+            setTimeout(function () { save.innerHTML = ic("save") + " " + esc(tw("common.save")); save.classList.remove("saved"); }, 1400);
+          } else { save.innerHTML = ic("triangle-alert", { cls: "ic-warn" }) + " " + esc(tw("app.err_cap")); setTimeout(function () { save.innerHTML = ic("save") + " " + esc(tw("common.save")); }, 1600); }
         })
-        .catch(function () { save.disabled = false; save.innerHTML = ic("triangle-alert", { cls: "ic-warn" }) + " Lỗi"; setTimeout(function () { save.innerHTML = ic("save") + " Lưu"; }, 1600); });
+        .catch(function () { save.disabled = false; save.innerHTML = ic("triangle-alert", { cls: "ic-warn" }) + " " + esc(tw("app.err_cap")); setTimeout(function () { save.innerHTML = ic("save") + " " + esc(tw("common.save")); }, 1600); });
     };
     save.onclick = curSave;
     elActions.appendChild(save);
@@ -244,7 +317,7 @@
       if (lang) window.JavisCodeHL.attach(ta, lang);
     } catch (e) {}
     appendSaveAndClose(b, ceil, function () { return ta.value; });
-    setTimeout(function () { try { ta.focus(); } catch (e) {} }, 30);
+    focusNeuDuocPhep(ta);
   }
 
   // .md: WYSIWYG 2 khung (ban render sua truc tiep + nguon markdown) dung LAI bo may editor cay.
@@ -276,8 +349,8 @@
     }
 
     var seg = document.createElement("span"); seg.className = "ne-seg";
-    var bWys = document.createElement("button"); bWys.className = "jvfe-btn"; bWys.textContent = "Sửa";
-    var bSrc = document.createElement("button"); bSrc.className = "jvfe-btn active"; bSrc.textContent = "Nguồn";
+    var bWys = document.createElement("button"); bWys.className = "jvfe-btn"; bWys.textContent = tw("common.edit");
+    var bSrc = document.createElement("button"); bSrc.className = "jvfe-btn active"; bSrc.textContent = tw("fedit.tab_source");
     function setMode(m) {
       if (m === curMode) return;
       if (m === "source") wysToSrc(); else srcToWys();
@@ -285,6 +358,8 @@
       neBody.className = "ne-body ne-md " + (m === "wys" ? "mode-wys" : "mode-source");
       bWys.classList.toggle("active", m === "wys"); bSrc.classList.toggle("active", m === "source");
     }
+    // Nguoi dung TU BAM sang che do soan thi cho focus that: do la y dinh ro rang cua ho,
+    // khac han chuyen tu dat con tro ngay luc file vua mo ra.
     bWys.onclick = function () { setMode("wys"); try { wys.focus(); } catch (e) {} };
     bSrc.onclick = function () { setMode("source"); try { ta.focus(); } catch (e) {} };
     seg.appendChild(bWys); seg.appendChild(bSrc); elActions.appendChild(seg);
@@ -293,8 +368,8 @@
     appendSaveAndClose(b, ceil, mdGetter);
 
     // Vao che do Sua (WYSIWYG) khi Turndown san sang; offline khong nap duoc thi o lai Nguon (van sua tot).
-    if (window.TurndownService) { setMode("wys"); try { wys.focus(); } catch (e) {} }
-    else NE.ensureTurndown().then(function () { if (isOpen() && window.TurndownService) { setMode("wys"); try { wys.focus(); } catch (e) {} } });
+    if (window.TurndownService) { setMode("wys"); focusNeuDuocPhep(wys); }
+    else NE.ensureTurndown().then(function () { if (isOpen() && window.TurndownService) { setMode("wys"); focusNeuDuocPhep(wys); } });
   }
 
   if (typeof window !== "undefined") {

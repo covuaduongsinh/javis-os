@@ -143,6 +143,149 @@ def co_co(*ten_co: str) -> bool:
     return any(c in txt for c in ten_co)
 
 
+# ---- Mức effort: chỉ truyền khi CHÍNH `--help` khai cả cờ LẪN giá trị ----
+#
+# Cùng tinh thần `co_co` nhưng chặt hơn một nấc, vì ở đây sai không chỉ mất một tuỳ chọn: một
+# cờ `--effort` có thật mà chỉ nhận `low|high` thì gửi "medium" là CLI thoát ngay, hỏng trọn
+# lượt chat. Nên phải thấy TÊN CỜ trong help, và thấy CẢ GIÁ TRỊ định gửi, mới truyền.
+#
+# Hệ quả thành thật: bản CLI nào không liệt kê giá trị trong help thì Javis không truyền gì
+# cả, và độ sâu suy nghĩ rơi về câu nhắc trong prompt. Đó là chủ ý - thà mất một tuỳ chọn còn
+# hơn đoán một giá trị rồi làm hỏng lượt chat của người dùng. Khi CLI khai rõ ra thì phần này
+# tự chạy, khỏi sửa code.
+_CO_EFFORT = ("--effort", "--reasoning-effort")
+
+
+def co_effort(muc: Optional[str]) -> list:
+    """['--effort', '<muc>'] nếu bản CLI này khai đủ cả hai, không thì [] (không truyền gì)."""
+    if not muc:
+        return []
+    txt = _help_text()
+    if not txt or not re.search(r"\b" + re.escape(str(muc)) + r"\b", txt):
+        return []
+    for co in _CO_EFFORT:
+        if co in txt:
+            return [co, str(muc)]
+    return []
+
+
+# ---- Model TỰ MANG mức nghĩ trong tên: truyền thêm `--effort` là XUNG ĐỘT ----
+#
+# `agy models` trả về tên model đã gắn sẵn mức nghĩ ở đuôi: `gemini-3.8-flash-medium`,
+# `gemini-3.6-flash-high`... Với những model đó, CHỌN MODEL CHÍNH LÀ CHỌN MỨC NGHĨ, nên `agy`
+# từ chối chạy khi còn kèm cờ (chủ repo báo 2026-09-08, ảnh chụp màn hình):
+#
+#     invalid model selection (--model "gemini-3.8-flash-medium" --effort "high"):
+#     --model gemini-3.8-flash-medium conflicts with --effort=high
+#
+# `co_effort` KHÔNG bắt được ca này, và đó là chỗ đáng ghi lại: nó hỏi `--help` xem cờ có tồn
+# tại không, mà cờ tồn tại thật, giá trị "high" cũng được khai thật. Cái sai nằm ở chỗ GHÉP cờ
+# đúng với một model đã khoá - một điều kiện chỉ đọc được từ TÊN MODEL. Và nó hỏng nặng chứ
+# không nhẹ: CLI chết ngay lúc đọc cờ, chưa gọi tới model, nên MỌI lượt chat trên model đó đều
+# mất trắng cho tới khi người dùng tự đổi model hoặc hạ độ sâu suy nghĩ.
+_DUOI_KHOA_EFFORT = ("low", "medium", "high", "xhigh", "max", "minimal")
+_MODEL_XUNG_EFFORT: set = set()   # model bị CHÍNH CLI báo xung đột - nhớ để lượt sau khỏi thử
+
+
+def nho_model_xung_effort(model) -> None:
+    """Nhớ trong phiên: model này bị `agy` từ chối khi kèm `--effort`.
+
+    Để lượt sau đi thẳng đường không cờ thay vì tốn thêm một tiến trình hỏng nữa. Chỉ nhớ trong
+    RAM: một bản `agy` mới có thể bỏ luật xung đột, mà ghi ra đĩa thì cái nhớ sai sống dai hơn
+    cái sai nó vá.
+    """
+    ten = str(model or "").strip().lower()
+    if ten:
+        _MODEL_XUNG_EFFORT.add(ten)
+
+
+def model_khoa_effort(model) -> bool:
+    """Tên model này đã tự mang sẵn mức nghĩ -> KHÔNG được truyền `--effort` nữa.
+
+    Nói thẳng cái giá của cách nhận diện bằng đuôi tên: một model thật sự tên đuôi `-max` mà
+    vẫn nhận `--effort` sẽ bị bỏ cờ oan, và độ sâu rơi về câu nhắc trong prompt. Đó là hướng
+    sai ĐÚNG - bỏ sót một tuỳ chọn thì người dùng vẫn có câu trả lời, còn ghép sai là mất trọn
+    lượt chat kèm một câu lỗi tiếng Anh họ không sửa được gì.
+    """
+    ten = str(model or "").strip().lower()
+    if not ten:
+        return False
+    if ten in _MODEL_XUNG_EFFORT:
+        return True
+    duoi = ten.rsplit("-", 1)[-1] if "-" in ten else ""
+    return duoi in _DUOI_KHOA_EFFORT
+
+
+def _la_loi_xung_effort(loi: str) -> bool:
+    """Câu lỗi này có phải là "model đã khoá mức nghĩ mà còn kèm --effort" không.
+
+    Lưới an toàn cho những hình dạng xung đột CHƯA ĐO ĐƯỢC (model không hỗ trợ suy nghĩ, bản
+    CLI đổi câu chữ, đuôi tên model kiểu mới). Nhận rộng có chủ đích: đoán nhầm thì cùng lắm
+    chạy lại một lượt không cờ, còn bỏ sót là người dùng mất câu trả lời.
+    """
+    l = (loi or "").lower()
+    if "effort" not in l:
+        return False
+    return any(k in l for k in ("conflict", "invalid model selection", "cannot be used with",
+                                "incompatible", "not supported", "not compatible"))
+
+
+# ---- Nhà cung cấp gãy TẠM THỜI: chờ một nhịp rồi hỏi lại, đừng giết cả lượt ----
+#
+# Chủ repo gửi ảnh (2026-09-08), nguyên văn thứ `agy` in ra rồi thoát mã 1:
+#
+#     failed to send message: send failed; already reported to the user: Eligibility check
+#     failed: failed to get load code assist response: UNAVAILABLE (code 503): The service is
+#     currently unavailable.
+#
+# 503 là phía Google đang trục trặc, KHÔNG phải cấu hình sai và cũng không phải hết hạn mức.
+# Việc đúng là chờ rồi hỏi lại - đúng cách `engine.py` đã đối xử với 429/503 của các API từ
+# lâu (xem `_RETRY_STATUS`). Đường CLI thì chưa có gì cả: gãy một cái là người dùng lãnh trọn
+# một câu tiếng Anh sáu dòng và mất lượt chat, dù chỉ cần đợi vài giây.
+_LOI_TAM_THOI = (
+    "unavailable", "temporarily", "try again", "timeout", "timed out", "deadline exceeded",
+    "connection reset", "connection refused", "eof", "bad gateway", "service unavailable",
+    "internal error", "overloaded", "too many requests",
+)
+_MA_TAM_THOI = ("code 429", "code 500", "code 502", "code 503", "code 504",
+                "429", "500 ", "502 ", "503", "504 ")
+
+
+def _la_loi_tam_thoi(loi: str) -> bool:
+    """Câu lỗi này có phải kiểu CHỜ MỘT NHỊP LÀ HẾT không (nhà cung cấp gãy, không phải ta sai).
+
+    Nhận theo câu chữ vì `agy` không trả mã máy đọc được: nó gói lỗi upstream thành một chuỗi
+    tiếng Anh rồi thoát mã 1. Cố tình KHÔNG nhận những thứ chờ mãi cũng không hết (chưa đăng
+    nhập, hết hạn mức, model không tồn tại, xung đột cờ) - thử lại mấy cái đó chỉ tổ chậm gấp
+    đôi rồi vẫn hỏng.
+    """
+    l = (loi or "").lower()
+    if not l:
+        return False
+    if _la_loi_chua_dang_nhap(l) or _la_loi_xung_effort(l):
+        return False
+    if any(k in l for k in ("quota", "exhausted", "rate limit exceeded", "insufficient",
+                            "not found", "invalid", "permission denied", "unauthor")):
+        # "resource exhausted"/"quota" là hết phần được cấp - chờ vài giây không đổi được gì.
+        return False
+    return any(k in l for k in _LOI_TAM_THOI) or any(k in l for k in _MA_TAM_THOI)
+
+
+# Chờ bao lâu trước mỗi lần hỏi lại. Ngắn thôi: người dùng đang ngồi nhìn màn hình chat, chờ
+# quá nửa phút thì thà báo lỗi để họ tự quyết còn hơn. Hai nhịp là đủ vượt một cơn 503 chớp
+# nhoáng, mà tổng thời gian xấu nhất vẫn dưới 10 giây cộng thời gian chạy.
+_NHIP_THU_LAI = (2.0, 6.0)
+
+
+def _cau_bao_tam_thoi(loi: str) -> str:
+    """Câu nói cho người dùng khi thử lại hết nhịp mà vẫn gãy. Nói rõ LỖI CỦA AI."""
+    return ("Google (Antigravity) đang trục trặc tạm thời nên lượt này không gửi đi được. "
+            "Javis đã tự thử lại " + str(len(_NHIP_THU_LAI)) + " lần, vẫn chưa được.\n\n"
+            "Chờ một lát rồi nhắn lại, hoặc đổi sang bộ não khác ở trang Models. Đây là lỗi "
+            "phía Google, không phải cấu hình của bạn.\n\n"
+            "_Nguyên văn:_ " + (loi or "")[:400])
+
+
 def nhan_prompt_qua_stdin() -> bool:
     """`--help` của bản này có TỰ KHAI là đọc prompt từ stdin không.
 
@@ -708,8 +851,13 @@ def login_huong_dan() -> dict:
     token hộ được như Javis từng làm với Gemini CLI (đường đó đã gỡ). Dựng một nút
     "Đăng nhập" rồi bên dưới không làm gì được thì tệ hơn là nói thẳng phải gõ một lệnh.
 
-    Điểm sáng cho người chạy VPS: `agy` tự nhận biết phiên SSH và IN RA một đường link để mở
-    trên máy có trình duyệt, nên không cần màn hình ở phía máy chủ.
+    Điểm sáng cho người chạy VPS: `agy` tự nhận biết phiên từ xa và IN RA một đường link để mở
+    trên máy có trình duyệt, nên không cần màn hình ở phía máy chủ. Nhận biết đó dựa vào biến
+    `SSH_CONNECTION`; terminal của Javis là pty ngay trên máy chủ nên trước 0.55.46 không có
+    biến này và `agy` rơi vào luồng "trình duyệt cùng máy" - in link xong nằm chờ một cổng
+    loopback mà trình duyệt ở máy khác không với tới, không hỏi mã, không báo lỗi (sự cố
+    05/09). Nay `terminal._env` đặt biến đó khi máy chủ không có màn hình, nên luồng dán mã
+    chạy đúng; hướng dẫn dưới đây mô tả CHÍNH luồng đó.
     """
     return {
         "cai": lenh_cai(),
@@ -717,8 +865,14 @@ def login_huong_dan() -> dict:
         "ghi_chu": ("Dùng trang Code (Terminal) NGAY TRONG Javis - nó mở shell bằng đúng user "
                     "đang chạy Javis, đăng nhập ở đó là Javis nhận liền. (SSH bằng user khác, "
                     "vd root, đăng nhập xong Javis vẫn không thấy - đây là lý do hay gặp nhất "
-                    "của cảnh 'cài rồi mà không nhận'.) Gõ `agy`: nó in ra một đường link, mở "
-                    "link trên máy của bạn rồi đăng nhập Google là xong, chỉ phải làm một lần."),
+                    "của cảnh 'cài rồi mà không nhận'.) Gõ `agy`: nó in ra một đường link. Mở "
+                    "link đó trên máy của bạn, đăng nhập Google xong trình duyệt nhảy sang một "
+                    "địa chỉ localhost báo không mở được - đó là bước ĐÚNG, copy nguyên địa "
+                    "chỉ trên thanh URL rồi dán ngược vào terminal và Enter. Chỉ phải làm một "
+                    "lần."),
+        "cuu_ho": ("Nếu terminal không hiện chỗ dán (bản `agy` cũ): mở thêm một phiên terminal "
+                   "rồi chạy curl \"<địa chỉ localhost vừa copy>\" - cổng đó đang mở ngay "
+                   "trên máy chạy Javis nên mã về đúng chỗ."),
     }
 
 
@@ -934,6 +1088,9 @@ class AntigravityCLI:
         # lúc ghi đè header X-Javis-Vault của nhau trong file HOME dùng chung.
         self.mcp_config: Optional[str] = None
         self.extra_args: list[str] = []
+        # Độ sâu suy nghĩ (`main._cli_do_sau_khac` đặt). None = không truyền cờ nào.
+        # Chỉ tới được dòng lệnh khi `co_effort` thấy bản CLI này khai đủ cờ lẫn giá trị.
+        self.effort = None
         self.include_dirs: list[str] = []
         # Trần thời gian một lượt. Gemini CLI không cần vì `--approval-mode` chặn mọi câu hỏi;
         # ở đây mức suggest/auto CHƯA ĐO được là CLI có dừng hỏi không, mà headless dừng hỏi là
@@ -949,6 +1106,10 @@ class AntigravityCLI:
         if self.model and co_co("--model"):
             args += ["--model", self.model]
         args += co_quyen_cho_mode(self.mode)
+        # Hai điều kiện, thiếu một là hỏng lượt chat: `co_effort` biết bản CLI này CÓ cờ hay
+        # không, `model_khoa_effort` biết model đang chọn đã tự mang mức nghĩ trong tên chưa.
+        if not model_khoa_effort(self.model):
+            args += co_effort(self.effort)
         if self.mcp_config and co_co("--mcp-config", "--mcp-config-file"):
             args += ["--mcp-config", self.mcp_config]
         if co_co("--output-format"):
@@ -1011,9 +1172,45 @@ class AntigravityCLI:
         # ra màn hình. Chủ repo đã thấy đúng cảnh ngược lại: hai bong bóng đỏ "Error: empty
         # prompt" và "thoát với mã 1" hiện lên, rồi mới tới câu trả lời - người dùng không có
         # cách nào biết cái đỏ đó Javis đã tự xử xong.
-        async for ev in self._mot_luot(full, prompt, duong, ket,
-                                       giu_loi=(duong != "file")):
+        # `giu_loi=True` cho MỌI đường, kể cả đường file. Trước 0.55.x chỗ này truyền
+        # `giu_loi=(duong != "file")`, và nó đẻ ra lỗi kép: đường file vừa bắn lỗi ra ngay tại
+        # chỗ, vừa gom vào `cac_loi` để nhánh `else` cuối hàm bắn ra LẦN NỮA - người dùng nhận
+        # hai bong bóng đỏ y hệt nhau cho cùng một sự cố. Giữ hết ở `cac_loi` thì chỉ còn đúng
+        # một chỗ phát lỗi, mà lượt thử lại bên dưới cũng không bị lộ câu lỗi của lượt hỏng.
+        async for ev in self._mot_luot(full, prompt, duong, ket, giu_loi=True):
             yield ev
+        # Model đã khoá mức nghĩ mà Javis còn kèm `--effort`: `agy` chết ngay lúc đọc cờ (xem
+        # `model_khoa_effort`). Bỏ cờ rồi chạy lại NGAY trong lượt này - người dùng vẫn nhận
+        # câu trả lời, chỉ mất phần độ sâu mà chính tên model đã ấn định sẵn.
+        if self.effort and any(_la_loi_xung_effort(x) for x in ket.get("cac_loi") or []):
+            print(f"[antigravity] model {self.model} không nhận --effort, chạy lại không cờ",
+                  file=sys.stderr)
+            nho_model_xung_effort(self.model)
+            self.effort = None
+            ket = {}
+            async for ev in self._mot_luot(full, prompt, duong, ket, giu_loi=True):
+                yield ev
+        # Nhà cung cấp gãy TẠM THỜI (503 UNAVAILABLE, timeout, bad gateway...): chờ một nhịp rồi
+        # hỏi lại. Ba điều kiện, thiếu một là không thử:
+        #   - lỗi thuộc loại chờ-là-hết (xem `_la_loi_tam_thoi`), không phải chưa đăng nhập/hết
+        #     hạn mức - mấy cái đó thử lại chỉ tổ chậm gấp đôi rồi vẫn hỏng;
+        #   - lượt đó KHÔNG lấy được chữ nào (đã nhả chữ mà chạy lại là câu trả lời hiện hai lần);
+        #   - lượt đó KHÔNG chạy tool nào (đã gửi tin, đã ghi file, đã đặt lịch thì chạy lại là
+        #     làm hai lần) - cùng luật với đường API trong `engine.py`.
+        for _nhip in _NHIP_THU_LAI:
+            if ket.get("text") or ket.get("co_tool"):
+                break
+            if not any(_la_loi_tam_thoi(x) for x in ket.get("cac_loi") or []):
+                break
+            print(f"[antigravity] nhà cung cấp gãy tạm thời, chờ {_nhip}s rồi hỏi lại",
+                  file=sys.stderr)
+            await asyncio.sleep(_nhip)
+            _ket_hong = ket
+            ket = {}
+            async for ev in self._mot_luot(full, prompt, duong, ket, giu_loi=True):
+                yield ev
+            if not ket.get("text") and not (ket.get("cac_loi") or []):
+                ket = _ket_hong      # lượt sau câm hẳn thì giữ câu lỗi cũ, đừng để trắng tay
         # Vượt trần dòng lệnh: chạy lại NGAY bằng đường không có trần. Không có nhánh này thì
         # người dùng nhận nguyên "OSError: [Errno 7] Argument list too long" - một câu họ không
         # sửa được gì, và lượt chat coi như mất trắng (báo 2026-08-30, chat dài tiếng Việt).
@@ -1024,8 +1221,7 @@ class AntigravityCLI:
             print(f"[antigravity] prompt vượt trần dòng lệnh, chuyển sang {_duong_lui}",
                   file=sys.stderr)
             ket = {}
-            async for ev in self._mot_luot(full, prompt, _duong_lui, ket,
-                                           giu_loi=(_duong_lui != "file")):
+            async for ev in self._mot_luot(full, prompt, _duong_lui, ket, giu_loi=True):
                 yield ev
             duong = _duong_lui
         # Prompt KHÔNG TỚI NƠI có hai hình dạng, và bản trước chỉ bắt được một:
@@ -1063,7 +1259,11 @@ class AntigravityCLI:
             await asyncio.to_thread(nho_duong, self.cli_path, duong, "đã chạy được")
         else:
             for _l in ket.get("cac_loi") or []:      # không thử lại thì phải đưa lỗi ra
-                yield {"type": "error", "content": _l}
+                # Gãy tạm thời mà thử lại hết nhịp vẫn không xong: người dùng cần biết ĐÂY LÀ
+                # LỖI PHÍA GOOGLE và Javis đã tự thử lại rồi, chứ không phải một câu tiếng Anh
+                # sáu dòng nghe như mình cấu hình sai (chủ repo gửi đúng ảnh đó, 2026-09-08).
+                yield {"type": "error",
+                       "content": _cau_bao_tam_thoi(_l) if _la_loi_tam_thoi(_l) else _l}
         text = ket.get("text") or ""
         if text:
             # Không nuốt chuyện này: trả lời mà thiếu system prompt thì vẫn trôi chảy, người dùng
@@ -1224,6 +1424,7 @@ class AntigravityCLI:
         co_stream = co_co("--output-format")
         co_json = False
         qua_tran_argv = False
+        co_tool = False
         while True:
             ev = await hang.get()
             if ev is HET:
@@ -1244,6 +1445,8 @@ class AntigravityCLI:
                     else:
                         da_thu_doc = True
             for ra in self._doi_su_kien(ev, cac_manh):
+                if ra.get("type") == "tool_call":
+                    co_tool = True      # đã đụng thế giới bên ngoài -> KHÔNG được chạy lại
                 if ra.get("type") == "error":
                     da_loi = True
                     cac_loi.append(str(ra.get("content") or ""))
@@ -1252,7 +1455,7 @@ class AntigravityCLI:
                 yield ra
         ket.update(text="".join(cac_manh).strip(), loi=da_loi, cac_loi=cac_loi,
                    ten_ngu_canh=ten_ngu_canh, qua_tran_argv=qua_tran_argv,
-                   doc_duoc=doc_duoc, da_thu_doc=da_thu_doc,
+                   doc_duoc=doc_duoc, da_thu_doc=da_thu_doc, co_tool=co_tool,
                    biet_doc_hay_khong=(duong != "file") or (co_stream and co_json))
 
     def _doi_su_kien(self, ev: dict, cac_manh: list) -> list:

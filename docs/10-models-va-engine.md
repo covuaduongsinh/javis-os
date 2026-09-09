@@ -1,5 +1,7 @@
 # Models & engine
 
+***Tiếng Việt** · [English](en/10-models-and-engines.md)*
+
 Trang **Models** là nơi bạn chọn "bộ não" cho Javis: dùng engine nào, model nào để trả lời, đăng nhập vào nhà cung cấp AI, chọn model rẻ cho việc chạy nền, và bật mức suy nghĩ sâu. Đây là trang quyết định Javis thông minh tới đâu và tiêu hạn mức của gói nào.
 
 Nếu bạn mới bắt đầu, xem trước [Bắt đầu & thiết lập lần đầu](01-bat-dau-thiet-lap.md). Khi cần gắn thêm công cụ ngoài cho Javis, xem [Kết nối & số liệu kinh doanh](09-mcp-va-so-lieu.md).
@@ -148,7 +150,9 @@ Vài chỗ đáng biết:
 1. Cài CLI một lần trên máy chạy Javis:
    - Linux/macOS: `curl -fsSL https://antigravity.google/cli/install.sh | bash`
    - Windows PowerShell: `irm https://antigravity.google/cli/install.ps1 | iex`
-2. Gõ `agy` một lần **trong terminal của máy chạy Javis**. Máy có màn hình thì nó tự mở trình duyệt; qua SSH thì nó in ra một đường link - mở link đó trên máy bạn rồi đăng nhập Google. Phiên lưu trong keyring của hệ điều hành nên chỉ phải làm một lần.
+2. Gõ `agy` một lần **trong terminal của máy chạy Javis** (trang **Code** trong Javis là chắc ăn nhất - đúng user đang chạy Javis). Máy để bàn có màn hình thì nó tự mở trình duyệt. Máy chủ không có màn hình (VPS, Docker - kể cả Docker trên chính máy Mac của bạn) thì nó in ra một đường link: mở link đó bằng trình duyệt trên máy bạn, đăng nhập Google xong trình duyệt sẽ nhảy sang một địa chỉ `http://localhost:...` **báo không mở được - đó là bước đúng**, copy nguyên địa chỉ trên thanh URL rồi dán ngược vào terminal và Enter. Phiên lưu trong keyring của hệ điều hành nên chỉ phải làm một lần.
+
+   > Vì sao phải dán tay: `agy` nhận mã về qua một cổng loopback trên chính máy chạy nó. Trình duyệt của bạn ở máy khác nên không với tới cổng đó. Từ 0.55.46, terminal của Javis tự khai đây là phiên từ xa (`SSH_CONNECTION`) để `agy` hỏi chỗ dán thay vì nằm chờ im lặng. Bản `agy` cũ không hỏi thì mở thêm một phiên terminal rồi chạy `curl "<địa chỉ localhost vừa copy>"` cũng xong. Bố trí lạ (X11 forwarding, máy để bàn có màn hình) muốn tắt hành vi này thì đặt `JAVIS_TERMINAL_REMOTE=0`.
 3. Quay lại **Models**, thẻ **Google Antigravity CLI**, bấm **Kiểm tra lại** (nó chạy thử một lượt chat thật). Thẻ đổi sang **● Đã đăng nhập**.
 4. Bấm **Đổi model ▾** ở khối Main Model, chọn nhà cung cấp này rồi chọn model.
 
@@ -172,6 +176,8 @@ Vài chỗ đáng biết, nói trước cho khỏi hiểu nhầm:
   **Tự kiểm trong 10 giây:** vào **Models**, thẻ **Google Antigravity CLI**, bấm **Kiểm tra lại**. Nó ghi lại cấu hình rồi đọc lại chính file đó, và báo một trong ba câu: *tool của Javis đã đấu*, *chưa đấu được tool của Javis*, hoặc *trung tâm kết nối đang tắt*. Xem tận file thì: `cat ~/.gemini/config/mcp_config.json` - phải thấy một entry tên `javis` có `serverUrl` trỏ về `/hub/mcp`.
 
 - **Dấu tiếng Việt không vỡ dọc đường** (từ 0.33.6). Triệu chứng cũ: chữ "gồm" thành `g<?><?>m`, mỗi ký tự tiếng Việt 3 byte hoá đúng 3 dấu `<?>`. Đó là chữ ký của một bên đọc cắt mẩu ống dẫn giữa một ký tự rồi giải mã từng mẩu rời. Đã đo và loại trừ phía Javis (bộ đọc của nó dùng giải mã tăng dần, cắt byte giữa ký tự vẫn ghép lại đúng), nên chỗ vỡ nằm ở bộ đọc của `agy`. Javis không vá được CLI, nhưng chỉnh được chỗ mình đặt ranh giới: nay nó bơm prompt theo từng mẩu kết thúc đúng biên ký tự, nên bên kia đọc kiểu gì cũng không vỡ. Chữ về mà vẫn có ký tự hỏng thì Javis tự đổi sang đường file rồi hỏi lại một lần; vẫn hỏng thì nó nói thẳng là lỗi nằm trong CLI.
+
+- **Model đã kèm sẵn mức nghĩ thì Javis không gửi thêm Độ sâu suy nghĩ** (từ 0.55.55). `agy models` trả về những tên như `gemini-3.8-flash-medium`, tức chọn model cũng chính là chọn mức nghĩ, và `agy` từ chối chạy nếu nhận thêm mức nghĩ lần nữa: `invalid model selection ... conflicts with --effort=high`, thoát mã 1, cả lượt chat mất trắng chứ không phải chậm hay kém. Nay Javis nhận ra loại tên đó và bỏ phần gửi thừa, còn độ sâu bạn chọn thì chuyển thành một câu nhắc trong prompt. Bản `agy` nào từ chối vì lý do khác thì Javis đọc chính câu lỗi đó rồi chạy lại ngay trong lượt, không cờ.
 
 **Nếu vẫn gặp lỗi trên Windows**, đặt biến môi trường `JAVIS_AGY_PROMPT_DAI=file` để ép đi thẳng đường file, rồi báo lại giúp kèm câu lỗi `agy` in ra.
 
@@ -284,6 +290,8 @@ Từ bản 0.12.4, phần này chạy được cho **cả ba loại bộ não**,
 Mở trang là thấy ngay khối **Bộ não đang dùng**: nó nói bộ não hiện tại thuộc loại nào, đang ăn được mấy mảng tiết kiệm, và mảng nào không áp cho nó cùng lý do. Có mảng cố ý chỉ chạy trên bộ não dùng API key - ví dụ phần gửi lại lịch sử hội thoại, vì Claude Code và Codex vốn tự nhớ mạch hội thoại của chúng, gửi thêm là gửi hai lần.
 
 **Hết lượt gói thuê bao** thì Javis nói bằng tiếng Việt: hết lượt gói nào, còn khoảng bao lâu nữa, và bộ não nào bạn đã cắm sẵn để chạy tạm trong lúc chờ. Javis **không tự đổi bộ não hộ** - đổi là tiêu hạn mức của một tài khoản khác, có khi mất tiền thật, nên đó là quyết định của bạn (đổi ở ngay trang này, hội thoại giữ nguyên). Lưu ý loại hạn mức này đếm **lượt dùng theo giờ** chứ không đếm độ dài, nên rút gọn câu hỏi không giúp gì.
+
+Từ 0.55.44, khi nhà cung cấp nói rõ **mốc mở lại**, dưới câu báo có thẻ **"Tự chạy lại lúc HH:MM"**: đến giờ Javis tự hỏi lại đúng câu đó và trả lời vào cùng hội thoại, tab đóng hay điện thoại tắt màn hình vẫn chạy (việc nằm ở máy chủ). Trên thẻ có ô **"Tự tiếp tục khi hạn mức reset"** (tắt là chỉ nhắc giờ, không tự chạy; lựa chọn được nhớ cho lần sau) và nút **"Chạy lại ngay"**. Gửi tin mới trong lúc chờ là lịch tự huỷ. Javis chỉ hẹn khi biết mốc, tối đa 3 lần cho một câu hỏi, và không hẹn mốc xa hơn một ngày; khởi động lại máy chủ thì lịch đang chờ mất, câu báo hết lượt vẫn còn trong hội thoại để bạn bấm "Gửi lại".
 
 ## Đổi nhanh model
 
