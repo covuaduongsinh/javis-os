@@ -1,0 +1,46 @@
+# ============================================================================
+# Javis OS - docker compose cho DOKPLOY (VPS tự host Dokploy, Traefik + SSL do
+# Dokploy quản lý qua UI "Domains", không cần khai nhãn Traefik thủ công ở đây -
+# giống nguyên lý Hostinger Docker Manager: KHÔNG khai báo `networks:`, Dokploy
+# tự gắn container vào network nội bộ của nó khi bạn cấu hình Domain cho service).
+#
+# Khác với docker-compose.yml gốc:
+#   - Bỏ service `tunnel` (Cloudflare Tunnel) - không cần vì Dokploy tự cấp HTTPS.
+#   - Bỏ service `watchtower` - không cần vì Dokploy đã có nút Redeploy riêng,
+#     và Watchtower đòi mount /var/run/docker.sock, thêm quyền không cần thiết
+#     khi Dokploy đã quản lý vòng đời container.
+#   - JAVIS_BIND mặc định 127.0.0.1 (không phải 0.0.0.0): cổng 7777 chỉ mở
+#     loopback trên VPS, lối vào duy nhất từ Internet là qua domain HTTPS của
+#     Dokploy. Traefik của Dokploy vẫn tới được container bình thường vì nó đi
+#     qua network Docker nội bộ, không qua cổng host này.
+#
+# Cập nhật sau này: bấm Redeploy trong Dokploy khi origin/main có commit mới.
+# ============================================================================
+services:
+  javis:
+    image: ghcr.io/blogminhquy/javis-os:latest
+    container_name: ${JAVIS_NAME:-javis}
+    restart: unless-stopped
+    pull_policy: always
+    environment:
+      JAVIS_ADMIN_USER: ${JAVIS_ADMIN_USER:-}
+      JAVIS_ADMIN_PASSWORD: ${JAVIS_ADMIN_PASSWORD:-}
+    ports:
+      - "${JAVIS_BIND:-127.0.0.1}:${JAVIS_HOST_PORT:-7777}:7777"
+    volumes:
+      - javis-data:/data
+      - javis-brains:/brains
+      - claude-auth:/home/javis/.claude
+      - codex-auth:/home/javis/.codex
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,os,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:'+os.getenv('JAVIS_PORT','7777')+'/health',timeout=4).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+volumes:
+  javis-data:
+  javis-brains:
+  claude-auth:
+  codex-auth:
