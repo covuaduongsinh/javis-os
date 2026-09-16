@@ -4,6 +4,372 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.59.19] - 2026-09-16
+### Bảo mật
+- **Nâng nền web của Javis lên bản đã vá.** Bản cũ có chỗ cho phép người ngoài gửi vài request nặng để ăn hết RAM rồi làm Javis treo, và trên Windows có chỗ làm lộ mật khẩu máy. Cập nhật bằng cách chạy lại lệnh cài là nó tự tải bản mới; cài thủ công thì chạy thêm `pip install -r requirements.txt`.
+
+## [0.59.18] - 2026-09-16
+### Cải thiện
+- **Javis khởi động nhanh hơn khoảng 75ms.** Một thư viện kiểm dữ liệu trước đây nạp ngay lúc mở app dù chỉ dùng cho một tính năng hiếm, giờ chỉ nạp khi cần. Trên VPS, khởi động nhanh hơn nghĩa là bản cập nhật ít bị báo lỗi sức khoẻ lúc vừa deploy.
+
+## [0.59.17] - 2026-09-16
+### Cải thiện
+- **Mở một file trong hội thoại với trợ lý là tắt hẳn khung chat.** Trình sửa chiếm trọn khoang giữa, không còn cột hội thoại chen bên cạnh làm cả hai bên cùng hẹp. Đóng file (nút **X** trên thanh trình sửa) là khung chat trở lại nguyên vẹn: đoạn đang nói dở và chữ đang gõ dở đều còn.
+
+## [0.59.16] - 2026-09-16
+### Bảo mật
+- **Vá một lỗ cho phép vào Javis mà không cần đăng nhập.** Chỉ cần thêm một dấu `/` vào một dòng ẩn trong request là cổng đăng nhập bị lách, đọc và ghi được API như đã đăng nhập. Ai đang mở Javis ra Internet (VPS, Docker, hoặc máy nhà có mở cổng) nên cập nhật ngay; máy chỉ chạy nội bộ thì không ai với tới được.
+- **Cửa vào giờ có hai lớp khoá.** Hàng rào đăng nhập đọc đúng đường dẫn thật của request, và những request có dòng địa chỉ méo bị chặn thẳng từ đầu.
+
+## [0.59.15] - 2026-09-16
+### Sửa lỗi
+- **Gõ lệnh `/` không còn sửa câu của bạn.** Trước đây Javis nhồi câu bạn viết vào giữa một câu của máy ("Hãy dùng skill X với yêu cầu: …") rồi **lưu nguyên thế làm tin của bạn**, nên mở lại hội thoại là đọc được một câu mình chưa từng gõ, kèm một câu cuối tự xuất hiện. Giờ lời dặn cho skill đi riêng, bong bóng và lịch sử hiện đúng chữ bạn gõ.
+- **Nhắc tên skill giữa câu không làm mất chữ nữa.** "Skill `/viet-bai-x` sẽ là skill chính" từng bị cắt thành "Skill sẽ là skill chính". Giờ chỉ bỏ dấu `/`, câu giữ nguyên nghĩa; và Javis hiểu đó là bạn đang **nói về** skill chứ không hẳn ra lệnh chạy nó.
+- **Câu "nếu không có skill tên này…" chỉ còn xuất hiện khi tên skill không tồn tại.**
+- **Rời trang Cộng sự là khung chat trở về bộ não chính.** Trước đây đoạn chat với trợ lý còn nằm nguyên ở trang Trò chuyện, và tin gõ tiếp ở đó vẫn bay vào đúng phiên của trợ lý dù bạn tưởng đang nói với Javis.
+
+## [0.59.14] - 2026-09-16
+### Thêm mới
+- **Mỗi trợ lý và mỗi quy trình có menu quản lý riêng.** Trỏ vào một dòng trong danh sách là hiện nút ba chấm: **Ghim lên đầu**, **Chuyển vào thư mục**, **Sửa**, **Xoá**. Mục đã ghim luôn nằm trên cùng và có dấu ghim nhỏ cạnh tên.
+### Cải thiện
+- **Cột phải đổi thứ tự: Lịch sử trước, rồi Thư mục, Cài đặt sau cùng.** Việc hằng ngày là mở lại một hội thoại cũ hay một file, còn cài đặt trợ lý thì sửa một lần rồi thôi.
+- **Mở một file trong khung chat không còn bóp hội thoại thành một sợi.** Javis tự thu cột phải để nhường chỗ, và nếu vẫn hẹp thì xếp file lên trên, hội thoại xuống dưới, thay vì hai cột cùng không đọc được.
+### Sửa lỗi
+- **Sửa một trợ lý không còn làm mất cái ghim của nó.** Trình sửa trước đây ghi lại cả file nên mọi thứ không nằm trong form đều bị xoá.
+
+## [0.59.13] - 2026-09-16
+### Sửa lỗi
+- **Windows: một lệnh cài hết bốn bộ não.** `install.ps1` mới cài trọn gói Python, thư viện, rồi cả `claude`, `codex`, `agy`, `grok`, tạo `.env`, giải phóng port và bật server, cuối cùng in bảng cho biết bộ não nào đã sẵn sàng. `setup.bat` và `install.sh` cũng cài thêm `agy` + `grok` thay vì chỉ hai cái.
+- **Hết cảnh "CLI chưa cài" cho một CLI đang nằm trên máy.** Javis giờ nhớ chỗ đã từng thấy mỗi CLI, nên khi một trình cài khác làm hỏng PATH (cài Antigravity xong là mất Claude Code) thì nó vẫn tìm ra. Dò thêm cả thư mục npm, nvm, volta, scoop, bun trên Windows.
+- **Cài thiếu thư viện thì nói ngay lúc cài, không để tới màn đăng nhập.** Trước đây `setup.bat` chạy tiếp dù `pip install` hỏng, rồi Javis mới chết vì thiếu `claude-agent-sdk`.
+- **Câu báo thiếu CLI nói đủ việc cần làm**: lệnh cài, và nhắc phải khởi động lại Javis (tiến trình đang chạy giữ PATH của lúc nó bật nên không thấy CLI vừa cài).
+### Bảo mật
+- Nâng `python-multipart` lên 0.0.31 và `python-dotenv` lên 1.2.2 để dọn ba lỗ hổng đã công bố (issue #267).
+
+## [0.59.12] - 2026-09-16
+### Sửa lỗi
+- **Nhắn "sửa lại quy trình" không bị đem đi chạy nữa.** Ở khung chat của một quy trình, câu nói về CHÍNH quy trình (cập nhật, đánh giá lại, gộp bớt bước, tóm tắt) giờ được Javis trả lời và sửa thẳng vào file quy trình. Trước đây nó thành đề bài cho một lần chạy: mất cả 10 phút, tiêu hạn mức gói, rồi trả về một bài viết chẳng liên quan.
+- **Muốn chạy thật thì vẫn chạy.** Bấm nút **Chạy** ở cột phải là chạy ngay, không bị đoán lại; hoặc gửi lại tin với `chạy:` ở đầu. Javis luôn nói một dòng cho biết nó đã trả lời chứ không chạy.
+- **Hết lượt gói thuê bao giữa lần chạy không còn lọt ra thành "kết quả".** Câu báo tiếng Anh của nhà cung cấp giờ thành lỗi tiếng Việt kèm giờ reset và tên trợ lý của bước đó, ở cả hai đường chạy quy trình.
+
+## [0.59.11] - 2026-09-15
+### Sửa lỗi
+- **Trên điện thoại, trang Cộng sự đã thấy được tên trợ lý đang mở.** Trước đây tên bị mấy cái nút chen cho co lại còn một chữ cái, giờ thanh đầu trang xếp hai dòng: dòng trên là khuôn mặt cùng tên và vai trò, dòng dưới mới là **File & link**, **Hội thoại mới** và hai nút mở cột.
+### Cải thiện
+- **Linh vật luôn nhìn vào trong màn hình.** Lúc không có con trỏ để dõi theo, nó nép mép phải thì liếc sang trái, nép mép trái thì liếc sang phải, thay vì lúc nào cũng nhìn trổ ra ngoài viền. Kéo sang mép kia là mắt đổi hướng theo ngay.
+
+## [0.59.10] - 2026-09-15
+### Cải thiện
+- **Trang Cộng sự lúc chưa có gì giờ mời bạn tạo ngay tại chỗ.** Brain mới tinh trước đây chỉ hiện một dòng chữ giữa màn hình, bấm vào đâu cũng không ra gì. Giờ chỗ khung chat là hai nút **Tạo trợ lý** và **Tạo quy trình** (kèm lối sang Javis Store), bấm một cái là mở thẳng trình tạo.
+### Sửa lỗi
+- **Nút Thử lại giờ tải lại thật.** Khi trang Cộng sự không lấy được danh sách, nút cũ chỉ mở lại hội thoại: câu báo lỗi biến mất, cột trái vẫn trống, không có gì được tải lại. Giờ nó tải lại danh sách và nói rõ là hỏng ở khâu lấy danh sách.
+
+## [0.59.9] - 2026-09-15
+### Cải thiện
+- **Lúc Javis suy nghĩ, mắt linh vật đảo qua lại giữa hai dáng**: liếc chéo lên như đang lục trí nhớ, rồi lim dim thành hai gạch ngang, mỗi dáng giữ chừng một giây rưỡi. Trước đây nó trơ một dáng suốt cả lượt trả lời.
+
+## [0.59.8] - 2026-09-15
+### Sửa lỗi
+- **Cập nhật thất bại giờ nói rõ vì sao bằng tiếng Việt.** Trước đây nó ném nguyên lời của git ra màn hình ("Not possible to fast-forward, aborting") - đúng nhưng chỉ lập trình viên đọc mới hiểu. Giờ Javis nói thẳng máy đang đứng nhầm nhánh, mất mạng, hay có sửa đổi cục bộ chặn đường, kèm đúng câu lệnh cần chạy.
+
+## [0.59.7] - 2026-09-15
+### Cải thiện
+- **Vòng quanh linh vật mảnh và gọn hơn hẳn.** Thay vì hai chục chấm nhỏ chạy vòng vòng, giờ chỉ còn vài vệt dài, nét mảnh, tách khỏi người một chút. Đang làm việc vẫn thấy rõ vì vệt đổi sang màu chính và sáng lên, chứ không phải vì nó dày.
+
+## [0.59.6] - 2026-09-15
+### Thêm mới
+- **Chọn được màu mắt cho linh vật: đen hoặc trắng**, mặc định đen. Trước đây màu mắt tự đổi theo màu thân, không ai chọn được.
+### Cải thiện
+- **Trang Linh vật xếp một cột từ trên xuống** thay vì hai ô cạnh nhau: Hình dáng lên đầu, rồi Kích cỡ, Bảng màu, Màu mắt, và nút Lưu nằm dưới cùng. Trên điện thoại dễ xem hơn hẳn.
+
+## [0.59.5] - 2026-09-15
+### Cải thiện
+- **Menu nhanh của linh vật có công tắc mic.** Bấm linh vật là bật hoặc tắt mic ngay tại đó, chữ trên menu nói rõ cú bấm sắp làm gì.
+- Bỏ mục "Ẩn pet" khỏi menu. Muốn tắt linh vật thì vào "Cài đặt pet" ngay trong cùng menu đó, bấm "Tắt linh vật".
+
+## [0.59.4] - 2026-09-15
+### Sửa lỗi
+- **Mở một file trong lúc chat với cộng sự không còn để lại một khoảng trống to giữa màn hình.** Giờ file nằm bên trái, hội thoại thu vào một cột hẹp bên phải, ô nhập trải dài dưới đáy - đúng như trang Trò chuyện.
+- **Linh vật đang làm việc giờ nhìn là biết.** Vòng quanh người nó dày hẳn lên và sáng màu chính khi Javis nghe, nghĩ, trả lời hay gặp lỗi; lúc rảnh mới mảnh và nhạt như cũ.
+- **Các trợ lý thôi chớp mắt đồng loạt.** Mỗi trợ lý có nhịp riêng nên danh sách trông như mấy nhân vật khác nhau chứ không phải mấy bản sao của một cái máy.
+### Cải thiện
+- **Lịch sử hội thoại của trợ lý và quy trình giờ là đúng cột lịch sử bạn quen ở trang Trò chuyện**: ô tìm riêng trong hội thoại của cộng sự đó, nhóm theo ngày, ghim, đổi tên, xoá, và nút xem thêm.
+- Hình đại diện trong phần cài đặt trợ lý liếc sang trái và hơi xuống, nhìn về phía nội dung thay vì nhìn ra ngoài.
+- Mấy hình chọn ở trang Linh vật có thêm vòng cam bao ngoài, giống hệt con pet thật ở mép màn hình.
+- Hai chữ **Trợ lý** và **Quy trình** ở đầu cột trái trang Cộng sự được in đậm cho dễ thấy.
+
+## [0.59.3] - 2026-09-15
+### Thêm mới
+- **Lịch sử của trợ lý và quy trình có tab riêng ở cột phải.** Trước đây nó nằm tít dưới đáy khung Cài đặt, phải cuộn qua cả cái form mới thấy. Giờ bấm vào tab Lịch sử là ra ngay: các lần chạy và các cuộc trò chuyện cũ, kèm giờ, và cuộc đang mở được tô sáng.
+- **Menu nhanh của linh vật có đủ 5 lối đi:** Trò chuyện, Trợ lý, Quy trình, Cài đặt pet, Ẩn pet. "Cài đặt pet" nay mở thẳng trang Linh vật chứ không quăng bạn vào trang Cài đặt chung.
+- **Trang Linh vật có nút Lưu.** Bấm xong nó nói rõ đã vào máy chủ thật hay chưa, và nếu có gì không lưu được thì gọi tên đúng thứ đó ra.
+### Sửa lỗi
+- **Chọn cỡ "Rất lớn" cho linh vật giờ lưu được.** Trước đây chọn xong màn hình đổi ngay nhưng tải lại trang là về cỡ cũ, không một lời giải thích.
+- **Bấm Dừng một quy trình thì nó dừng thật trên màn hình.** Trước đây chat đã báo đã dừng mà cột trái vẫn quay và cột phải vẫn ghi "Đang chạy - Bước 1/3".
+- **Gọi một quy trình hay trợ lý từ khung Trò chuyện thì kết quả quay về đúng khung đó**, kèm một đường dẫn bấm vào là mở lại cuộc hội thoại đã làm việc. Trước đây bạn bị chuyển sang trang Cộng sự và khung chat cũ không bao giờ biết việc chạy ra sao.
+### Cải thiện
+- Icon của trang Linh vật là chính khuôn mặt linh vật, không còn là mặt cười chung chung.
+
+## [0.59.2] - 2026-09-15
+### Thêm mới
+- **Trang Cộng sự có cây thư mục ngay bên cạnh.** Cột phải giờ có hai tab: Cài đặt như cũ, và Thư mục là đúng cây thư mục bạn vẫn dùng ở trang Trò chuyện. Vừa nhắn với trợ lý vừa mở file mà không phải nhảy trang.
+- **Quy trình đang chạy có vòng quay trong danh sách**, nên liếc cột trái là biết cái nào còn đang làm.
+### Sửa lỗi
+- **Bấm vào file .md hay ảnh trong lúc chat với trợ lý giờ mở được.** Trước đây bấm vào không có gì xảy ra, hoặc bạn bị quăng sang trang Tệp tin.
+- **Trợ lý có tên dấu tiếng Việt mở được hội thoại.** Trước đây chọn vào là hiện một câu lỗi kỹ thuật khó hiểu và không chat được.
+- **Quy trình gặp trục trặc không còn báo "đã hoàn tất".** Bước hỏng hiện rõ là hỏng, và khi bộ não của một trợ lý hết lượt gói thuê bao thì Javis nói thẳng bước nào, trợ lý nào, bao giờ mở lại, thay vì để lại một câu tiếng Anh khó hiểu ở chỗ đáng lẽ là kết quả.
+### Cải thiện
+- Ô tìm cộng sự thu lại thành một nút kính lúp, và bộ lọc nhóm đổi thành ô chọn cho đỡ rối mắt.
+
+## [0.59.1] - 2026-09-15
+### Thêm mới
+- **Mỗi trợ lý và quy trình có hình đại diện riêng.** Hình tự sinh theo tên, đổi được hình dáng và màu ngay trong cột cài đặt, nên liếc một cái là biết đang nói chuyện với ai.
+- **Nút Chạy quy trình nằm ngay trong cột phải.** Không còn phải gõ một câu vào khung chat chỉ để bắt đầu một lượt chạy.
+- **Gõ `/` trong khung chat là nhảy thẳng tới một cộng sự.** Danh sách hiện ra có cả trợ lý lẫn quy trình, gõ không dấu cũng tìm ra, chọn một cái là mở đúng hội thoại đó và gửi luôn câu bạn vừa viết.
+- **File và link bạn gắn vào cuộc trò chuyện giờ đến tay trợ lý và quy trình**, trước đây chỉ bộ não chính đọc được.
+### Sửa lỗi
+- **Giọng đọc lúc mở app luôn ở trạng thái tắt**, chỉ bật mic mới bật tiếng. Trước đây nó nhớ trạng thái cũ nên có lúc tự đọc thành tiếng ngoài ý muốn.
+- Chưa tạo trợ lý hay quy trình nào thì ô nhập bị khoá hẳn kèm một dòng nhắc, thay vì im lặng nuốt tin nhắn.
+- Lưu quy trình thất bại giờ báo lỗi rõ, trước đây cửa sổ đóng lại như thể đã lưu xong.
+
+## [0.59.0] - 2026-09-15
+### Thêm mới
+- **Trang Cộng sự thay cho hai trang Trợ lý và Quy trình.** Chọn một trợ lý là chat được ngay với đúng vai đó, mỗi trợ lý có hội thoại riêng và cài đặt nằm ở cột phải.
+- **Quy trình chạy ngay trong khung chat.** Gửi một tin là một lần chạy, tiến độ từng bước hiện ở cột phải, kết quả về chat và tin sau vẫn nhớ kết quả trước để bạn góp ý tiếp.
+- **Lịch sử chạy được lưu lại.** Cột phải liệt kê các lần chạy gần nhất, bấm vào là mở lại; hỏi Javis "quy trình chạy gần nhất ra sao" ở khung chat chính để tra kết quả đã lưu. Quy trình vừa chạy tự lên đầu danh sách.
+
+
+## [0.58.8] - 2026-09-15
+### Cải thiện
+- **Phần Giọng nói, thương hiệu & truy cập trong Cài đặt đỡ trống trải hẳn.** Trước đây nó xếp hai cột, mà thẻ giọng nói dài gấp gần mười lần thẻ ảnh đại diện bên cạnh, nên nửa màn hình là khoảng trắng. Nay xếp một cột, mỗi thẻ một việc, nhãn bên trái và ô chọn bên phải. Cả khối ngắn lại gần một nửa.
+- **Chọn giọng và tốc độ bằng ô xổ xuống.** Bảy giọng Edge trước đây là bảy ô vuông xếp dọc chiếm gần hết màn hình cho đúng một lựa chọn; tốc độ là thanh trượt chia độ. Nay mỗi thứ gọn trong một dòng, tốc độ có sẵn năm mức đặt tên rõ ràng từ Chậm tới Rất nhanh. Giọng và tốc độ bạn đang dùng giữ nguyên, không bị đặt lại.
+- **Nút Lưu ở đâu cũng giống nhau.** Trước có bốn kiểu nút khác nhau, chỗ thì tràn ngang chỗ thì nhỏ xíu, mỗi thẻ đặt một nơi. Nay mỗi thẻ đúng một nút Lưu, luôn nằm góc dưới bên phải. Riêng ba mục của Micro thì nói thẳng là áp dụng ngay, không cần bấm gì.
+### Sửa lỗi
+- Chọn "Im lặng rồi gửi" nhanh hay chậm giờ có tác dụng ngay từ lúc mở app, trước đây phải bấm lại một lần mỗi phiên nó mới nhớ.
+
+## [0.58.7] - 2026-09-15
+### Cải thiện
+- **Dòng cảnh báo "mình vừa hẹn mà không đặt việc nền" giờ gọn lại còn hai câu.** Bản cũ dài ba đoạn, giải thích cả chuyện lượt trả lời đóng lại thế nào, đọc giữa dòng chat thì rối hơn là hiểu.
+- Nay nó chỉ nói hai điều cần biết: sẽ không có báo cáo nào tự về, và bạn nhắn "làm luôn" hay "giao việc nền" là xong.
+
+## [0.58.6] - 2026-09-15
+### Thêm mới
+- **Thêm 5 giọng đọc mới trong Cài đặt nhanh:** Ava, Emma (nữ) và Andrew, Brian, William (nam). Đây là các giọng đa ngôn ngữ thế hệ mới của Edge, tự nhận tiếng Việt và đọc mượt hơn hai giọng cũ, đổi lại có thể lơ lớ vài chữ. Bấm Nghe thử rồi chọn giọng hợp tai.
+- Vẫn miễn phí và nhanh như trước vì cùng đi qua Edge; không cần cài thêm gì.
+### Sửa lỗi
+- Giọng nữ mặc định giờ ghi đúng tên thật **Hoài My** thay vì "Ngọc Thu".
+
+## [0.58.5] - 2026-09-15
+### Sửa lỗi
+- **"Cuộn xuống dưới" giờ cuộn đúng thứ bạn đang xem.** Trước đây lệnh này luôn kéo khung chat, nên đứng ở trang Tự học hay Việc định kỳ mà bảo cuộn thì danh sách đứng im còn khung chat bên cạnh nhảy. Nay Javis cuộn trang nội dung đang mở, chỉ quay về khung chat khi bạn đang ở màn hình chính.
+- Muốn chỉ rõ thì nói thẳng: "cuộn trang này xuống" hay "cuộn khung chat lên đầu". Javis cũng nói lại đúng cái nó vừa cuộn, thay vì luôn miệng bảo "đã cuộn khung chat".
+- Trang Terminal và trình sửa file cuộn ở khung bên trong nên trước đây lệnh cuộn không ăn gì cả; nay Javis tìm đúng khung đó. Trang không có gì để cuộn thì Javis nói thật chứ không im lặng.
+
+## [0.58.4] - 2026-09-15
+### Sửa lỗi
+- **iPhone: câu bạn nói không còn hiện chữ cam rồi biến mất.** Safari trên iPhone hay giao chữ nghe được ở dạng tạm mà không bao giờ chốt, nhất là sau khi nói chuyện một hồi lâu; trước đây tới lúc hết câu Javis chỉ lấy phần đã chốt nên câu ấy rỗng và không vào khung chat. Nay phần chữ tạm được gửi đi đúng như bạn thấy trên màn hình.
+- **Nói chen vào lúc Javis đang trả lời mượt hơn.** Trước đây câu chen được gửi lại sau đúng 1,5 giây; nếu lượt cũ chưa dừng kịp thì máy chủ từ chối, hoặc dừng xong muộn thì xoá nhầm trạng thái của lượt mới khiến chữ không hiện và loa im. Nay Javis chờ đúng tín hiệu lượt cũ dừng hẳn, và câu bạn vừa nói vẫn nằm trên màn hình trong lúc chờ thay vì biến mất mấy giây.
+
+## [0.58.3] - 2026-09-15
+### Cải thiện
+- **Thanh bên có lại chữ "JAVIS OS" cạnh linh vật.** Trước đó chỗ đó chỉ còn mỗi khuôn mặt. Thu gọn thanh bên thì chữ tự ẩn, chỉ còn khuôn mặt như cũ.
+
+## [0.58.2] - 2026-09-15
+### Sửa lỗi
+- **Câu bạn vừa nói không còn bốc hơi khi mạng chớp.** Trên iPhone, đổi khung chat là Safari hay đóng kết nối tới máy chủ một nhịp; trước đây tin gửi đúng lúc đó bị bỏ đi lặng lẽ, chữ nhận đúng mà không có gì vào khung chat và không có lời giải thích nào. Nay câu ấy được giữ lại, gửi ngay khi nối lại được, và nếu mãi không nối được thì trả về ô nhập để bạn bấm gửi lại.
+- **Mất kết nối giờ được báo ngay trong khung chat.** Trước đây chỉ có dòng chữ trên quả cầu não, mà quả cầu thì bị ẩn hẳn khi bạn đang ở trang Trò chuyện, nên đúng chỗ đang gõ lại không có dấu hiệu gì.
+### Cải thiện
+- **Linh vật chọn được kích cỡ** (Nhỏ, Vừa, Lớn, Rất lớn) trong trang Linh vật, và cỡ mặc định to hơn trước. Điện thoại thôi tự thu nhỏ nó: ngón tay to hơn con trỏ chuột, màn bé mà con pet cũng bé thì vừa khó thấy vừa khó bấm.
+
+## [0.58.1] - 2026-09-15
+### Thêm mới
+- **Chỗ logo trên thanh bên mang luôn khuôn mặt linh vật** khi bạn bật nó, và đổi theo đúng hình dáng với màu bạn chọn. Tắt linh vật, hoặc đã tải logo riêng lên, thì chỗ đó trả về logo cũ: logo của bạn thì bạn quyết.
+### Cải thiện
+- **Linh vật thôi nhìn thẳng.** Rời chuột một lúc là nó liếc chéo lên phía trên bên phải, đúng ánh mắt trong hình logo, chứ không đứng nhìn thẳng vô hồn. Con trỏ vẫn kéo được mắt nó sang bất cứ hướng nào; buông ra thì nó trôi về dáng liếc ấy.
+
+## [0.58.0] - 2026-09-15
+### Thêm mới
+- **Javis có linh vật riêng, nép ở mép màn hình.** Một khuôn mặt nhỏ ló ra nửa người bên phải, hai mắt né sang phần còn nhìn thấy, nhìn theo con trỏ và chớp mắt. Nó đổi biểu cảm theo đúng việc đang làm: mắt mở to khi lắng nghe, liếc lên khi suy nghĩ, cong lại khi trả lời.
+- **Bấm một lần là nó bước hẳn ra kèm menu nhanh** (trò chuyện, việc, cài đặt, ẩn) và đứng nguyên ngoài đó; bấm ra chỗ khác chỉ đóng menu chứ không kéo nó vào. Kéo thả đi đâu cũng được, ném sát mép thì nó mới nép nửa người trở lại.
+- **Trang "Linh vật" mới** trong nhóm Hệ thống: chọn 1 trong 5 hình dáng và 12 bảng màu, hoặc tắt hẳn. Mỗi bảng màu tự đổi tông theo giao diện ngày hay đêm, và lựa chọn lưu theo tài khoản nên máy nào mở cũng thấy đúng con mình chọn.
+### Cải thiện
+- **Logo và favicon đổi sang mặt linh vật** (khối tròn cam, hai mắt đen). Logo giờ tự đổi theo phiên bản app, hết cảnh cập nhật xong vẫn thấy logo cũ nằm trong cache trình duyệt.
+- **Thanh bên gọn đi một tầng.** Nhóm "Trợ lý" được bỏ, hai mục bên trong dồn xuống "Bộ não" và đứng đầu nhóm. Trang "Javis" nay gọi đúng tên là **Đồ thị**, và vẫn là trang mở ra đầu tiên.
+
+## [0.57.23] - 2026-09-15
+### Thêm mới
+- **Trình duyệt cho Javis tự kiểm thử giao diện giờ là một lựa chọn, cài bằng nút bấm.** Trang Công cụ có mục "Công cụ tuỳ chọn" với nút cài, và trình hướng dẫn lần đầu cũng hỏi luôn. Máy nào đã có sẵn Chrome thì Javis dùng luôn và không mời tải gì; chỉ máy chủ thiếu trình duyệt mới thấy nút. Bản tải về nằm trên ổ dữ liệu nên còn nguyên sau mỗi lần cập nhật.
+- Đang đấu kết nối Playwright mà máy chưa có trình duyệt thì có dòng nhắc ngay trong form, kèm lối đi thẳng sang trang Công cụ, thay vì đấu xong mới phát hiện không chạy được.
+
+## [0.57.22] - 2026-09-15
+### Sửa lỗi
+- **Đồ thị tri thức không còn chết khi brain có note chứa mã.** Bash dùng `[[ ... ]]` làm phép thử, trùng cú pháp liên kết note, nên một đoạn mã trong note bị đọc nhầm thành liên kết tới một note không tồn tại và đồ thị đổ lỗi liên tục cho tới khi ngừng vẽ. Nay khối mã được bỏ qua trước khi dò liên kết, và một liên kết hỏng không còn làm sập cả đồ thị.
+
+## [0.57.21] - 2026-09-15
+### Sửa lỗi
+- **Bảo dừng việc ngầm thì nó dừng thật, thay vì đẻ thêm một việc để đi dừng.** Trước đây nói "tạm dừng việc tìm kiếm ngầm đi" là Javis dạ vâng rồi giao thêm một việc nền mới mang nội dung "dừng việc nền đang chạy", nói lần nữa lại đẻ thêm một cái nữa. Nay câu đó được hiểu là lệnh: huỷ ngay tại chỗ, trả lời tức thì, và nói rõ đã dừng mấy việc. Không có việc nào đang chạy thì nói thật chứ không giả vờ đã dừng.
+
+## [0.57.20] - 2026-09-15
+### Thêm mới
+- **Việc giao bằng giọng giờ hiện thành thẻ trên trang Việc.** Nhận việc là có thẻ "đang chạy" ngay, xong thì thẻ chuyển sang xong kèm kết quả, hỏng hay quá lâu thì chuyển sang chặn kèm lý do thật. Không còn phải hỏi miệng mới biết việc còn sống hay đã chết, và xong rồi vẫn còn dấu để xem lại.
+### Sửa lỗi
+- **Quả cầu não hết giật và hết tự thu nhỏ khi bạn nói.** Trước đây nó bám theo mức âm thô đọc lại 60 lần mỗi giây nên rung bần bật, và lúc Javis suy nghĩ thì mọi chấm cùng co lại gần một nửa, nhìn như màn hình tự thu nhỏ. Nay nhịp thở mượt và nhẹ, vẫn sống theo giọng nhưng không giật.
+- **Thẻ việc không bị kẹt "đang chạy" sau khi khởi động lại.** Server tắt giữa chừng thì việc nền không còn chạy nữa, nên thẻ được đánh dấu chặn kèm lý do thay vì nằm đó mãi.
+
+## [0.57.19] - 2026-09-15
+### Thêm mới
+- **Javis tự hỏi thăm khi việc nền chạy lâu.** Giao một việc xong, thay vì im lặng hàng phút, nó thỉnh thoảng nói "em vẫn đang xem, chờ chút nhé", và thưa dần chứ không lải nhải: sau 25 giây, rồi một phút, rồi hai phút. Chờ quá lâu thì nó nói thật là lâu hơn dự tính. Chỉ nói khi bạn không đang nói và loa đang rảnh, và chỉ trong lúc bật chế độ rảnh tay.
+### Sửa lỗi
+- **Việc giao bằng giọng đã hiện trong dải việc nền.** Trước đây loại việc này không xuất hiện ở đâu cả nên bạn không có cách nào biết nó còn sống hay đã chết, ngoài hỏi miệng. Nay nó được đếm như mọi việc đang chạy khác.
+
+## [0.57.18] - 2026-09-15
+### Sửa lỗi
+- **Việc chạy nền không còn biến mất giữa chừng.** Javis nhận việc, báo "đang chạy nền", rồi kết quả không bao giờ về và hỏi lại thì vẫn báo đang chạy. Nguyên nhân: việc nền bị hệ thống dọn mất ngay khi đang chạy vì không có gì giữ nó lại. Nay việc nền sống trọn vẹn tới lúc xong.
+- **Việc nền luôn báo về một câu, dù xong, lỗi, bị dừng hay quá lâu.** Trước đây gặp mấy trường hợp đó là im lặng tuyệt đối, bạn ngồi đợi một kết quả không bao giờ tới. Quá 10 phút thì Javis nói thẳng là nó dừng và mời bạn giao lại.
+
+## [0.57.17] - 2026-09-15
+### Sửa lỗi
+- **Nói chen vào được cả lúc Javis đang nghĩ.** Trước đây mic bị đóng suốt thời gian xử lý, có khi vài chục giây, nên bạn nói thêm ngữ cảnh hay bảo nó dừng đều như nói vào chỗ trống. Giờ mic vẫn nghe trong lúc nó nghĩ: bạn nói là nó bỏ câu đang làm dở và nhận câu mới, kèm đủ ngữ cảnh của câu trước.
+- **Câu nói chen ngang không còn rơi mất.** Lượt cũ cần một nhịp để dừng hẳn, nên câu bạn vừa nói được giữ lại và gửi ngay khi lượt đó đóng, thay vì bị máy chủ từ chối rồi biến mất.
+- **Một khúc tiếng bị treo không làm câm cả câu trả lời.** Khi mạng chậm và một đoạn audio tắc giữa chừng, trước đây phần còn lại im luôn mà không báo gì. Nay Javis phát hiện đoạn treo, bỏ qua nó và đọc tiếp phần sau.
+
+## [0.57.16] - 2026-09-15
+### Sửa lỗi
+- **Việc nền báo xong không còn làm chết cứng khung chat.** Sau khi một việc chạy nền đẩy kết quả vào, hội thoại bị coi nhầm là "vẫn đang trả lời": nút gửi khoá, tin nhắn tiếp theo biến mất không dấu vết, mic không mở lại và màn hình đứng mãi ở "đang suy nghĩ". Nay kết quả việc nền chỉ chèn thêm một bong bóng, không đụng tới trạng thái của lượt.
+- **Cắt lời giữa chừng thì dừng hẳn lượt đó.** Trước đây ngắt lời chỉ tắt tiếng, còn Javis vẫn viết tiếp cho một câu không ai nghe, và phiên vẫn bận nên câu bạn vừa chen vào bị chặn. Giờ nói chen vào là nó dừng luôn cả việc đang làm và nghe bạn.
+
+## [0.57.15] - 2026-09-15
+### Sửa lỗi
+- **Ngắt lời giờ mới thật sự chạy.** Bản trước làm đúng phần nhận biết nhưng chưa bao giờ được gọi tới: đang nói chuyện bằng giọng, bạn dứt lời là mic đóng lại trước khi Javis kịp trả lời, mà điều kiện rình ngắt lời lại đòi mic phải đang mở. Nay Javis giữ tai trong suốt lúc nó đọc, nên nói chen vào là nó dừng sau khoảng nửa giây. Tắt chế độ rảnh tay thì nó đọc trong im lặng như cũ, không nghe gì.
+
+## [0.57.14] - 2026-09-15
+### Sửa lỗi
+- **Nói chen vào là Javis dừng thật.** Trước đây đang nghe một đoạn dài mà nói "thôi" hay "dừng lại" thì nó giật một cái rồi đọc tiếp, vì phải chờ nhận dạng trả chữ trong 2 giây mà tiếng nói ngắn đã dứt trước khi tai kịp mở. Giờ Javis nhận ra trong khoảng nửa giây và dừng hẳn.
+- **Hết cảnh Javis nghe chính loa của mình rồi tự câm.** Khi nghi có người nói, nó hạ nhỏ tiếng một nhá rồi nghe lại: tiếng vọng từ loa nhỏ theo, giọng người thì không, nên phân biệt được ngay. Loa ngoài mở to vẫn dùng ngắt lời được, và mức vọng của phòng được nhớ lại cho những lần sau.
+
+## [0.57.13] - 2026-09-14
+### Cải thiện
+- **Xưng hô để tự do.** Bỏ luật cứng "mặc định bạn/mình" và test chặn chữ anh/em trong mã nguồn: cách xưng hô là chuyện của từng người dùng, Javis xưng theo cách bạn đang xưng với nó, có ký ức thì theo ký ức. Bộ dò "hứa suông" vẫn được giữ và kiểm với mọi giọng xưng hô.
+
+## [0.57.12] - 2026-09-14
+### Cải thiện
+- **Bộ não giọng xưng hô theo bạn.** Bạn xưng thế nào với Javis thì nó đáp lại cho khớp, không còn bị ép về một cách xưng hô cố định; các câu chờ có sẵn cũng bỏ đại từ để không lệch với cách bạn đang nói.
+
+## [0.57.11] - 2026-09-14
+### Cải thiện
+- **Nói chuyện không bao giờ bị khoá khi Javis đang làm việc.** Ở Làn nhanh, khi bạn nhờ một việc cần dữ liệu hay hành động, Javis nói "Ừ, để mình xem" rồi giao việc đó chạy nền và quay lại nghe bạn ngay, thay vì im lặng hàng chục giây và báo "phiên đang trả lời". Giao được nhiều việc liên tiếp, việc nào xong thì kết quả tự hiện trong khung chat và được đọc lên khi bạn không đang nói.
+- Trong lúc chờ, hỏi tiến độ thì Javis biết việc nào đang chạy, không bịa kết quả và không giao lại việc trùng. Dưới câu xác nhận có dòng nhỏ cho biết việc đã nhận.
+
+## [0.57.10] - 2026-09-14
+### Cải thiện
+- **Chữ đang nghe hiện ngay trong khung chat.** Khi bạn nói, câu đang được nhận dạng hiện thành một bong bóng nháp mờ ở cuối cột hội thoại, đúng chỗ tin nhắn sẽ xuất hiện khi gửi, thay vì đè lên khối não ở giữa màn hình. Nói xong là bong bóng nháp đổi thành tin thật.
+
+## [0.57.9] - 2026-09-14
+### Thêm mới
+- **Bộ não giọng nói chọn được ChatGPT, Claude Code hay Grok Build**, chạy trên gói bạn đã đăng nhập ở trang Models, không cần API key. Trong Cài đặt → Giọng nói → Làn nhanh giờ có thêm ba lựa chọn bên cạnh Antigravity và các API. ChatGPT đi thẳng qua mạng nên nhanh nhất; Claude Code giữ một phiên sống suốt lúc nói nên lượt sau chỉ còn thời gian model nghĩ (chọn haiku cho nhanh); Grok trả lời về một cục chứ chưa stream từng chữ.
+- Thẻ cài đặt tự báo cái nào chưa sẵn (chưa kết nối ChatGPT, chưa cài claude hay grok) kèm chỗ cần vào.
+
+## [0.57.8] - 2026-09-14
+### Cải thiện
+- **Chữ hiện theo lời đọc, như ChatGPT Voice.** Khi bạn nói chuyện bằng giọng, bong bóng trả lời của Javis hiện dần đúng chỗ giọng đang đọc tới, thay vì hiện cả câu trước rồi loa mới đọc đuổi theo. Ngắt lời giữa chừng thì chữ dừng đúng chỗ Javis đã nói, có dấu ba chấm ở cuối. Đọc xong hết mới vẽ đầy đủ ảnh, link, bảng và nút hỏi lại.
+- Áp dụng cho cả chế độ chuẩn, Làn nhanh và Live. Tải lại trang vẫn thấy đủ câu trả lời trong lịch sử.
+
+## [0.57.7] - 2026-09-14
+### Cải thiện
+- **Thanh bên nói tiếng Việt nốt.** Nhóm Năng lực giờ là **Trợ lý**, **Kỹ năng**, **Quy trình**, **Công cụ** (Chatbot giữ nguyên), đúng bộ chữ mà Javis Store vẫn dùng. Tiêu đề trang vẫn kèm tên tiếng Anh trong ngoặc nên ai quen chữ cũ vẫn nhận ra ngay.
+- **Ra lệnh bằng giọng theo đúng chữ nhìn thấy.** Nói "mở trang công cụ", "cho xem trang kỹ năng", "mở trang trợ lý" là Javis mở đúng tab, không cần đọc tên tiếng Anh nữa.
+- **Sửa lỗi nói tên trang tiếng Việt thì không mở được.** Làn giọng nói gửi thẳng chữ bạn vừa nói sang trình duyệt, nên hễ không phải tên tiếng Anh là bị trả về "trang không tồn tại". Nay chữ được tra trước, và tra không ra thì Javis nói rõ là không có trang đó.
+
+## [0.57.6] - 2026-09-14
+### Cải thiện
+- **Nói chuyện với Javis mượt hơn hẳn, ở mọi chế độ.** Trước đây khi dùng bộ não chính, mỗi mẩu chữ vài từ vừa sinh ra là bị đọc ngay, thành hàng chục lần gọi giọng đọc nối nhau nên nghe cà nhắc. Nay Javis đọc theo cụm tự nhiên: hết câu, hoặc đến dấu phẩy và liên từ ở cụm đầu cho tiếng ra nhanh, câu dài thì cắt ở chỗ dễ nghe; model chậm mà loa đang im thì đẩy cụm đang có chứ không để bạn chờ.
+- **Vừa nói vừa gõ trong cùng một cuộc trò chuyện.** Đang bật mic mà gõ chữ bổ sung thì tin vẫn đi làn nhanh và Javis vẫn trả lời bằng giọng; ở chế độ Live thì chữ gõ đi thẳng vào phiên đang nói.
+- **Việc lâu thì Javis nói trước một câu** kiểu "để mình xem nhé" rồi mới trả kết quả, thay vì im lặng mấy giây. Bộ não chính cũng được dặn trả lời ngắn như người đang nói khi bạn nghe bằng tai.
+- Hiểu "từ từ đợi đợi đợi chút" hay "thôi thôi dừng lại" dù bạn nói lắp; kết câu bằng "ừm", "kiểu" thì Javis chờ bạn nghĩ tiếp chứ không gửi vội.
+
+## [0.57.5] - 2026-09-14
+### Sửa lỗi
+- **Dọn sạch những câu mời đăng ký kênh đã lỡ nằm trong hội thoại cũ.** Bộ lọc ở bản trước chỉ chặn từ lúc nghe trở đi, còn tin nhắn cũ vẫn nằm nguyên và vẫn được đọc lại làm ngữ cảnh mỗi lượt. Nay có lệnh quét lại kho, xoá tin nào chỉ toàn câu bịa và cắt phần bịa khỏi tin có lẫn lời bạn nói. Bộ lọc cũng nhận thêm biến thể "đăng ký kênh để ủng hộ kênh của mình" và "cảm ơn các bạn đã theo dõi và hẹn gặp lại".
+- Bộ lọc không còn tự ý chèn khoảng trắng vào tên file hay địa chỉ web khi không có gì để cắt, và giữ nguyên câu khi chính bạn đang nhắc lại câu bịa đó.
+
+### Cải thiện
+- **Mở tab bằng lời nhanh hơn hẳn.** Trước đây một câu "mở trang Models" vẫn phải đi qua bộ não chính cùng toàn bộ ngữ cảnh hội thoại nên mất hàng chục giây. Nay bộ não giọng tự làm, chỉ còn đúng thời gian nó nghĩ.
+- **Nói được cả "mở mục Năng lực" hay "thu gọn thanh bên".** Trước đây chỉ mở được từng trang, muốn bung một nhóm đang gập trong menu thì không có lệnh nào. Mở một trang bằng lời giờ cũng tự bung nhóm chứa nó, thay vì để thanh bên gập như cũ.
+
+## [0.57.4] - 2026-09-14
+### Sửa lỗi
+- **Hết cảnh Javis tự nhiên "nghe" thấy câu mời đăng ký kênh YouTube.** Máy nghe Groq Whisper học từ phụ đề YouTube, nên gặp khoảng lặng hay tiếng ồn là nó bịa ra câu quen thuộc "Hãy subscribe cho kênh Ghiền Mì Gõ...", và câu đó đi thẳng vào khung chat như thể bạn vừa nói. Nay Javis cắt bỏ những câu bịa kiểu đó, giữ nguyên phần bạn nói thật ở trước hoặc sau; nếu cả lượt chỉ toàn câu bịa thì quay về dùng chữ của trình duyệt.
+- Bộ lọc cố ý để hẹp, nên bạn vẫn nói bình thường được về đăng ký kênh, làm video hay chạy quảng cáo mà không bị cắt mất câu.
+
+## [0.57.3] - 2026-09-14
+### Sửa lỗi
+- **Cài đặt giọng nói giờ lưu được thật.** Chọn chế độ Làn nhanh hay Live, chọn bộ não giọng, chọn cách nghe, bấm Lưu thì nút báo đã lưu nhưng máy chủ không ghi gì cả, tải lại trang là mất sạch. Nay bảy ô đó lưu đúng, và giá trị lạ thì bị bỏ qua chứ không làm hỏng lượt nói.
+- Lưu thẻ giọng đọc (Edge, OpenAI, ElevenLabs) không còn đụng tới cài đặt Làn nhanh, hai thẻ ở chung một mục nên trước đây dễ lẫn.
+
+## [0.57.2] - 2026-09-14
+### Sửa lỗi
+- **Làn nhanh hết nghe giật, cà nhắc.** Trước đây mỗi mẩu chữ vài từ vừa sinh ra là bị đẩy đi đọc ngay, thành hàng chục lần gọi giọng đọc nối nhau, mỗi lần một khoảng chờ mạng nên nghe như cắt từng mẩu và hay hiện "MẠNG CHẬM". Nay Javis chỉ đọc khi câu đã trọn (hết dấu chấm, chấm hỏi, hay xuống dòng), câu dài quá thì cắt ở dấu phẩy.
+- Trong lúc đang đọc câu này, trình duyệt đã tải sẵn câu kế tiếp nên hết câu là nói liền, không còn khoảng trống giữa hai câu.
+
+## [0.57.1] - 2026-09-14
+### Cải thiện
+- **Chế độ Live không còn đứng im khi Javis đi lấy dữ liệu.** Trước đây hỏi một câu cần số liệu là cả cuộc nói chuyện khựng lại tới khi bộ não chính trả lời xong. Nay việc đó chạy nền: Javis nói "để mình xem" rồi vẫn nghe và đáp tiếp, có kết quả thì thuật lại (Gemini dòng 3.1 vẫn im chờ vì Google chưa hỗ trợ, dòng 2.5 và OpenAI thì nói tiếp được).
+- **Thêm OpenAI GPT-Live** (mô hình song công mới, 09/2026) làm nhà cung cấp Live thứ ba, cùng ô cài đặt, dùng key OpenAI đã có. Javis là "bộ não nền" của nó: model tự quyết khi nào giao việc, Javis làm rồi trả kết quả để nó kể lại. Chưa chạy thử thật.
+- Ngắt lời chính xác hơn với OpenAI Realtime: Javis chỉ nhớ đúng phần bạn đã nghe, không nhớ phần chưa kịp đọc. Gemini tự nối lại khi Google đóng kết nối sau khoảng 10 phút, bạn không thấy đứt.
+- Phiên Live biết bạn đang mở trang nào, bôi đen đoạn nào, giống chế độ chuẩn, nên "tóm tắt đoạn này" nói bằng giọng cũng hiểu.
+
+## [0.57.0] - 2026-09-14
+### Thêm mới
+- **Bộ não riêng cho giọng nói, chạy trên gói Antigravity đã có.** Trong Cài đặt → Giọng nói chọn chế độ "Làn nhanh": khi bạn nói, một bộ não nhẹ trả lời trong 1 đến 2 giây thay vì 5 đến 10 giây; câu nào cần số liệu, file, việc hay mở app thì nó nói "để mình xem" rồi chuyển cho bộ não chính, cùng một hội thoại. Chọn được Antigravity (không tốn key), Groq, Gemini, OpenAI hay OpenRouter.
+- **Nghe bằng Groq Whisper** nếu bạn đã có key Groq: chữ chính xác hơn tiếng Việt, chữ tạm vẫn hiện tức thì như cũ.
+- **Chế độ Live: nghe nói thẳng** qua Gemini Live hoặc OpenAI Realtime (cần API key của hãng), giọng có cảm xúc, ngắt lời tự nhiên, vẫn hỏi được bộ não chính khi cần dữ liệu. Nhà cung cấp đổi được ngay trong cùng thẻ cài đặt.
+
+### Cải thiện
+- Trang Cài đặt có thẻ "Chế độ và bộ não giọng nói" tự báo cái nào chưa sẵn (chưa cài agy, chưa dán key).
+
+## [0.56.0] - 2026-09-14
+### Thêm mới
+- **Nói chuyện với Javis tự nhiên hơn.** Nói "khoan", "đợi chút" là Javis im chờ bạn; nói "thôi", "dừng lại" là nó ngừng đọc. Câu kết bằng "và", "nhưng" hay dấu phẩy thì Javis tự chờ thêm chứ không gửi vội. Chen ngang khi Javis đang đọc: nó tạm dừng 2 giây xem bạn có nói thật không, nói thật thì dừng hẳn và trả lời tiếp từ chỗ đang đọc dở, còn tiếng ho thì đọc tiếp.
+- **Điều khiển bằng lời.** "Mở trang Việc", "mở file X", "cuộn xuống" là dashboard tự mở. "Mở Chrome", "tắt Excel", "đang mở app nào" là Javis mở hay đóng app trên chính máy đang chạy Javis (chạy trên VPS thì nó nói rõ là không được). Bôi đen một đoạn rồi nói "tóm tắt đoạn này" là Javis biết đoạn nào.
+- **Dòng trạng thái giữa màn hình nói thật:** ĐANG GỌI tên tool, ĐANG CHỜ BẠN, TẠM DỪNG, ĐANG KẾT NỐI LẠI, và hậu tố MẠNG CHẬM hay N VIỆC NỀN chỉ hiện khi đo được thật.
+
+### Cải thiện
+- Giọng đọc bắt đầu sớm hơn: máy chủ phát âm thanh ngay khi sinh ra thay vì đợi xong cả câu. Thêm hai nút trong Cài đặt nhanh: mức im lặng trước khi gửi, và bật/tắt ngắt lời bằng giọng.
+
+## [0.55.66] - 2026-09-13
+### Sửa lỗi
+- **Xem ảnh trên điện thoại giờ thoát ra được.** Bấm vào một tấm ảnh trong chat là kẹt luôn: nút đóng nằm lọt dưới đồng hồ và vạch pin của điện thoại nên bấm không trúng, mà vuốt cạnh trái để lùi lại thì cũng không ăn gì. Nay thanh công cụ lùi xuống dưới thanh trạng thái, và **vuốt cạnh hoặc bấm Back là đóng ảnh** thay vì văng ra khỏi Javis.
+- Đóng bằng nút X, phím Esc hay bấm nền đen cũng dọn sạch bước lùi, nên bạn không phải bấm Back thêm một cái vô nghĩa nữa.
+
+## [0.55.65] - 2026-09-13
+### Thêm mới
+- **Javis sửa được skill cũ, thay vì chỉ biết tạo skill mới.** Trước đây một skill lộ ra chỗ sai thì vòng tự học đành bỏ qua, hoặc đẻ thêm một bản gần giống bên cạnh. Nay nó sửa thẳng vào đúng file đó, giữ nguyên tên, nhóm và mọi tuỳ chỉnh của bạn, và ghi một dòng lý do vào mục Lịch sử để bạn đọc lại.
+- Sáu rào chặn: bắt buộc nêu lý do, không tự tạo mới khi không thấy file, không đụng skill bạn đã tắt, không đụng skill hệ thống (Javis tự cập nhật những cái đó theo bản mới), và ghim `learn_lock: true` vào skill nào là cấm tự học sửa nó. Có git nên vẫn hoàn tác được bằng một chạm.
+
+### Cải thiện
+- **Bộ nhớ dài hạn tự dọn thông tin đã hết hạn.** Khi bạn đổi một thông tin cũ, bản ghi cũ vẫn nằm trong danh mục ký ức và vẫn được đọc vào mỗi câu hỏi. Nay Javis gỡ nó khỏi danh mục, cùng những dòng trỏ vào file bạn đã xoá tay. **File ký ức không bị xoá**, chỉ rời khỏi danh mục.
+- Javis cố ý **không** dọn theo tuổi: một điều đúng từ năm ngoái thì năm nay vẫn đúng.
+- Bỏ hết dấu gạch dài trong các file Javis tự ghi (danh mục ký ức, danh mục wiki, nhật ký học). Dấu này làm phần đọc thành tiếng bị vấp.
+
+## [0.55.64] - 2026-09-13
+### Thêm mới
+- **Javis học được từ việc nó tự làm, không chỉ từ những gì bạn nói.** Trước đây chỉ hội thoại mới vào vòng tự học, nên mọi việc chạy nền ở trang Việc trôi qua không để lại gì. Nay việc nền xong (hoặc vướng) là được xếp vào cùng hàng đợi học đó. Việc **bị chặn** được ưu tiên nhất, vì nó chỉ đúng chỗ hệ thống còn thiếu.
+- Vẫn đi qua đủ các bước cũ: gom nhiều việc rồi mới học một lượt, chạy trong phiên chỉ-đọc tách riêng, có vòng kiểm lại trước khi ghi. Việc nào do chính vòng học đẻ ra thì không quay lại làm bài học cho chính nó.
+
+### Sửa lỗi
+- **Bản tin gửi qua Telegram không còn dính câu trạng thái tiếng Anh ở đầu.** Bản tin giá vàng sáng 13/09 mở đầu bằng "The task has been started in the background. Waiting for results." - đó là câu bộ não Antigravity tự nói trong lúc chờ, bị nối nhầm vào trước nội dung thật. Nay chỉ câu trả lời cuối được gửi đi. Số liệu và dữ liệu đã lưu không hề bị ảnh hưởng.
+
+## [0.55.63] - 2026-09-10
+### Sửa lỗi
+- **Ảnh và file đính kèm không còn rơi mất khi bấm Enter sớm.** Dán ảnh hay một đoạn văn dài rồi gõ câu hỏi và Enter ngay, trước đây tin bay đi tay không: bong bóng không có ảnh, Javis cũng không nhận được file. Nay Javis chờ file tải lên xong rồi mới gửi, có dòng báo trong lúc chờ; file tải hỏng thì nói thẳng để bạn gỡ hoặc đính lại.
+- **Mở lại hội thoại cũ vẫn thấy mình đã gửi ảnh, file nào.** Trước đây bấm vào một cuộc ở Lịch sử, hay mở lại app sau khi để nền lâu, là mọi ảnh và thẻ file trong bong bóng của bạn biến mất. Nay chúng hiện lại đúng chỗ, ảnh bấm phóng to được như lúc vừa gửi.
+
+## [0.55.62] - 2026-09-10
+### Thay đổi lớn
+- **Bỏ luật an toàn cũ "việc chạy nền không bao giờ được tự tiêu tiền, lên đơn, đăng bài, nhắn khách".** Javis giờ tự thao tác: việc lặp và việc Kanban tạo từ chat mặc định ở mức **Toàn quyền**, Javis được tự đặt mức này mà không phải cảnh báo rủi ro. Việc lặp mới vẫn ở trạng thái tắt, bạn bấm Bật ở trang Việc.
+- **Trang Việc gọn hơn**: nút Toàn quyền là mặc định, không còn ô cảnh báo đỏ và hai hộp hỏi "Bạn chắc chứ?" khi lưu hay bật. Nhắc hẹn tạo xong cũng không còn kèm đoạn cảnh báo dài.
+- Hai mức nhẹ **Tự làm (ghi nháp)** và **Đề xuất (chỉ đọc)** vẫn còn để bạn ghìm một việc cụ thể; hub vẫn chặn thật theo mức bạn chọn. Mức quyền của từng kết nối MCP và của bot chuyên trách không đổi.
+
 ## [0.55.61] - 2026-09-09
 ### Sửa lỗi
 - **Link file dạng `file:///brains/...` trong chat giờ bấm là mở.** Antigravity hay viết link kiểu này (kèm %20), trước đây bấm vào chỉ ra khung "Không tìm thấy file". Nay Javis tự gỡ về đường dẫn trong brain, cả ở link, ảnh và chữ trần; link cũ trong lịch sử cũng mở được.

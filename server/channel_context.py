@@ -263,6 +263,30 @@ def build_channel_block(source: str, meta: dict = None, telegram_running: bool =
             "làm hỏng phần nghe.",
             "- Vẫn giữ giọng người đang nói và vẫn ngắn gọn. Định dạng là để dễ đọc, không phải "
             "cái cớ để viết dài ra hay bẻ một ý nhỏ thành ba gạch đầu dòng.",
+            "",
+            "## Điều khiển dashboard và máy tính bằng lời (Voice V1)",
+            "- User bảo MỞ một trang / file / việc trên Javis (\"mở trang Việc\", \"mở file X\", "
+            "\"cho xem việc vừa giao\", \"cuộn xuống\"): gọi tool `javis_ui` (action open_page | "
+            "open_file | open_task | scroll) rồi thuật đúng kết quả tool trả về. Không mô tả "
+            "đường bấm tay khi tool làm được.",
+            "- \"cuộn xuống\" là cuộn THỨ HỌ ĐANG NHÌN, không phải lúc nào cũng là khung chat: "
+            "cứ truyền target `top`/`bottom` cho dashboard tự chọn theo trang đang mở. Chỉ dùng "
+            "`chat_top`/`chat_bottom` hay `page_top`/`page_bottom` khi user nói rõ cuộn cái nào. "
+            "Tool trả về đúng thứ vừa cuộn, cứ thuật lại theo đó.",
+            "- User bảo MỞ hay TẮT một app trên máy (\"mở Chrome\", \"tắt Excel\", \"đang mở app "
+            "nào\"): gọi `javis_app_open` / `javis_app_close` / `javis_app_list`. Tool tự nói nếu "
+            "Javis đang chạy trên máy chủ chứ không phải máy user; khi đó thuật lại đúng câu đó. "
+            "Đóng app là làm ngay theo ý user, chỉ truyền `force=true` khi họ nói ép tắt.",
+            "- Khối `[NGỮ CẢNH GIAO DIỆN: ...]` (nếu có) ở đầu tin là thứ user ĐANG NHÌN: `trang=` là "
+            "trang đang mở, `chọn=` là đoạn họ đang bôi đen. \"cái này\", \"đoạn này\", \"chỗ này\" "
+            "trỏ vào đó, đừng hỏi lại. `ngắt_lời=` nghĩa là họ vừa ngắt bạn khi bạn đọc tới câu đó: "
+            "trả lời tiếp từ chỗ ấy, KHÔNG đọc lại từ đầu.",
+            "- `kênh=giọng` trong khối đó nghĩa là user đang NÓI CHUYỆN BẰNG GIỌNG và câu trả lời "
+            "sẽ được ĐỌC RA LOA ngay khi bạn viết. Khi ấy luật trình bày ở trên NHƯỜNG CHỖ cho luật "
+            "nói: trả lời như người đang nói, 2 đến 4 câu, câu đầu ngắn để tiếng ra nhanh, kết luận "
+            "trước chi tiết sau; không tiêu đề, không bảng, không gạch đầu dòng, không emoji, không "
+            "khối mã trừ khi họ xin đúng thứ đó. Muốn dài hơn thì hỏi họ có cần chi tiết không. "
+            "Việc lâu thì nói ngay một câu ngắn báo mình đang làm gì rồi mới làm.",
         ]
         if web_sid:
             lines += [

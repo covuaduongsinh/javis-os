@@ -557,6 +557,17 @@
       // "khong thay file" (co goi y ten gan dung), thay vi mo tab moi 404 hay khong lam gi ca.
       var fu = fileUriPath(href);
       if (fu != null) return put('<a ' + vaultLink(fu.replace(/^\/+/, "")) + ">" + esc(t) + "</a>");
+      // Link tro toi mot cong su: "#cs=<agent|workflow>:<slug>[:<ma phien>]". Server dat link
+      // nay khi mot quy trinh / tro ly chay xong tu khung Tro chuyen, de nguoi doc nhay thang
+      // toi dung cuoc hoi thoai da lam viec do. KHONG phai URL ngoai, khong mo tab moi.
+      if (/^#cs=/.test(href)) {
+        var spec = href.slice(4);
+        // decodeURIComponent nem loi voi mot dau % le loi - va nem o day la HONG CA TIN NHAN,
+        // vi chuoi thay the nay dang chay giua .replace(). Giai ma duoc thi dung, khong thi
+        // giu nguyen chuoi tho (slug va ma phien deu la ASCII nen van mo dung).
+        try { spec = decodeURIComponent(spec); } catch (err) {}
+        return put('<a class="jv-cs" href="' + esc(href) + '" data-cs="' + esc(spec) + '">' + esc(t) + "</a>");
+      }
       if (/^(https?:|mailto:)/i.test(href)) return put('<a href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(t) + "</a>");
       // URL that thi GIU nguyen ma hoa (do la duong dan mang); chi duong dan trong vault moi go
       // ra, vi no se di thang toi ten file tren dia. Xem decodeVaultPath.
@@ -868,7 +879,7 @@
   // Bam anh trong chat -> mo lop xem phong to (kieu ChatGPT): anh vua man, co nut Tai ve,
   // Mo tab moi, Dong; bam nen den hoac Esc de dong; bam vao anh de doi qua lai giua "vua man"
   // va "co that" (1:1) roi keo xem chi tiet.
-  var _lb = null, _lbUrl = "", _lbTen = "";
+  var _lb = null, _lbUrl = "", _lbTen = "", _lbDayLichSu = false;
 
   function _lbTaiVe() {
     if (!_lbUrl) return;
@@ -882,13 +893,28 @@
     a.click();
     a.remove();
   }
-  function dongLightbox() {
+  // Go lop phu khoi DOM. KHONG dung vao lich su - dung cho luc THAY anh nay bang anh khac,
+  // noi buoc lich su da chen phai duoc GIU lai cho lan dong that. Bo qua cho nay la mo anh thu
+  // hai se history.back() roi pushState lai, va popstate cham chan sinh ra sau do dong nham
+  // dung cai vua mo.
+  function _goLopPhu() {
     if (!_lb) return;
     _lb.remove(); _lb = null; _lbUrl = ""; _lbTen = "";
     document.body.classList.remove("jv-lb-open");
   }
+  function dongLightbox() {
+    if (!_lb) return;
+    _goLopPhu();
+    // Dong bang nut X / Esc / bam nen: nha luon buoc lich su da chen, khong thi nguoi dung phai
+    // bam Back mot cai "khong lam gi" truoc khi thuc su roi trang. (Cung thanh ngu voi
+    // file-editor.js - xem chu thich ben do.)
+    if (_lbDayLichSu) {
+      _lbDayLichSu = false;
+      try { history.back(); } catch (e) {}
+    }
+  }
   function moLightbox(url, ten) {
-    dongLightbox();
+    _goLopPhu();
     _lbUrl = url; _lbTen = ten || "";
     _lb = document.createElement("div");
     _lb.className = "jv-lb";
@@ -925,6 +951,13 @@
     });
     document.body.appendChild(_lb);
     document.body.classList.add("jv-lb-open");
+    // Nut Back cua dien thoai (va cu vuot canh man hinh) phai DONG anh, khong phai roi khoi
+    // Javis. Chu repo bao 2026-09-13: dang xem anh thi vuot canh trai khong an gi, ma nut X thi
+    // bi thanh trang thai che - khong con duong nao ra. Chen mot buoc lich su o day de cu Back
+    // co cho ma lui ve.
+    if (!_lbDayLichSu) {
+      try { history.pushState({ jvlb: 1 }, ""); _lbDayLichSu = true; } catch (e) {}
+    }
   }
   // ---------------------------------------------------------------- wiring (chi khi co DOM)
   if (typeof document !== "undefined") {
@@ -933,6 +966,11 @@
     window.JavisLightbox = { open: moLightbox, close: dongLightbox };
     document.addEventListener("keydown", function (e) {
       if (_lb && e.key === "Escape") { e.preventDefault(); dongLightbox(); }
+    });
+    window.addEventListener("popstate", function () {
+      if (!_lb) return;
+      _lbDayLichSu = false;     // buoc vua bi go chinh la buoc minh chen -> dung back() them lan nua
+      dongLightbox();
     });
     // Bam anh trong chat -> lightbox. Dang ky o pha CAPTURE va dat TRUOC cac handler khac de
     // an chac khong bi handler link vault (jv-floc/jv-fdownload) cuop mat.
@@ -970,6 +1008,15 @@
       try { wys.dispatchEvent(new CustomEvent("jv-task-toggle", { bubbles: true })); } catch (err) {}
     });
     document.addEventListener("click", function (e) {
+      // Link toi mot cong su (#cs=...): mo trang Cong su dung tro ly / quy trinh, va dung cuoc
+      // hoi thoai da chay viec do. Bat TRUOC cac nhanh khac vi no khong phai link vault.
+      var cs = e.target.closest ? e.target.closest("a.jv-cs") : null;
+      if (cs && cs.getAttribute("data-cs")) {
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button > 0) return;
+        e.preventDefault();
+        if (typeof window.JavisOpenCongSu === "function") window.JavisOpenCongSu(cs.getAttribute("data-cs"));
+        return;
+      }
       // Wikilink [[..]]: bam la DI CHUYEN toi note dich - chay CA trong ban render dang sua (ne-wys/.jvfe-modal),
       // vi y nghia cua wikilink la dieu huong; muon sua chu cua link thi dung che do Nguon.
       var wl = e.target.closest ? e.target.closest("a.jv-wikilink") : null;

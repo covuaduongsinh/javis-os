@@ -35,6 +35,11 @@ _STATE_DIR = Path(os.getenv("JAVIS_STATE_DIR", str(Path(__file__).parent)))
 _DEFAULT_DB = _STATE_DIR / "conversations.db"
 DB_PATH = Path(os.getenv("JAVIS_SESSIONS_DB", str(_DEFAULT_DB)))
 
+# Kênh của phiên "cộng sự": chat với MỘT trợ lý hoặc MỘT quy trình (trang Cộng sự, 0.59).
+# Thanh lịch sử của trang Trò chuyện không liệt kê các kênh này: chúng thuộc về cột phải của
+# trang Cộng sự, lẫn vào đây thì người dùng thấy hai bản ghi cho một việc.
+KENH_CONG_SU = ("agent:", "workflow:")
+
 
 def loc_brain(brain, cot: str = "s.brain"):
     """(mệnh_đề_WHERE, params) cho bộ lọc brain. ("", []) nghĩa là không lọc.
@@ -204,6 +209,9 @@ _KHOI_DINH_KEM = re.compile(r"^\s*\[File đính kèm[^\]]*\]\s*")
 # tên "[FILE ĐANG MỞ trong trình sửa của Javis: /home/…". Ghim còn được gửi lại MỖI LƯỢT nên
 # nó phổ biến hơn khối đính kèm nhiều.
 _KHOI_GHIM = re.compile(r"^\s*\[FILE ĐANG MỞ[^\]]*\]\s*")
+# Khối ngữ cảnh giao diện (Voice V1, dashboard/ui-context.js): trang đang mở, đoạn đang bôi
+# đen, câu Javis bị ngắt lời. Cùng loại với hai khối trên và cũng đi TRƯỚC câu của user.
+_KHOI_NGU_CANH_UI = re.compile(r"^\s*\[NGỮ CẢNH GIAO DIỆN:[^\]]*\]\s*")
 # Câu dashboard tự điền khi user đính kèm file mà KHÔNG gõ gì - không mang thông tin gì.
 _CAU_TU_DIEN = "Hãy đọc (các) file trên và phản hồi / tóm tắt nội dung chính."
 # File đính kèm được app.js liệt kê mỗi dòng một cái, dạng "- <đường dẫn>". Neo vào ĐÚNG dạng
@@ -248,6 +256,7 @@ def title_from_message(msg: str, gioi_han: int = TITLE_MAX) -> str:
     for _ in range(4):
         truoc = con_lai
         con_lai = _KHOI_GHIM.sub("", con_lai, count=1)
+        con_lai = _KHOI_NGU_CANH_UI.sub("", con_lai, count=1)
         m_dk = _KHOI_DINH_KEM.match(con_lai)
         if m_dk:
             khoi_dk = m_dk.group(0)
@@ -557,7 +566,8 @@ class SessionStore:
 
     def list_sessions(self, limit: int = 50, brain: Any = None,
                       include_archived: bool = False,
-                      project: Optional[str] = None) -> List[Dict[str, Any]]:
+                      project: Optional[str] = None,
+                      channel: Optional[str] = None) -> List[Dict[str, Any]]:
         """Danh sách hội thoại, MỤC GHIM luôn nằm trên đầu.
 
         `project`: bỏ trống = tất cả; "none" = các cuộc chưa xếp vào project nào;
@@ -566,6 +576,11 @@ class SessionStore:
 
         `brain`: một chuỗi, hoặc DANH SÁCH các cách viết cùng trỏ về một brain (xem
         `loc_brain`).
+
+        `channel`: None (mặc định) = danh sách cho thanh lịch sử trang Trò chuyện, loại các
+        kênh cộng sự (`KENH_CONG_SU`) vì chúng đã có chỗ riêng ở trang Cộng sự; "*" = MỌI
+        kênh, không lọc gì cả (chỗ nào coi hội thoại cộng sự cũng là hội thoại của chủ thì
+        dùng giá trị này, ví dụ vòng tự học); còn lại = CHỈ đúng kênh đó.
         """
         where = []
         params: list = []
@@ -580,6 +595,15 @@ class SessionStore:
         elif project:
             where.append("s.project_id = ?")
             params.append(project)
+        if channel == "*":
+            pass  # mọi kênh, không lọc gì thêm
+        elif channel:
+            where.append("s.channel = ?")
+            params.append(channel)
+        else:
+            for tien_to in KENH_CONG_SU:
+                where.append("s.channel NOT LIKE ?")
+                params.append(tien_to + "%")
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
         params.append(limit)
         rows = self._read(
@@ -598,6 +622,18 @@ class SessionStore:
             tuple(params),
         )
         return [dict(r) for r in rows]
+
+    def moc_cap_nhat_theo_kenh(self, brain: Any, tien_to: str) -> Dict[str, float]:
+        """{kênh: updated_at mới nhất} cho các kênh bắt đầu bằng `tien_to` (vd "agent:").
+        Trang Cộng sự dùng để xếp trợ lý vừa chat gần nhất lên đầu."""
+        cond, bparams = loc_brain(brain)
+        sql = "SELECT channel, MAX(updated_at) AS m FROM sessions s WHERE s.channel LIKE ?"
+        params: list = [tien_to + "%"]
+        if cond:
+            sql += " AND " + cond
+            params += bparams
+        sql += " GROUP BY channel"
+        return {r["channel"]: float(r["m"] or 0) for r in self._read(sql, tuple(params))}
 
     # ── ghim / icon / project của một hội thoại ──
 
@@ -1105,16 +1141,24 @@ class SessionStore:
         return q.strip()
 
     def search(self, query: str, limit: int = 30,
-               brain: Any = None) -> List[Dict[str, Any]]:
+               brain: Any = None, channel: Optional[str] = None) -> List[Dict[str, Any]]:
         """Full-text search nội dung mọi hội thoại. FTS5 nếu có, fallback LIKE.
 
-        `brain` nhận cả danh sách bí danh, cùng luật với `list_sessions`."""
+        `brain` nhận cả danh sách bí danh, cùng luật với `list_sessions`.
+
+        `channel`: bỏ trống = tìm trong MỌI kênh (giữ nguyên hành vi cũ của thanh tìm ở trang
+        Trò chuyện); có giá trị = chỉ đúng kênh đó, cho ô tìm ở cột lịch sử của một cộng sự -
+        ở đó mà trả về hội thoại của cả brain thì bấm vào là nhảy ra khỏi trợ lý đang mở."""
         q = (query or "").strip()
         if not q:
             return []
 
         _bcond, _bparams = loc_brain(brain)
         brain_clause = (" AND " + _bcond) if _bcond else ""
+        ch = str(channel or "").strip()
+        if ch:
+            brain_clause += " AND s.channel = ?"
+            _bparams = list(_bparams) + [ch]
         if self._fts_enabled:
             fts_q = self._sanitize_fts(q)
             if fts_q:

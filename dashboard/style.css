@@ -655,6 +655,12 @@ body.vault-thu .hud-body > .hud-left > .vault-expand:hover { color: var(--accent
 .orb-state.listening { color: var(--accent); }
 .orb-state.speaking { color: var(--accent2); }
 .orb-state.thinking { color: var(--yellow); }
+/* Voice V1: trạng thái thật (docs/dev/2026-09-voice-v1-spec.md mục 4) */
+.orb-state.waiting { color: var(--accent2); }
+.orb-state.paused { color: var(--yellow); }
+.orb-state.reconnecting { color: var(--red); animation: orb-blink 1.2s ease-in-out infinite; }
+.orb-state.error { color: var(--red); }
+@keyframes orb-blink { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 .orb-interim {
   font-size: 17px; color: var(--text); margin-top: 8px;
   max-width: 600px; margin-left: auto; margin-right: auto; min-height: 20px;
@@ -1386,6 +1392,8 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 }
 .attach-chip .chip-x:hover { color: var(--red); }
 .attach-chip.uploading { opacity: 0.6; }
+/* Dòng nhắc dưới các chip (file chưa tải lên được): chiếm trọn một hàng để không chen vào chip. */
+.attach-bar .attach-note { flex-basis: 100%; font-size: 13px; color: var(--warn-ink, #b45309); }
 /* Chip FILE ĐANG MỞ (ghim): phải nhìn ra ngay là khác đính kèm một lần - nó sống qua nhiều
    lượt chat nên người dùng cần thấy "à, Javis vẫn đang làm việc trên file này". */
 .attach-chip.pinned {
@@ -1459,33 +1467,10 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 .msg-attach .att-mat-note { opacity: .75; }
 .attach-chip .chip-thumb { display: block; line-height: 0; cursor: zoom-in; }
 
-/* Voice picker popover */
-.voice-picker-wrap { position: relative; }
-.voice-popover {
-  position: absolute; top: calc(100% + 8px); right: 0; width: 260px;
-  background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
-  padding: 14px; box-shadow: var(--shadow-2); z-index: 100; display: none;
-}
-.voice-popover.open { display: block; }
-.popover-section { margin-bottom: 14px; }
-.popover-section:last-child { margin-bottom: 0; }
+/* Nhãn nhóm nhỏ trong thẻ cài đặt ("GIỌNG ĐỌC", "MICRO", "ẢNH ĐẠI DIỆN"...). Tên còn dấu vết
+   của popover chọn giọng ngày trước; popover đó đã gỡ ở 0.58.8 (mọi lựa chọn nay là ô chọn
+   nằm thẳng trong trang Cài đặt), nhưng class thì console.js dùng ở hàng chục chỗ nên giữ. */
 .popover-label { font-family: var(--font); font-size: 12px; letter-spacing: 2px; color: var(--text3); margin-bottom: 8px; }
-.voice-options { display: flex; flex-direction: column; gap: 6px; }
-.voice-opt {
-  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
-}
-.voice-opt:has(input:checked) { border-color: var(--accent); background: var(--accent-wash); }
-.voice-opt input { accent-color: var(--accent); }
-.voice-opt strong { font-size: 15px; }
-.voice-opt .opt-sub { font-size: 13px; color: var(--text3); margin-top: 2px; }
-#rateSlider { accent-color: var(--accent); }
-.rate-marks { display: flex; justify-content: space-between; font-size: 12px; color: var(--text3); font-family: var(--font); margin-top: 4px; }
-.test-btn {
-  width: 100%; background: transparent; color: var(--accent); border: 1px solid var(--accent);
-  padding: 8px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;
-}
-.test-btn:hover { background: var(--accent-wash-2); }
 
 /* ===== STUDIO ===== */
 .studio-open-btn {
@@ -1623,6 +1608,8 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 .rs-agent { font-weight: 600; color: var(--text); }
 .rs-tool { font-size: 12px; color: var(--accent2-ink); font-family: var(--font); }
 .rs-ok { color: var(--green); }
+/* Bước hỏng: thay chỗ của .rs-spin nên cũng phải đứng cùng hàng với tên agent. */
+.rs-fail { color: var(--red); display: inline-flex; align-items: center; }
 .rs-spin { width: 10px; height: 10px; border: 1.5px solid var(--accent2-line); border-top-color: var(--accent2); border-radius: 50%; animation: spin 0.7s linear infinite; }
 .rs-task { font-size: 13px; color: var(--text2); margin: 6px 0; font-style: italic; }
 .rs-out { font-size: 14px; color: var(--text); line-height: 1.55; white-space: pre-wrap; max-height: 240px; overflow-y: auto; }
@@ -1713,35 +1700,44 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 .quick-set > summary::-webkit-details-marker { display: none; }
 .quick-set .qs-caret { display: inline-block; transition: transform 0.2s; }
 .quick-set[open] .qs-caret { transform: rotate(90deg); }
+/* MỘT CỘT (0.58.8). Trước đây là lưới 2 cột, mà các thẻ ở đây cao thấp chênh nhau hàng nghìn
+   pixel (thẻ giọng nói ~1200px cạnh thẻ ảnh đại diện ~150px). Ô lưới thì cao bằng hàng, nên ô
+   ngắn bị kéo giãn theo ô dài và để lại đúng chỗ trống mà chủ repo gọi là "rất rỗi". Một cột
+   thì mỗi thẻ cao đúng phần nội dung của nó, không ô nào phải chờ ô nào. Bề ngang được dùng
+   lại bằng .qs-field (nhãn trái, ô chọn phải) chứ không phải bằng cách xếp thêm cột. */
 .quick-set-body { display: flex; flex-direction: column; gap: 12px; padding: 12px 0 4px; }
-.settings-page .quick-set-body {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
-  padding: 16px 0 0;
-}
-.settings-page .quick-set-body > .qs-row { grid-column: 1 / -1; }
-.settings-page .quick-set-body > #ttsProviderHost,
-.settings-page .quick-set-body > .voice-picker-wrap { min-width: 0; }
-.settings-page .quick-set-body > .qs-block { min-width: 0; }
-.qs-block { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.settings-page .quick-set-body { padding: 16px 0 0; }
+.settings-page .quick-set-body > * { min-width: 0; }
+.qs-block { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
 .qs-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; color: var(--text2);
   background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
-/* Popover giọng nói giờ hiển thị INLINE trong sidebar (không nổi/che như ở header) */
-.quick-set .voice-picker-wrap { position: static; }
-.quick-set .voice-popover { position: static; display: block; width: auto; padding: 0; border: none; background: transparent; box-shadow: none; }
-.quick-set-body .s-btn, .quick-set-body .s-btn-ghost, .quick-set-body .test-btn { width: 100%; }
-/* Trừ nút nằm trong HÀNG NGANG (ô nhập + nút). Trong một flex row, item mang width:100% có
-   flex-basis:auto nên "cỡ mong muốn" của nó = trọn hàng; ô nhập bên cạnh lại là flex:1
-   (basis 0) nên khi phải co, toàn bộ phần co dồn vào nút còn ô nhập teo lại còn một sợi.
-   Đúng lỗi ô nhập tên miền bé tí không nhìn thấy. Specificity 3 lớp để thắng dòng trên
-   bất kể thứ tự nạp (CSS của khối tên miền do branding.js tiêm lúc chạy). */
-.quick-set-body .dom-field .s-btn,
-.quick-set-body .dom-ssl .s-btn,
-.quick-set-body .dom-ssl .s-btn-ghost { width: auto; }
-.quick-set .set-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+
+/* Hàng "nhãn trái, ô chọn phải". Ô chọn có TRẦN bề ngang: kéo một cái <select> dài 900px chỉ
+   để hiện 3 chữ thì trông còn rỗng hơn lưới hai cột. Màn hẹp xoay thành cột (cuối file). */
+.qs-field { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 10px 0; }
+.qs-field .qs-lbl { flex: 1 1 auto; font-size: 14px; color: var(--text2); }
+/* 400px: đủ cho nhãn dài nhất đang có ("Chuẩn: nghe bằng trình duyệt, bộ não chính trả lời")
+   mà chưa thành một ô chọn dài nửa màn hình chỉ để hiện vài chữ. */
+.qs-field > select, .qs-field > input { flex: 0 1 400px; min-width: 0; margin: 0; }
+.qs-field > .toggle { flex: none; }
+.qs-hint { font-size: 12.5px; line-height: 1.5; color: var(--text3); margin: -2px 0 10px; }
+.qs-block .opt-sub { font-size: 12.5px; line-height: 1.5; color: var(--text3); }
+/* Nút Lưu của MỌI thẻ: luôn ở góc dưới phải, luôn cùng một họ nút (.gcard-btn của trang Cài
+   đặt). Trước đây mỗi thẻ một kiểu - nút tím tràn ngang, nút viền tràn ngang, nút thường canh
+   trái - nên mắt phải đi tìm nút Lưu ở mỗi thẻ một chỗ. */
+.quick-set-body .js-actions.qs-foot { justify-content: flex-end; margin-top: 12px; }
+.quick-set-body .qs-file { cursor: pointer; }
+.qs-avatar { display: flex; align-items: center; gap: 12px; margin: 10px 0; flex-wrap: wrap; }
+.qs-avatar img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); }
+/* Hai nút đứng NGAY CẠNH ảnh chứ không bị đẩy sang mép phải: chúng thao tác lên chính cái
+   ảnh bên trái, đẩy xa ra thì lại thành một khoảng trống giữa thẻ. Nút Lưu của thẻ khác vẫn
+   ở mép phải vì nó chốt cả thẻ, không gắn với một thứ cụ thể nào bên trái. */
+.quick-set-body .qs-avatar .js-actions { flex: 1 1 auto; margin-top: 0; justify-content: flex-start; }
 
 @media (max-width: 700px) {
-  .settings-page .quick-set-body { grid-template-columns: 1fr; }
-  .settings-page .quick-set-body > .qs-row { grid-column: auto; }
+  .qs-field { flex-direction: column; align-items: stretch; gap: 6px; }
+  .qs-field > select, .qs-field > input { flex: 1 1 auto; }
+  .qs-field > .toggle { align-self: flex-end; }
 }
 
 /* Dòng nhỏ dưới mỗi câu trả lời: lượt này đi đường nào, tốn bao nhiêu token vào.
@@ -2028,7 +2024,14 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
    Con trỏ .chat-img vốn đã là zoom-in từ lâu, nhưng bấm vào lại TẢI FILE VỀ - hứa một đằng
    làm một nẻo. Nay bấm là mở lớp này: ảnh vừa màn, kèm nút Tải về / Mở tab mới / Đóng. */
 .jv-lb { position: fixed; inset: 0; z-index: 5000; display: flex; flex-direction: column;
-  background: rgba(0, 0, 0, 0.86); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  background: rgba(0, 0, 0, 0.86); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  /* VUNG AN TOAN cua dien thoai (chu repo bao 2026-09-13, kem anh chup): thanh cong cu nam sat
+     inset:0 nen tren may co tai tho / thanh trang thai de len, dong ho va vach pin che mat nut
+     X - lop phu bien thanh cai bay khong thoat ra duoc. Trang da co viewport-fit=cover nen
+     env() tra ve so that; dem o CHINH lop phu de ca thanh cong cu lan khung anh cung lui vao,
+     va vi box-sizing:border-box la mac dinh toan cuc nen inset:0 van phu kin man hinh. */
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+           env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
 body.jv-lb-open { overflow: hidden; }        /* khoá cuộn nền để lăn chuột là lăn trong ảnh */
 .jv-lb-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 10px 14px; color: #fff; flex: none; }
@@ -2847,3 +2850,157 @@ body.ne-full-on .cview { z-index: 250; }
    danh sách sót, trong khi sự thật là file còn đó dưới một cái tên khác. */
 .pd-row.mat { opacity: .55; }
 .pd-row.mat .pd-row-name { text-decoration: line-through; }
+
+/* Voice V3: bong bóng hiện chữ theo lời đọc - dấu chờ khi loa chưa kịp đọc từ nào */
+.theo-loi-cho { opacity: .55; animation: theoLoiNhap 1.2s ease-in-out infinite; }
+@keyframes theoLoiNhap { 0%, 100% { opacity: .25; } 50% { opacity: .8; } }
+
+/* Voice V3: bong bóng NHÁP của chữ đang nghe từ mic, đứng cuối cột chat thay vì đè lên khối não */
+.msg-nhap-giong .bubble { opacity: .62; border-style: dashed; }
+.msg-nhap-giong .bubble .utext::after { content: " …"; opacity: .6; }
+
+/* Voice V3: dòng "đang làm nền" dưới câu xác nhận của bộ não giọng */
+.msg-javis .voice-nen { font-size: 12.5px; opacity: .7; margin: 4px 0 0 4px; font-style: italic; }
+
+/* ============================================================
+   LINH VẬT (pet.js) - khuôn mặt nhỏ nép ở mép màn hình
+   ============================================================
+   Nép vào = dịch ngang đúng 48% bề ngang, nên hai con mắt vẫn thò ra. Dịch bằng
+   transform chứ không đổi left/right: transform chạy trên luồng compositor nên
+   trượt ra trượt vào mượt kể cả lúc trang đang bận vẽ đồ thị.
+
+   z-index 390: trên mọi nội dung thường (rail 60, cview 250) nhưng DƯỚI
+   .modal-overlay (400) và mọi hộp thoại cao hơn. Pet không bao giờ được che một câu
+   hỏi đang chờ người dùng trả lời, kể cả màn đăng nhập. */
+.pet {
+  position: fixed; z-index: 390; width: var(--pet-size, 72px); height: var(--pet-size, 72px);
+  transform: translateY(-50%); pointer-events: none;
+}
+/* [hidden] của trình duyệt là display:none, nhưng luật display:flex của .pet-menu bên dưới
+   THẮNG nó. Thiếu dòng này thì menu nhanh hiện thường trực ngay từ lúc mở trang. */
+.pet[hidden], .pet-menu[hidden] { display: none; }
+.pet-body {
+  flex: none; width: 100%; height: 100%; padding: 0; border: 0; background: none;
+  cursor: grab; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent;
+  transition: transform .34s cubic-bezier(.2,.8,.2,1), filter .34s ease;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .28));
+}
+.pet[data-dragging] .pet-body { cursor: grabbing; transition: none; }
+/* Nép nửa người (data-out="0") là trạng thái NGHỈ. Đứng hẳn ra (data-out="1") giữ nguyên cho
+   tới khi bị kéo ném trở lại mép; bấm ra chỗ khác chỉ đóng menu, không hút pet vào. */
+.pet[data-out="0"][data-side="right"] .pet-body { transform: translateX(48%); }
+.pet[data-out="0"][data-side="left"]  .pet-body { transform: translateX(-48%); }
+.pet[data-out="1"] .pet-body { transform: none; }
+.pet-body:focus-visible { outline: 2px solid var(--pet-face, var(--accent)); outline-offset: 4px; border-radius: 50%; }
+.pet-body svg { width: 100%; height: 100%; overflow: visible; display: block; }
+.pet-face { fill: var(--pet-face, #f28c28); }
+.pet-eyes { fill: var(--pet-eye, #201e1e); }
+.pet-line { fill: none; stroke: var(--pet-eye, #201e1e); stroke-width: 7; stroke-linecap: round; }
+/* Vành quỹ đạo: MỘT path có dash xoay. Chỉ thấy rõ khi Javis đang làm việc thật
+   (thinking / speaking), lúc nghỉ thì mờ gần hết đúng như chủ dự án chốt. */
+.pet-ring {
+  /* NÉT MẢNH. Bản 0.59.4 để 7 (và 13 lúc đang làm việc) cho dễ thấy, nhưng chủ dự án nhìn bản
+     thật rồi chốt 15/09: dày quá, hoá ra một vòng chấm to chạy quanh người. Sức nặng của trạng
+     thái nay dồn vào MÀU (tông chính, đục hẳn) chứ không vào bề dày - mảnh mà đậm màu thì vừa
+     thấy rõ vừa còn tinh tế. */
+  fill: none; stroke: var(--pet-ring, #f7c98f); stroke-width: 5; stroke-linecap: round;
+  /* CHỈ chuyển mượt độ mờ. Đừng thêm stroke / stroke-width vào đây: vòng vẽ của pet ghi
+     `strokeDashoffset` lên chính thẻ này MỖI KHUNG HÌNH, và chuyển cảnh bị khởi động lại
+     theo từng lần ghi - đo thật: sau 800ms nét mới bò tới 12,087px trên đường về 13px, nên
+     đổi trạng thái xong nhìn vẫn như chưa đổi. Đổi tức thì cũng đúng ý hơn: người dùng cần
+     thấy NGAY là Javis vừa bắt đầu làm việc. */
+  transition: opacity .3s ease;
+  /* Phóng to hơn thân để vòng CHẠY BÊN NGOÀI chứ không nằm đè lên mép thân: dùng chung path
+     với thân nên không phóng thì nét vẽ bị thân nuốt mất một nửa. 1,14 chứ không phải 1,1 -
+     chủ dự án muốn vành TÁCH khỏi thân một chút, nhìn ra hai lớp chứ không phải một cái viền
+     dính vào người. */
+  transform: scale(1.14); transform-origin: 160px 160px;
+}
+/* ĐANG LÀM VIỆC thì vành phải ĐẬP VÀO MẮT. Lúc nghỉ nó cố ý mảnh và nhạt (tông phụ của bảng
+   màu), nhưng bản đầu giữ nguyên nét ấy cho mọi trạng thái, nên pet chuyển từ "rảnh" sang
+   "đang nghĩ" mà nhìn gần như không khác gì - đúng điều chủ dự án báo 15/09: nhỏ và mờ quá,
+   đổi trạng thái không thấy. Nay mọi trạng thái KHÁC nghỉ đổi sang MÀU CHÍNH của bảng màu
+   (cùng màu thân, nên vẫn là một nhân dạng), dày thêm một chút và có quầng sáng nhẹ - đủ thấy
+   ngay, chưa tới mức thành một cái vòng thô quanh người.
+   `paused` nằm cùng phía "nghỉ": nó là lúc pet đang ngủ, không phải lúc đang làm. */
+.pet[data-state]:not([data-state="idle"]):not([data-state="paused"]) .pet-ring {
+  stroke: var(--pet-face, #f28c28); stroke-width: 8;
+  filter: drop-shadow(0 0 5px var(--pet-face, #f28c28));
+}
+.pet-rig { transform-origin: 160px 160px; }
+
+/* Menu nhanh: hiện khi pet trượt ra. Không phải trang cài đặt, chỉ là 4 lối đi hay dùng. */
+/* Menu neo TUYỆT ĐỐI cạnh thân, chứ không phải một ô flex bên trong .pet: .pet chỉ rộng 56px
+   nên nằm trong flex là menu bị bóp lại bằng min-content và chữ tràn ra ngoài màn hình.
+   Neo tuyệt đối thì nó nở đủ bề rộng nội dung và luôn mọc về phía giữa màn hình. */
+.pet-menu {
+  pointer-events: auto; position: absolute; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 1px; padding: 6px;
+  background: var(--bg2); border: 1px solid var(--hairline); border-radius: 16px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .38), 0 2px 6px rgba(0, 0, 0, .18);
+  animation: petMenuVao .2s cubic-bezier(.2, .8, .2, 1);
+}
+.pet[data-side="right"] .pet-menu { right: calc(100% + 10px); transform-origin: right center; }
+.pet[data-side="left"]  .pet-menu { left: calc(100% + 10px);  transform-origin: left center; }
+.pet-menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px;
+  padding: 8px 14px 8px 8px; border: 0; border-radius: 11px; cursor: pointer;
+  background: transparent; color: var(--text2); font: inherit; font-size: 13.5px; white-space: nowrap;
+  transition: background .12s ease, color .12s ease;
+}
+.pet-menu button:hover, .pet-menu button:focus-visible { background: var(--surface-2); color: var(--text); }
+/* Icon ngồi trong một ô bo tròn riêng: chữ và hình thẳng cột dù icon rộng hẹp khác nhau,
+   và cả menu nhìn ra một bộ nút chứ không phải một danh sách chữ có ký tự lạ đứng trước. */
+.pet-menu button span {
+  flex: none; width: 28px; height: 28px; display: inline-flex; align-items: center;
+  justify-content: center; border-radius: 9px; background: var(--surface-1); color: var(--text3);
+  transition: background .12s ease, color .12s ease;
+}
+.pet-menu button:hover span { background: var(--accent-wash-2); color: var(--accent); }
+.pet-menu button span svg { width: 16px; height: 16px; }
+.pet-menu button b { font-weight: 500; }
+/* translateY(-50%) phải nằm TRONG keyframe: hoạt ảnh ghi đè cả thuộc tính transform, nên để
+   nó ở luật tĩnh thôi là menu nhảy xuống nửa chiều cao suốt lúc hoạt ảnh chạy. */
+@keyframes petMenuVao {
+  from { opacity: 0; transform: translateY(-50%) scale(.9); }
+  to { opacity: 1; transform: translateY(-50%) scale(1); }
+}
+
+/* Ô chọn hình dáng / bảng màu trên trang Cài đặt */
+.pet-picker { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 4px; }
+.pet-pick {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer;
+  padding: 7px 4px 5px; width: 62px; border: 1px solid transparent; border-radius: 12px;
+  background: transparent; color: var(--text3); font: inherit; font-size: 11.5px;
+}
+.pet-pick svg { width: 32px; height: 32px; }
+.pet-pick:hover { background: var(--surface-1); color: var(--text); }
+.pet-pick[aria-pressed="true"] { border-color: var(--accent-line); background: var(--surface-2); color: var(--text); }
+.pet-swatch { width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.pet-swatch i { display: block; width: 100%; height: 100%; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(128, 128, 128, .28); }
+.pet-swatch[aria-pressed="true"] { border-color: var(--accent); }
+
+/* Màn hẹp KHÔNG thu nhỏ pet nữa: ngón tay to hơn con trỏ chuột, và trên điện thoại một
+   chấm bé còn khó thấy hơn trên màn rộng. Cỡ do người dùng chọn (trang Linh vật), chỉ giới
+   hạn theo bề ngang màn để nó không chiếm nửa màn hình trên máy nhỏ. */
+@media (max-width: 700px) {
+  .pet { width: min(var(--pet-size, 72px), 24vw); height: min(var(--pet-size, 72px), 24vw); }
+  .pet-menu button { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pet-body, .pet-menu { transition: none !important; animation: none !important; }
+}
+
+/* Ô dấu ấn khi nó đang mang khuôn mặt linh vật (pet.js -> veDauAn). Ảnh logo cũ là
+   <img> vuông bo góc; dấu ấn là SVG khuôn mặt nên bỏ quầng sáng cam của .brand-mark đi,
+   không thì cái mặt nằm trong một vầng hào quang không ai gọi. */
+.brand-pet { filter: none !important; }
+.brand-pet svg { display: block; width: 30px; height: 30px; overflow: visible; }
+.brand .brand-pet svg { width: 22px; height: 22px; }
+
+/* Ô chọn CỠ: một chấm tròn đúng tỉ lệ cỡ thật, để so bằng mắt thay vì đoán theo chữ. */
+.pet-pick-size { justify-content: flex-end; min-height: 74px; }
+.pet-pick-size i {
+  display: block; border-radius: 50%; background: var(--pet-face, var(--accent));
+  margin-bottom: 4px; flex: none;
+}
