@@ -552,21 +552,63 @@ def _viet_file_ngu_canh(cwd: str, noi_dung: str) -> tuple[str, str]:
     return str(p), str(p)
 
 
+def cau_hoi_moi_nhat(prompt: str) -> str:
+    """Bóc ĐÚNG tin nhắn mới nhất của người dùng ra khỏi gói prompt Javis gửi cho `agy`.
+
+    Vì `agy` không nối lại mạch, mỗi lượt Javis gửi cả lịch sử hội thoại đã gói bằng
+    `compaction.bootstrap_prompt`: lịch sử cũ ở trên, rồi một dòng đánh dấu, rồi câu hỏi hiện
+    tại ở CUỐI. Chỗ nào cần "câu hỏi thật" (lời nhắc trên dòng lệnh khi đi đường file) phải lấy
+    phần SAU dấu đó. Bản trước lấy 1500 ký tự ĐẦU của cả gói, tức là tiêu đề khối lịch sử cộng
+    một câu hỏi CŨ, rồi dán lên dòng lệnh dưới nhãn "tin nhắn mới nhất của người dùng". Model
+    nào không đọc hết file ngữ cảnh (file dài hàng trăm nghìn ký tự, tool đọc file cắt cụt) là
+    trả lời đúng câu hỏi cũ đó - chính cảnh "chat dài thì trả lời không liên quan, mở chat mới
+    thì lại bình thường" mà người dùng báo 2026-09-18/19.
+    Không có dấu (phiên mới, chưa có lịch sử) thì cả prompt là câu hỏi.
+    """
+    raw = str(prompt or "")
+    try:
+        import compaction
+        dau = compaction.CURRENT_REQUEST_MARKER
+    except Exception:
+        dau = "[YÊU CẦU HIỆN TẠI]"
+    i = raw.rfind(dau)
+    if i < 0:
+        return raw.strip()
+    return raw[i + len(dau):].strip()
+
+
+# Câu hỏi chép lại trên dòng lệnh khi đi đường file được dài tới đâu. Trần thật là dòng lệnh
+# Windows (~30.000 đơn vị, xem `_tran_argv`) trừ đi phần lời nhắc và các cờ, nên 6.000 còn xa
+# trần; 1.500 của bản trước quá ít, dán một bài viết là mất luôn câu chốt ở cuối (chủ repo
+# 2026-09-20). Dài hơn trần thì giữ đầu + đuôi, lược đoạn giữa.
+_TRAN_NHAC_CAU_HOI = 6000
+_DAU_NHAC_CAU_HOI = 4000
+_DUOI_NHAC_CAU_HOI = 2000
+
+
 def _loi_nhac_file(duong_dan: str, cau_hoi: str) -> str:
     """Prompt NGẮN thay cho cả gói: bảo model tự mở file ngữ cảnh ra đọc.
 
     Câu hỏi thật vẫn được nhắc lại ở đây (cắt ngắn) chứ không chỉ nằm trong file. Đó là lưới an
     toàn: bản CLI nào bướng không chịu đọc file thì ít ra vẫn trả lời đúng câu người dùng hỏi,
-    chỉ thiếu luật riêng của Javis, chứ không trả lời trống trơn.
+    chỉ thiếu luật riêng của Javis, chứ không trả lời trống trơn. Phải là câu hỏi MỚI NHẤT
+    (xem `cau_hoi_moi_nhat`), không phải đoạn đầu của gói lịch sử.
     """
-    hoi = (cau_hoi or "").strip()
-    if len(hoi) > 1500:
-        hoi = hoi[:1500] + " [...]"
+    hoi = cau_hoi_moi_nhat(cau_hoi)
+    if len(hoi) > _TRAN_NHAC_CAU_HOI:
+        # Giữ CẢ ĐẦU LẪN ĐUÔI chứ không chỉ đầu: người dùng dán một bài dài thì chỉ dẫn hay
+        # nằm ở câu mở ("viết lại đoạn sau") hoặc ở câu chốt cuối ("đoạn trên hãy tóm tắt").
+        # Cắt đầu là mất câu chốt, cắt đuôi là mất câu mở; đoạn giữa mới là phần ít quan
+        # trọng nhất và vẫn có đủ trong file ngữ cảnh.
+        hoi = (hoi[:_DAU_NHAC_CAU_HOI].rstrip()
+               + "\n[... đoạn giữa đã lược, bản đầy đủ nằm trong file ngữ cảnh ...]\n"
+               + hoi[-_DUOI_NHAC_CAU_HOI:].lstrip())
     return (
         f"BẮT BUỘC LÀM TRƯỚC: mở và đọc HẾT file `{duong_dan}`.\n"
         "File đó chứa toàn bộ chỉ dẫn hệ thống, bộ nhớ và lịch sử hội thoại của bạn. Đọc xong "
-        "thì hành xử đúng theo nó và trả lời tin nhắn mới nhất của người dùng (nằm ở cuối file). "
-        "Không nhắc tới file này trong câu trả lời, không tóm tắt nó.\n"
+        "thì hành xử đúng theo nó và trả lời tin nhắn mới nhất của người dùng (nằm ở cuối file, "
+        "và được chép lại ở cuối lời nhắc này). Các câu hỏi cũ hơn trong file ĐÃ được trả lời "
+        "rồi, không trả lời lại. Không nhắc tới file này trong câu trả lời, không tóm tắt nó.\n"
         "Nếu KHÔNG mở được file (không có quyền, không tìm thấy), đừng im lặng và cũng đừng đoán: "
         "trả lời câu hỏi dưới đây rồi nói thẳng ở cuối là bạn không đọc được file ngữ cảnh.\n"
         "(Phải đi qua file vì hệ điều hành chặn độ dài dòng lệnh, không nhét thẳng vào đây được.)\n\n"
@@ -648,17 +690,26 @@ def co_quyen_cho_mode(mode: Optional[str]) -> list[str]:
     """
     m = str(mode or "").strip().lower()
     co: list[str] = []
-    if m == "full":
+    if m in ("full", "auto"):
+        # auto = được ghi file nháp trong brain. Headless mà dừng lại hỏi duyệt là treo tới hết
+        # giờ, nên vẫn phải tự duyệt; rào tiền/đơn/đăng bài nằm ở MCP Hub chứ không ở đây.
+        #
+        # auto KHÔNG còn kèm `--sandbox` (đo 2026-09-19 trên agy 1.2.7, task t_305e712a90f4):
+        # `agy --sandbox --dangerously-skip-permissions -p "ls"` in "root agent idle; waiting up
+        # to 5s for 1 background task(s)" rồi "terminating 1 background task(s) on exit" mà KHÔNG
+        # có kết quả nào. Hai cờ đi cùng nhau khiến tool shell của agy chạy như một việc nền, và
+        # chế độ in một lượt (-p) tự huỷ nó sau 5 giây trước khi tool kịp trả lời. Bỏ `--sandbox`
+        # là chạy đúng (đo 4 lần mỗi bên). Mọi việc Kanban/Loop/Workflow ở mức auto cần shell
+        # hay ghi file thật đều chết câm vì tổ hợp này, còn model vẫn trả lời trôi chảy nên log
+        # không có lấy một dòng lỗi. Rào hành động ra ngoài vốn nằm ở MCP Hub chứ không ở
+        # `--sandbox`, nên bỏ cờ không mất lớp phòng vệ thật nào.
         if co_co("--dangerously-skip-permissions"):
             co.append("--dangerously-skip-permissions")
         return co
-    # suggest + auto + mọi giá trị lạ: bật sandbox nếu bản CLI có.
+    # suggest + mọi giá trị lạ: bật sandbox nếu bản CLI có. suggest không tự duyệt tool nên
+    # không dính tổ hợp hỏng ở trên.
     if co_co("--sandbox"):
         co.append("--sandbox")
-    if m == "auto" and co_co("--dangerously-skip-permissions"):
-        # auto = được ghi file nháp trong brain. Headless mà dừng lại hỏi duyệt là treo tới hết
-        # giờ, nên vẫn phải tự duyệt; rào tiền/đơn/đăng bài nằm ở MCP Hub chứ không ở đây.
-        co.append("--dangerously-skip-permissions")
     return co
 
 
@@ -1349,6 +1400,21 @@ class AntigravityCLI:
                     proc.stdin.close()
                 except Exception:
                     pass
+                # Đọc stderr SONG SONG ở luồng riêng. Bản cũ đọc hết stdout rồi mới đọc stderr:
+                # agy mà ghi quá ~64KB vào stderr (log MCP, cảnh báo) thì ống đầy, nó đứng chờ
+                # ghi, còn mình đứng chờ stdout đóng - lượt treo tới khi bị cắt.
+                phan_loi: list = []
+
+                def _doc_loi():
+                    try:
+                        for dl in iter(proc.stderr.readline, ""):
+                            phan_loi.append(dl)
+                    except Exception:
+                        pass
+
+                luong_loi = threading.Thread(target=_doc_loi, daemon=True,
+                                             name=f"javis-agy-err-{self.tag}")
+                luong_loi.start()
                 for line in iter(proc.stdout.readline, ""):
                     line = line.strip()
                     if not line:
@@ -1357,12 +1423,9 @@ class AntigravityCLI:
                         loop.call_soon_threadsafe(hang.put_nowait, json.loads(line))
                     except json.JSONDecodeError:
                         loop.call_soon_threadsafe(hang.put_nowait, {"_raw": line})
-                err = ""
-                try:
-                    err = (proc.stderr.read() or "").strip()
-                except Exception:
-                    pass
                 ma = proc.wait(timeout=self.timeout)
+                luong_loi.join(timeout=5)
+                err = "".join(phan_loi).strip()
                 if ma != 0 or err:
                     loop.call_soon_threadsafe(hang.put_nowait, {"_exit": ma, "_err": err})
             except subprocess.TimeoutExpired:
@@ -1500,6 +1563,30 @@ class AntigravityCLI:
             _gop = dict(_sub)
             _gop.update({k: v for k, v in ev.items() if k != t})
             ev = _gop
+
+        # LOẠI bước thật nằm ở `step_type`, không phải ở tầng ngoài. Đo trên agy 1.2.8: mọi
+        # bước đều đi chung một tên sự kiện `step_update`, và bước gọi công cụ là
+        #   {"step_type":"tool","tool_name":"run_command","state":"ACTIVE"|"DONE",
+        #    "step_index":2,"tool_info":{"name":...,"parameters":{...}}}
+        # Nhánh `tool_use/tool_call/tool` bên dưới chỉ khớp khi loại nằm ở tầng ngoài, hình
+        # dạng CLI thật không dùng - nên trước bản này mọi lần agy gọi công cụ đều rơi vào hư
+        # không: khung chat không vẽ được tiến trình nào, và `co_tool` không bật lên nên Javis
+        # tưởng lượt đó chưa đụng gì bên ngoài và cho phép chạy lại.
+        if str(ev.get("step_type") or "").lower() == "tool":
+            # `state` đi ACTIVE rồi DONE cho CÙNG một `step_index`, nên phải đếm theo index
+            # chứ không theo số dòng - không thì một lần gọi hiện thành hai bước.
+            kho = chan if isinstance(chan, dict) else {}
+            da_bao = kho.setdefault("_buoc_tool", set())
+            idx = str(ev.get("step_index") or ev.get("tool_id") or ev.get("id") or "")
+            ten = str(ev.get("tool_name") or (ev.get("tool_info") or {}).get("name") or "")
+            ra = []
+            if idx not in da_bao:
+                da_bao.add(idx)
+                ra.append({"type": "tool_call", "name": ten, "id": idx,
+                           "input": (ev.get("tool_info") or {}).get("parameters") or {}})
+            if str(ev.get("state") or "").upper() == "DONE":
+                ra.append({"type": "tool_result", "id": idx, "status": "", "content": ""})
+            return ra
 
         # Mở mạch: nhặt id hội thoại để lượt sau nối lại được.
         if t in ("init", "session", "conversation", "start", "system"):

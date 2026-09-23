@@ -184,7 +184,7 @@ Mở Javis → bộ cài đặt sẽ dẫn bạn qua:
 
 > 📚 **Tài liệu chi tiết:** xem thư mục **[docs/](docs/README.md)** - hướng dẫn từng chức năng (mở ở đâu, bấm gì, dùng thế nào). Bảng dưới là bản đồ nhanh; cột **Chi tiết** dẫn tới trang hướng dẫn tương ứng.
 
-Thanh điều hướng bên trái gom **21 trang** thành **6 nhóm** (bấm tên nhóm để mở):
+Thanh điều hướng bên trái gom **22 trang** thành **6 nhóm** (bấm tên nhóm để mở):
 
 | Nhóm | Mục | Làm gì | Chi tiết |
 |---|---|---|---|
@@ -198,6 +198,7 @@ Thanh điều hướng bên trái gom **21 trang** thành **6 nhóm** (bấm tê
 | | **Workflows** | Tạo/chạy chuỗi tự động (agent → agent), có bước kiểm chứng. | [Agents & Workflows](docs/07-agents-va-workflows.md) |
 | | **Plugins** | Thêm tool/hook native cho mọi engine bằng một thư mục Python. | [Plugins](docs/20-plugins.md) |
 | | **Chatbot** | Đem Agent ra trả lời khách qua bot Telegram/Zalo riêng, brain riêng. | [Chatbot](docs/25-chatbot.md) |
+| | **Hội thoại** | Hộp thư gom mọi cuộc chat khách nhắn cho bot và Zalo cá nhân; đọc lại, tiếp quản khi cần người thật. | [Hội thoại khách](docs/28-hoi-thoai-khach.md) |
 | **Việc** | **Việc** | Hàng đợi task nền do AI tự đặc tả và tự chạy; bạn chỉ xử lý ngoại lệ. | [Việc (Kanban)](docs/21-viec-kanban.md) |
 | | **Việc định kỳ** | Nhiều vòng lặp chạy nền + nhắc hẹn theo giờ hoặc cron. | [Việc định kỳ & Nhắc hẹn](docs/08-viec-dinh-ky.md) |
 | **Kết nối** | **Kết nối** | Kho dịch vụ ngoài, đa tài khoản cùng một dịch vụ, phân quyền 3 mức. | [Kết nối & số liệu](docs/09-mcp-va-so-lieu.md) |
@@ -224,7 +225,9 @@ Thanh điều hướng bên trái gom **21 trang** thành **6 nhóm** (bấm tê
 
 ## ⚙️ Cấu hình (`.env`)
 
-Mọi dòng để trống vẫn chạy được. Sao chép `env.example` → `.env` (file mẫu cố ý KHÔNG có dấu chấm đầu để Docker Manager của Hostinger không tự nhập nó vào ô Environment).
+Mọi dòng để trống vẫn chạy được. Sao chép `env.example` → `.env` rồi thêm biến bạn cần.
+
+File mẫu cố ý **chỉ có dòng `TÊN=giá trị`, không một dòng chú thích nào**: các nền tảng deploy (Docker Manager của Hostinger chẳng hạn) tự quét file cấu hình trong repo rồi cắt mọi dòng có dấu `=` thành một biến, nên một dòng chú thích thành một biến tên `#` và cả bảng Environment đỏ lên. **Danh sách đầy đủ kèm giải thích từng biến: [docs/16-cau-hinh-env.md](docs/16-cau-hinh-env.md).**
 
 | Biến | Ý nghĩa | Mặc định |
 |---|---|---|

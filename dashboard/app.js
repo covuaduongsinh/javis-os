@@ -177,7 +177,7 @@ const voice = new JavisVoice({
 // voice-turn.js giữ toàn bộ luật (chờ bao lâu rồi gửi, "khoan" nghĩa là gì, chen ngang thật
 // hay giả); app.js chỉ THỰC HIỆN mảng hành động nó trả về và vẽ orb theo trạng thái thật.
 const turn = new window.JavisVoiceTurn.VoiceTurn({
-  minDelay: parseInt(localStorage.getItem("javis.endpoint") || "800", 10) || 800,
+  minDelay: parseInt(localStorage.getItem("javis.endpoint") || "1200", 10) || 1200,
 });
 let _bargeTimer = null;   // 2 giây sau khi tạm dừng mà không có chữ -> chen ngang giả
 let _waitTimer = null;    // "khoan" rồi im lâu -> thôi chờ
@@ -215,11 +215,11 @@ function noiTienDo() {
 }
 
 // ---- Voice V3: chữ hiện THEO LỜI ĐỌC (karaoke), như ChatGPT Voice ----
-// Đang nói chuyện bằng giọng thì bong bóng của Javis chỉ hiện phần loa ĐÃ đọc tới: đếm từ đã ra
-// tiếng (voice.spokenWords) rồi lấy đúng chừng ấy từ; ở Live thì theo tỉ lệ ms đã phát trên ms
+// Đang nói chuyện bằng giọng thì hiện trọn cụm đang đọc để chữ không chạy sau loa
+// (voice.visibleWords); ở Live thì theo tỉ lệ ms đã phát trên ms
 // đã xếp lịch (JavisVoiceLive.progress). Bị ngắt lời thì bong bóng dừng đúng chỗ đã nói kèm "…".
 // Đọc xong hết mới vẽ markdown đầy đủ (ảnh, link, bảng, chip hỏi lại). Chữ đã về từ model mà
-// chưa đọc tới thì chưa hiện, y như người nói: chữ ra đến đâu, nghe đến đó.
+// chưa tới lượt phát thì chưa hiện.
 let _theoLoi = null;   // { el, text, ask, live, shown, chuaXong }
 function dangTheoLoi() { return handsFree && voice.ttsEnabled; }
 function batTheoLoi(el, text, ask, live) {
@@ -239,7 +239,7 @@ function veTheoLoi() {
   if (s.live) {
     const p = window.JavisVoiceLive ? window.JavisVoiceLive.progress() : null;
     n = (p && p.total > 0) ? Math.round(tong * Math.min(1, p.played / p.total)) : Math.max(0, s.shown);
-  } else n = voice.spokenWords();
+  } else n = voice.visibleWords();
   n = Math.max(s.shown, Math.min(n, tong));
   if (n === s.shown) return;
   s.shown = n;
@@ -600,10 +600,15 @@ function handleMessage(data) {
     setSessionRunning(sid, true);
     if (isActive) { runActions(turn.turnStart()); showActivity(escapeHtml(data.content || "")); syncActiveUI(); }
   } else if (data.type === "tool_call") {
-    if (data.tool) trackMCP(data.tool);
-    if (isActive) { runActions(turn.toolCall(data.tool || "")); showActivity(escapeHtml(data.content || "")); }
+    if (t && window.JavisSteps) t.buoc = window.JavisSteps.nhan(t.buoc, data);
+    if (isActive) {
+      runActions(turn.toolCall(data.tool || ""));
+      veKhoiBuoc(t, true);
+      showActivity(escapeHtml(data.content || ""));   // chip = dong dang chay + dong ho, luon nam duoi khoi
+    }
   } else if (data.type === "tool_result") {
-    if (isActive) showActivity(Icons.msg("check", window.t("app.act_analyzing"), { cls: "ic-ok" }));
+    if (t && window.JavisSteps) t.buoc = window.JavisSteps.nhan(t.buoc, data);
+    if (isActive) { veKhoiBuoc(t, true); showActivity(Icons.msg("check", window.t("app.act_analyzing"), { cls: "ic-ok" })); }
   } else if (data.type === "stream") {
     if (!t) return;
     t.text += (data.content || "");
@@ -624,8 +629,10 @@ function handleMessage(data) {
   } else if (data.type === "response") {
     // Lượt vấp hạn mức gói thuê bao: câu báo đã hiện ở bong bóng lỗi (kèm thẻ tự chạy lại) và
     // server không có câu trả lời nào, nên không vẽ thêm bong bóng "(không có nội dung)".
-    if (t && t.limit && !(data.content || "").trim()) {
-      if (isActive) { hideActivity(); runActions(turn.turnDone()); }
+    // Cùng luật cho MỌI lỗi engine (sai key, model 404, CLI thoát 1): bong bóng đỏ đã nói rõ,
+    // vẽ thêm một bong bóng xám "(không có nội dung)" ngay dưới chỉ làm người dùng tưởng lỗi kép.
+    if (t && (t.limit || (t.errored && !(t.text || "").trim())) && !(data.content || "").trim()) {
+      if (isActive) { hideActivity(); veKhoiBuoc(t, false); runActions(turn.turnDone()); }
       refreshUsage();
       return;
     }
@@ -635,6 +642,7 @@ function handleMessage(data) {
     if (t) t.text = shownText;
     if (isActive) {
       hideActivity();
+      veKhoiBuoc(t, false);   // het luot: khoi tien trinh gap thanh mot dong "Da chay N buoc"
       let msgEl = t && t.bubble;
       if (!msgEl) msgEl = appendJavisMessage(shownText);
       if (dangTheoLoi() && t && finalText) {
@@ -652,7 +660,7 @@ function handleMessage(data) {
         nen.textContent = window.t("app.voice_bg_task", { task: String(data.background).slice(0, 160) });
         msgEl.appendChild(nen);
       }
-      if (finalText.trim()) recordTurn("javis", finalText, null, ask);
+      if (finalText.trim()) recordTurn("javis", finalText, null, ask, t && t.buoc);
       // data.tts === false: khung "response" này KHÔNG được đọc (vd bản sửa lại sau khi bóc
       // JAVIS_LESSON của phiên trợ lý) - giống hệt cách nhánh "stream" đã tôn trọng data.tts.
       if (voice.ttsEnabled && t && data.tts !== false) {
@@ -667,8 +675,10 @@ function handleMessage(data) {
     refreshUsage();     // cập nhật panel Mức dùng sau mỗi lượt
   } else if (data.type === "error") {
     if (t && data.limit) t.limit = data.limit;
+    if (t) t.errored = true;   // khung response rỗng theo sau không vẽ thêm "(không có nội dung)"
     if (isActive) {
       hideActivity();
+      veKhoiBuoc(t, false);
       const errEl = appendJavisError(data.content);
       runActions(turn.turnDone());   // lỗi cũng là hết lượt; turn_done theo sau chỉ lặp lại
       if (data.limit) {
@@ -685,6 +695,19 @@ function handleMessage(data) {
     // Tiến độ từng bước của một lần chạy quy trình (trang Cộng sự vẽ ở cột phải). Khung chat
     // không vẽ gì: chip trạng thái đã đi bằng khung status riêng.
     try { if (window.JavisWorkspace) window.JavisWorkspace.onWfEvent(data); } catch (e) {}
+  } else if (data.type === "user_text") {
+    // Lượt nói: server đã DIỄN GIẢI câu máy nghe (lớp sửa theo ngữ cảnh, hoặc bộ não giọng
+    // viết lại dòng JAVIS_NGHE). Bong bóng người dùng đang hiện chữ thô của máy nghe, nên thay
+    // bằng câu đã diễn giải và ghi chữ thô nhỏ bên dưới để đối chiếu. Chủ dự án 16/09: nói
+    // "Javis" mà bong bóng vẫn "David" thì không biết Javis đã hiểu đúng chưa.
+    // CỬA TẠP ÂM: bộ não giọng xét ra cả lượt chỉ là tiếng TV hay người khác trong phòng,
+    // không có câu nào nói với Javis. Gỡ HẲN bong bóng (chủ dự án chốt 17/09: ẩn luôn để mắt
+    // chỉ còn nội dung đang bàn), server đã xoá tin khỏi kho phiên nên F5 cũng không thấy lại.
+    // Chỉ để lại một dòng ghi chú tự tắt: im hoàn toàn thì lúc cửa xét NHẦM, người dùng nói mà
+    // không có gì xảy ra, trông y hệt mic hỏng và không có đầu mối nào để đi tắt bớt lọc.
+    if (data.bo_qua) {
+      if (isActive) { goTinNguoiDungCuoi(); ghiChuThoang(window.t("app.tap_am_bo_qua")); }
+    } else if (isActive) capNhatTinNguoiDung(data.text || "", data.raw || "");
   } else if (data.type === "system") {
     if (isActive) appendJavisMessage(data.content);
   } else if (data.type === "turn_done") {
@@ -706,7 +729,7 @@ function handleMessage(data) {
     // của phiên quy trình (trang Cộng sự) kết thúc bằng `stream` + `turn_done`, không có
     // `response` nào, nên trước đây chip đứng lại đếm giờ mãi dù kết quả đã in xong. Gọi thêm
     // một lần ở đây vô hại với lượt thường - hideActivity() là thao tác không cộng dồn.
-    if (isActive) { hideActivity(); syncActiveUI(); runActions(turn.turnDone()); cum.reset(); }
+    if (isActive) { hideActivity(); veKhoiBuoc(t, false); syncActiveUI(); runActions(turn.turnDone()); cum.reset(); }
     if (sid) delete turns[sid];
     if (isActive && _tinChoLuot) guiTinCho();   // câu người dùng chen ngang: lượt cũ dừng hẳn rồi thì gửi
     notifySessions();
@@ -1029,12 +1052,67 @@ function persistSession() {
       // Brain của phiên đang mở. Ảnh trong tin nhắn là đường dẫn TƯƠNG ĐỐI nên phải biết
       // gốc là brain nào; thiếu nó thì F5 xong đổi brain là ảnh cũ tro sai chỗ rồi 404.
       brain: (typeof currentBrainPath === "function" ? currentBrainPath() : ""),
+      // Con trỏ tin cũ, để F5 xong vẫn cuộn lên đọc tiếp được. CHỈ lưu khi convo chưa bị
+      // slice(-200) ở trên cắt bớt: bị cắt thì con trỏ trỏ vào tin đã rụng khỏi khung, lượt
+      // tải sau sẽ chừa ra một lỗ hổng giữa cuộc mà không ai thấy.
+      tinCu: (_tinCu && convo.length <= 200) ? _tinCu : null,
       savedAt: Date.now(),
     }));
   } catch (e) {}
 }
-function recordTurn(role, text, atts, ask) {
-  convo.push({ role, text: text || "", atts: atts || [], ask: ask || null, ts: Date.now() });
+// Thay chữ của tin NGƯỜI DÙNG cuối cùng bằng câu đã diễn giải (sự kiện user_text), cả trên
+// bong bóng lẫn trong convo để F5 còn đúng. `raw` là chữ thô của máy nghe, hiện nhỏ bên dưới.
+function capNhatTinNguoiDung(text, raw) {
+  if (!text || !text.trim()) return;
+  const nodes = chatArea.querySelectorAll(".msg-user");
+  const div = nodes[nodes.length - 1];
+  if (div) {
+    div.dataset.text = text;
+    const u = div.querySelector(".utext");
+    if (u) u.textContent = text;
+    const bubble = div.querySelector(".bubble");
+    if (bubble && raw && raw.trim() !== text.trim()) {
+      let tho = bubble.querySelector(".nghe-tho");
+      if (!tho) { tho = document.createElement("div"); tho.className = "nghe-tho"; bubble.appendChild(tho); }
+      tho.textContent = window.t("app.nghe_tho", { raw });
+    }
+  }
+  for (let i = convo.length - 1; i >= 0; i--) {
+    if (convo[i].role === "user") { convo[i].text = text; break; }
+  }
+  persistSession();
+}
+// Gỡ bong bóng NGƯỜI DÙNG cuối cùng khỏi khung chat và khỏi convo (cửa tạp âm). Server đã xoá
+// tin khỏi kho phiên, đây là bản sao phía trình duyệt: không gỡ thì phải F5 mới sạch, còn màn
+// hình đang mở vẫn trơ đoạn tạp âm ra đó.
+function goTinNguoiDungCuoi() {
+  const nodes = chatArea.querySelectorAll(".msg-user");
+  const div = nodes[nodes.length - 1];
+  if (div && div.parentNode) div.parentNode.removeChild(div);
+  for (let i = convo.length - 1; i >= 0; i--) {
+    if (convo[i].role === "user") { convo.splice(i, 1); break; }
+  }
+  persistSession();
+}
+// Dòng ghi chú THOÁNG QUA giữa khung chat: hiện rồi tự tắt, không vào convo, không lưu
+// localStorage, không đọc ra loa, không đi vào ngữ cảnh lượt sau. Dùng cho chuyện Javis vừa
+// quyết mà không đáng để lại một lượt trong hội thoại.
+const GHI_CHU_MS = 6000;
+function ghiChuThoang(text) {
+  if (!text) return;
+  const el = document.createElement("div");
+  el.className = "msg msg-ghichu";
+  el.textContent = text;
+  chatAppend(el);
+  scrollBottom();
+  setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, GHI_CHU_MS);
+}
+function recordTurn(role, text, atts, ask, buoc) {
+  convo.push({ role, text: text || "", atts: atts || [], ask: ask || null, ts: Date.now(),
+               // Mach buoc chi ghi khi luot that su co goi cong cu - luot tra loi thang
+               // khong co truong nay, nen tin cu luu truoc ban nay cung khong sao.
+               buoc: (buoc && window.JavisSteps && window.JavisSteps.tomTat(buoc).hien)
+                 ? buoc : undefined });
   if (convo.length > 200) convo = convo.slice(-200);
   persistSession();
 }
@@ -1050,15 +1128,151 @@ function restoreSession() {
     if (t.role === "user") { appendUserMessage(t.text, t.atts || [], t.ts || 0); return; }
     // t.brain vắng ở tin lưu từ trước bản này -> rơi về brain của cả phiên, rồi mới tới
     // brain đang chọn. Không có thì hành vi y như cũ, không hỏng thêm gì.
+    if (t.buoc && window.JavisSteps && window.JavisSteps.tomTat(t.buoc).hien)
+      chatAppend(window.JavisSteps.ve(null, t.buoc, false));
     const el = appendJavisMessage(t.text, t.ts || 0, t.brain || s.brain);
     // Chip chỉ sống lại ở tin CUỐI: có tin sau nó nghĩa là câu hỏi đã được trả lời rồi.
     if (t.ask) window.JavisAsk.render(el, t.ask, i === convo.length - 1);
   });
-  if (convo.length) scrollBottom(true);
+  if (convo.length) { scrollBottom(true); ghimDay(sessionOpenSeq); }
+  // Con trỏ tin cũ sống sót qua F5 → vẫn cuộn lên đọc tiếp được, không phải bấm lại vào
+  // hội thoại trong danh sách mới có.
+  _tinCu = (s.tinCu && savedSessionId) ? { ...s.tinCu, sid: savedSessionId, dangTai: false } : null;
+  datMoiTinCu();
   // hello thường tới SAU bước này; nếu tới trước (kết nối nhanh) thì thẻ "tự chạy lại" gắn ở đây.
   try { if (window.JavisResume && savedSessionId) window.JavisResume.renderFor(savedSessionId); } catch (e) {}
   notifySessions();   // panel Lịch sử tô đúng phiên đang xem thay vì không tô cái nào
   syncActiveUI();
+}
+
+// ---- Tải dần tin cũ ----------------------------------------------------------------
+// Hội thoại vài trăm lượt mà dựng hết bong bóng một lượt thì mở cuộc nào cũng khựng vài
+// giây, và màn hay đứng lưng chừng thay vì rơi xuống câu trả lời gần nhất (ảnh tải xong mới
+// đẩy chiều cao ra). Nên mở cuộc chỉ kéo TIN_MOI_LUOT tin cuối; cuộn lên chạm mồi thì kéo
+// tiếp khúc cũ hơn.
+const TIN_MOI_LUOT = 30;
+// {sid, brain, ts, id, con, dangTai} - ts/id là con trỏ tới tin GIÀ NHẤT đang hiện.
+let _tinCu = null;
+let _moiTinCu = null, _quanSatMoi = null;
+
+// Dựng lại MỘT tin đã lưu thành bong bóng, trả về mục tương ứng cho convo (null nếu bỏ qua).
+// Dùng chung cho lượt mở hội thoại và lượt chèn ngược, để hai đường không trôi lệch nhau.
+function veTinDaLuu(m, brainCua) {
+  const ts = m.ts ? Math.round(m.ts * 1000) : 0;   // server lưu epoch giây (sessions.py)
+  // convo là thứ được ghi xuống localStorage rồi dựng lại ở lần F5 sau. Nhét bản CÒN khối
+  // vào đây là lỗi sống dai qua mọi lần tải lại, dù bong bóng lượt này đã sạch.
+  if (m.role === "user") {
+    // Server chỉ lưu CHỮ đã gửi (kèm khối ngữ cảnh), không lưu riêng danh sách đính kèm.
+    // Đọc lại từ chính khối đó, không thì mở lại hội thoại là ảnh và file biến mất khỏi
+    // bong bóng, người dùng không xem lại được mình đã gửi gì (chủ repo báo 2026-09-10).
+    const _sach = chuNguoiGo(m.content || "");
+    const _atts = docDinhKem(m.content || "");
+    appendUserMessage(_sach, _atts, ts);
+    return { role: "user", text: _sach, atts: _atts, ts };
+  }
+  // brainCua: server LƯU SẴN brain của phiên (cột brain trong bảng sessions). Trước đây
+  // vứt đi nên ảnh trong hội thoại cũ luôn ghép với brain đang chọn - mở hội thoại của
+  // brain khác là ảnh hỏng hết. Giữ luôn vào convo để lần khôi phục sau còn dùng.
+  if (m.role === "assistant") {
+    appendJavisMessage(m.content || "", ts, brainCua);
+    return { role: "javis", text: m.content || "", atts: [], ts, brain: brainCua };
+  }
+  return null;
+}
+
+// Ghim khung ở ĐÁY trong một quãng ngắn sau lượt mở hội thoại.
+//
+// Đặt scrollTop đúng một lần là không đủ: khung còn cao thêm vài nhịp nữa sau đó. Thanh mốc
+// hội thoại tự chèn nó vào rồi bật lề phải làm bong bóng xuống dòng, ảnh trong tin
+// cũ tải xong mới đẩy chiều cao ra. Đo thật trên cuộc 120 tin: mở xong đứng cách đáy 174px,
+// tức câu trả lời gần nhất - đúng thứ người ta vào để đọc - bị cắt mất một đoạn.
+//
+// Nhả NGAY khi người dùng tự cuộn, để cái ghim này không giành tay lái với họ.
+function ghimDay(ticket, ms) {
+  const het = Date.now() + (ms || 700);
+  let thoi = false;
+  const nhaTay = () => { thoi = true; };
+  chatArea.addEventListener("wheel", nhaTay, { passive: true });
+  chatArea.addEventListener("touchmove", nhaTay, { passive: true });
+  const go = () => {
+    chatArea.removeEventListener("wheel", nhaTay);
+    chatArea.removeEventListener("touchmove", nhaTay);
+  };
+  const nhip = () => {
+    if (thoi || ticket !== sessionOpenSeq) { go(); return; }
+    scrollBottom(true);
+    if (Date.now() < het) requestAnimationFrame(nhip); else go();
+  };
+  requestAnimationFrame(nhip);
+}
+
+// Bong bóng ĐẦU TIÊN trong khung. Chèn ngược phải neo vào nó chứ không vào firstChild: đầu
+// khung còn có đồ nội thất dán sẵn (#chatMarks) tính là mình vẫn đứng đầu, chen lên trước là
+// đẩy nó ra khỏi chỗ. Chưa có tin nào thì trả null, chatAppend rơi về chèn trước #newMsgBtn.
+function dauKhungChat() {
+  return chatArea.querySelector(".msg");
+}
+
+function goMoiTinCu() {
+  if (_quanSatMoi) { try { _quanSatMoi.disconnect(); } catch (e) {} _quanSatMoi = null; }
+  if (_moiTinCu && _moiTinCu.parentNode) _moiTinCu.parentNode.removeChild(_moiTinCu);
+  _moiTinCu = null;
+}
+
+// Mồi đặt ở ĐẦU khung: vừa là điểm quan sát để tự tải, vừa là nút bấm tay. Chỉ chèn khi
+// CHẮC CHẮN còn tin cũ - `.transcript:empty::after` là câu mời "Nói hoặc gõ để bắt đầu", một
+// node con thường trực là câu đó biến mất im lặng (cùng cái bẫy đã ghi cho #newMsgBtn).
+function datMoiTinCu() {
+  goMoiTinCu();
+  if (!_tinCu || !_tinCu.con) return;
+  const d = document.createElement("div");
+  d.className = "older-seed";
+  d.innerHTML = `<button type="button" class="older-btn">${escapeHtml(window.t("app.older_load"))}</button>`;
+  d.querySelector(".older-btn").onclick = () => taiTinCu();
+  chatArea.insertBefore(d, dauKhungChat());
+  _moiTinCu = d;
+  if (typeof IntersectionObserver !== "function") return;   // không có thì còn nút bấm tay
+  _quanSatMoi = new IntersectionObserver((mucs) => {
+    if (mucs.some(m => m.isIntersecting)) taiTinCu();
+  }, { root: chatArea, rootMargin: "240px 0px 0px 0px" });
+  _quanSatMoi.observe(d);
+}
+
+async function taiTinCu() {
+  const st = _tinCu;
+  if (!st || !st.con || st.dangTai) return;
+  st.dangTai = true;
+  const nut = _moiTinCu && _moiTinCu.querySelector(".older-btn");
+  if (nut) { nut.disabled = true; nut.textContent = window.t("app.older_loading"); }
+  try {
+    const u = `/sessions/${encodeURIComponent(st.sid)}/messages?limit=${TIN_MOI_LUOT}` +
+      `&before_ts=${encodeURIComponent(st.ts)}&before_id=${encodeURIComponent(st.id)}`;
+    const d = await (await fetch(u)).json();
+    // Đổi phiên giữa chừng thì khúc vừa về là của cuộc khác - vứt đi, đừng chèn nhầm.
+    if (!_tinCu || _tinCu !== st || st.sid !== savedSessionId || !d || d.error) return;
+    const ds = d.messages || [];
+    if (!ds.length) { st.con = false; goMoiTinCu(); return; }
+    // Giữ chỗ cuộn: đo khoảng cách từ ĐÁY khung trước khi chèn rồi đặt lại sau, vì phần chèn
+    // nằm phía trên nên scrollHeight tăng đúng bằng phần đó. Đo theo scrollTop thì sai.
+    const cachDay = chatArea.scrollHeight - chatArea.scrollTop;
+    _dangChenCu = true;
+    _neoChenCu = _moiTinCu ? _moiTinCu.nextSibling : dauKhungChat();
+    const them = [];
+    ds.forEach(m => { const t = veTinDaLuu(m, st.brain); if (t) them.push(t); });
+    _neoChenCu = null; _dangChenCu = false;
+    convo = them.concat(convo);
+    st.ts = ds[0].ts; st.id = ds[0].id; st.con = !!d.has_more;
+    // Dựng LẠI cái mồi (hoặc gỡ hẳn khi hết tin) TRƯỚC khi đặt lại chỗ cuộn, để chiều cao
+    // chốt xong rồi mới đo - gỡ mồi sau là màn nhích lên đúng bằng chiều cao cái mồi.
+    // Dựng lại chứ không dùng tiếp cái cũ: IntersectionObserver KHÔNG bắn lần nữa khi node
+    // vẫn nằm trong tầm nhìn liên tục, nên khúc vừa chèn mà ngắn hơn khung chat là kẹt luôn,
+    // cuộn thêm cũng không tải tiếp. observe() mới thì luôn có một nhịp đầu.
+    datMoiTinCu();
+    chatArea.scrollTop = chatArea.scrollHeight - cachDay;
+    persistSession();
+  } catch (e) {
+    if (nut) { nut.disabled = false; nut.textContent = window.t("app.older_load"); }
+  } finally { st.dangTai = false; _dangChenCu = false; _neoChenCu = null; }
 }
 
 // ============================================
@@ -1068,29 +1282,18 @@ let sessionOpenSeq = 0;
 async function openStoredSession(id, stillCurrent) {
   const ticket = ++sessionOpenSeq;
   try {
-    const sess = await (await fetch(`/sessions/${encodeURIComponent(id)}`)).json();
+    const sess = await (await fetch(`/sessions/${encodeURIComponent(id)}?limit=${TIN_MOI_LUOT}`)).json();
     if (ticket !== sessionOpenSeq || (stillCurrent && !stillCurrent()) || !sess || sess.error) return;
     convo = [];
     hideActivity();
+    goMoiTinCu();
     chatArea.innerHTML = "";
-    (sess.messages || []).forEach(m => {
-      const ts = m.ts ? Math.round(m.ts * 1000) : 0;   // server lưu epoch giây (sessions.py)
-      // convo là thứ được ghi xuống localStorage rồi dựng lại ở lần F5 sau. Nhét bản CÒN khối
-      // vào đây là lỗi sống dai qua mọi lần tải lại, dù bong bóng lượt này đã sạch.
-      if (m.role === "user") {
-        // Server chỉ lưu CHỮ đã gửi (kèm khối ngữ cảnh), không lưu riêng danh sách đính kèm.
-        // Đọc lại từ chính khối đó, không thì mở lại hội thoại là ảnh và file biến mất khỏi
-        // bong bóng, người dùng không xem lại được mình đã gửi gì (chủ repo báo 2026-09-10).
-        const _sach = chuNguoiGo(m.content || "");
-        const _atts = docDinhKem(m.content || "");
-        appendUserMessage(_sach, _atts, ts);
-        convo.push({ role: "user", text: _sach, atts: _atts, ts });
-      }
-      // sess.brain: server LƯU SẴN brain của phiên (cột brain trong bảng sessions). Trước đây
-      // vứt đi nên ảnh trong hội thoại cũ luôn ghép với brain đang chọn - mở hội thoại của
-      // brain khác là ảnh hỏng hết. Giữ luôn vào convo để lần khôi phục sau còn dùng.
-      else if (m.role === "assistant") { appendJavisMessage(m.content || "", ts, sess.brain); convo.push({ role: "javis", text: m.content || "", atts: [], ts, brain: sess.brain }); }
-    });
+    const ds = sess.messages || [];
+    ds.forEach(m => { const t = veTinDaLuu(m, sess.brain); if (t) convo.push(t); });
+    _tinCu = ds.length
+      ? { sid: id, brain: sess.brain, ts: ds[0].ts, id: ds[0].id, con: !!sess.has_more, dangTai: false }
+      : null;
+    datMoiTinCu();
     savedSessionId = id;          // lượt gửi tiếp theo → server resume đúng phiên này
     try { if (window.JavisInbox) window.JavisInbox.docPhien(id); } catch (e) {}
     // Phiên này đang generate NỀN → gắn bong bóng SỐNG (kèm phần đã stream) để xem tiếp trực tiếp.
@@ -1107,6 +1310,7 @@ async function openStoredSession(id, stillCurrent) {
     try { if (window.JavisResume) window.JavisResume.renderFor(id); } catch (e) {}
     persistSession();
     scrollBottom(true);
+    ghimDay(ticket);
     notifySessions();
     syncActiveUI();
     // Dải việc nền đánh dấu "việc CỦA hội thoại này" theo chat_id, nên đổi phiên là nó sai
@@ -1119,6 +1323,7 @@ async function openStoredSession(id, stillCurrent) {
 function resetChatView() {
   convo = [];
   hideActivity();          // dọn chip + timer trước khi xoá trắng khung
+  _tinCu = null; goMoiTinCu();
   chatArea.innerHTML = "";
   savedSessionId = null;
   persistSession();
@@ -1400,6 +1605,16 @@ function showActivity(html) {
   chatAppend(activityEl);   // re-append → luôn dưới cùng (kể cả dưới bubble đang stream)
   scrollBottom();
 }
+// Khoi tien trinh cua MOT luot: danh sach cong cu da goi, nam ngay tren bong bong tra loi.
+// Khac chip o tren: chip chi co mot dong (buoc moi ghi de buoc cu, het luot la xoa), con khoi
+// nay GIU lai du buoc va song qua F5. Luot khong goi cong cu nao thi khong dung khoi nao.
+function veKhoiBuoc(t, dangChay) {
+  if (!t || !window.JavisSteps || !window.JavisSteps.tomTat(t.buoc).hien) return null;
+  const moi = !t.buocEl;
+  t.buocEl = window.JavisSteps.ve(t.buocEl, t.buoc, dangChay);
+  if (moi) { chatAppend(t.buocEl); scrollBottom(); }
+  return t.buocEl;
+}
 function hideActivity() {
   if (activityTimer) { clearInterval(activityTimer); activityTimer = null; }
   if (activityEl && activityEl.parentNode) activityEl.parentNode.removeChild(activityEl);
@@ -1433,9 +1648,14 @@ function veNutXuong(coTinMoi) {
 veNutXuong(false);
 window.addEventListener("javis:i18n", () => veNutXuong(newMsgBtn.classList.contains("has-new")));
 
+// _neoChenCu: lúc CHÈN NGƯỢC tin cũ (cuộn lên tải tiếp), mọi bong bóng dựng ra phải nằm
+// TRƯỚC tin cũ nhất đang hiện chứ không phải cuối khung. Đặt cái neo ở đây thay vì thêm
+// tham số cho appendUserMessage/appendJavisMessage: hai hàm đó được gọi từ cả chục chỗ, thêm
+// tham số là mười chỗ phải nhớ truyền đúng.
+let _neoChenCu = null, _dangChenCu = false;
 function chatAppend(el) {
   if (newMsgBtn.parentNode !== chatArea) chatArea.appendChild(newMsgBtn);
-  chatArea.insertBefore(el, newMsgBtn);
+  chatArea.insertBefore(el, _neoChenCu || newMsgBtn);
 }
 // Ngưỡng 90px: coi như "đang ở đáy" nên vẫn tự cuộn theo tin mới, và không hiện nút.
 function ganDay() {
@@ -1452,6 +1672,9 @@ chatArea.addEventListener("scroll", () => {
   capNhatNutXuong();
 });
 function scrollBottom(force) {
+  // Đang chèn ngược tin cũ: appendUserMessage/appendJavisMessage vẫn gọi vào đây theo thói
+  // quen, mà cuộn xuống đáy lúc này là quăng người đọc khỏi chỗ họ đang đứng.
+  if (_dangChenCu) return;
   if (force) stickBottom = true;
   if (stickBottom) {
     chatArea.scrollTop = chatArea.scrollHeight;
@@ -1558,52 +1781,6 @@ function compactToolLabel(toolName) {
   }
   if (label.length > 48) label = label.slice(0, 47) + "…";
   return { label, cat };
-}
-// BA tool VỪA GỌI, mới nhất đứng đầu (0.49.3, chủ repo chốt).
-//
-// Bản cũ giữ tối đa 4 loại theo thứ tự LẦN ĐẦU thấy, nên tool gọi từ đầu phiên nằm lì ở đầu
-// dải còn tool vừa chạy xong thì nấp ở cuối - đúng chỗ mắt ít nhìn nhất. Với một dải chỉ để
-// LIẾC thì thứ tự phải là mới-nhất-trước, và ba mục là đủ: dải nằm ngang cạnh ô chọn model,
-// thêm mục thứ tư là bắt đầu cắt chữ.
-//
-// Dựng lại cả danh sách từ mảng thay vì xáo DOM tại chỗ: cách này ngắn hơn và không có
-// đường nào để thứ tự trên màn hình lệch khỏi thứ tự trong mảng.
-const TRAN_TOOL_GAN_NHAT = 3;
-let toolGanNhat = [];   // [{label, cat, raw}] - phần tử 0 là mới nhất
-function veToolGanNhat(vuaGoi) {
-  const list = document.getElementById("mcpList");
-  if (!list) return;
-  list.innerHTML = "";
-  if (!toolGanNhat.length) {
-    const em = document.createElement("div");
-    em.className = "mcp-item dim";
-    em.textContent = window.t("app.no_tool_yet");
-    list.appendChild(em);
-    return;
-  }
-  toolGanNhat.forEach((t, i) => {
-    const div = document.createElement("div");
-    // Chỉ mục vừa gọi mới nháy vàng rồi về xanh - nhìn là biết ngay cái nào vừa chạy.
-    div.className = "mcp-item " + (i === 0 && t.label === vuaGoi ? "loading" : "active");
-    div.title = t.raw;
-    div.insertAdjacentHTML("beforeend", `${ic("circle", { cls: "ic-fill ic-sm" })} ${escapeHtml(t.label)} `);
-    const meta = document.createElement("span");
-    meta.className = "mcp-kind";
-    meta.textContent = `· ${t.cat}`;
-    div.appendChild(meta);
-    list.appendChild(div);
-    if (div.classList.contains("loading")) {
-      setTimeout(() => div.classList.replace("loading", "active"), 600);
-    }
-  });
-}
-function trackMCP(toolName) {
-  const { label, cat } = compactToolLabel(toolName);
-  // Gọi lại tool cũ = nó VỪA chạy, phải nhảy lên đầu chứ không giữ chỗ cũ.
-  toolGanNhat = [{ label, cat, raw: String(toolName || label) }]
-    .concat(toolGanNhat.filter((t) => t.label !== label))
-    .slice(0, TRAN_TOOL_GAN_NHAT);
-  veToolGanNhat(label);
 }
 
 // ============================================
@@ -1736,6 +1913,47 @@ async function reloadGraph() {
     renderConceptLabels(data.categories || [], stats.total_notes || 0);
   } catch (e) { graphStats.textContent = window.t("models.err") + " " + e.message; }
 }
+// ---- Việc CHỈ THẤY ĐƯỢC ở màn chính: hoãn khi đang đứng ở trang quản lý ----
+// Đổi brain là đổi cả cockpit: đồ thị, số ký ức, số cộng sự, cờ cấu trúc vault. Nhưng bốn thứ
+// đó chỉ NHÌN THẤY ĐƯỢC ở màn chính. Chạy chúng trong lúc người dùng đang ở trang Cộng sự là
+// thiệt đôi đường: một lượt /graph nặng cộng /agents /skills /workflows lặp lại tranh chỗ với
+// chính trang đang mở (trình duyệt chỉ mở được 6 kết nối một lúc), rồi thư viện đồ thị quay
+// warmupTicks ĐỒNG BỘ trên toàn bộ node - màn hình đứng hình vài giây, trắng trơn. Chủ dự án
+// báo 22/09: đổi bộ não ở trang Cộng sự thì "bị đen màn hình luôn, nó bị trắng tinh".
+// Hoãn lại; quay về màn chính mới chạy, và chỉ chạy một lần cho lần đổi gần nhất.
+let _cockpitCho = false;
+function _oManChinh() {
+  // Không biết đang ở trang nào (console.js chưa dựng xong) thì cứ chạy như cũ: thà làm thừa
+  // một lượt còn hơn treo vĩnh viễn số liệu của màn chính.
+  try { return !(window.JavisNav && window.JavisNav.active) || window.JavisNav.active() === "home"; }
+  catch (e) { return true; }
+}
+function capNhatManChinh() {
+  if (!_oManChinh()) {
+    _cockpitCho = true;
+    // Ô đếm note nằm ngay cạnh ô chọn brain nên NHÌN THẤY ĐƯỢC cả ở trang quản lý: để nguyên
+    // con số của brain cũ là nói dối. Về gạch ngang cho tới lúc đếm thật (số note của từng
+    // brain vẫn có sẵn trong chính tên từng dòng của ô chọn).
+    graphStats.textContent = "-";
+    return;
+  }
+  _cockpitCho = false;
+  reloadGraph();
+  connectGraphWatch();   // theo dõi realtime trên nguồn mới
+  loadMemStats();   // bộ nhớ theo vault → đổi vault thì đổi số ký ức
+  loadBrainStats(); // agent/skill/workflow theo vault
+  checkVault();     // kiểm tra cấu trúc vault mới chọn
+}
+// console.js gọi mỗi lần đổi trang: về tới màn chính thì trả nợ lần đổi brain đang hoãn.
+window.JavisCockpit = { veManChinh() { if (_cockpitCho) capNhatManChinh(); },
+                        dangCho: () => _cockpitCho };
+
+// Trang đang mở có MƯỢN khung chat và tự mở phiên của nó không (Cộng sự: phiên agent:<slug>
+// hay workflow:<slug>; Coding: phiên của repo). Phiên đó KHÔNG phải cuộc chính của brain.
+function _trangGiuKhungChat() {
+  try { return !!(window.JavisNav && window.JavisNav.giuKhungChat && window.JavisNav.giuKhungChat()); }
+  catch (e) { return false; }
+}
 // Đổi brain → khung chat phải đổi theo brain (vụ Mac 0.9.230: transcript giữ nguyên phiên
 // brain cũ, tưởng mất hội thoại, phải reload mới thấy). Nhớ phiên đang xem của TỪNG brain
 // TRONG TRANG (cố ý không persist - giữ luật boot "mỗi lần tải trang là hội thoại mới"):
@@ -1746,16 +1964,18 @@ graphSource.addEventListener("change", () => {
   localStorage.setItem("javis.graphSource", graphSource.value);
   const nb = currentBrainPath();
   if (nb !== _lastBrain) {
-    if (savedSessionId) _viewByBrain[_lastBrain] = savedSessionId;
+    // Trang Cộng sự (và Coding) tự dựng lại theo brain mới rồi tự mở phiên của nó. Nhớ phiên
+    // của nó vào _viewByBrain là lần sau quay lại brain này, trang Trò chuyện mở thẳng vào
+    // hội thoại của một trợ lý; còn khôi phục cuộc chính vào đây là ĐÈ lên đúng phiên trang
+    // kia vừa mở - chủ dự án 22/09: "màn ở giữa khung chat hiển thị dữ liệu của hội thoại cũ".
+    // Ở đó chỉ xoá trắng, phần mở phiên để trang kia lo.
+    const muon = _trangGiuKhungChat();
+    if (savedSessionId && !muon) _viewByBrain[_lastBrain] = savedSessionId;
     _lastBrain = nb;
     resetChatView();                                       // xoá ngay khung của brain cũ
-    if (_viewByBrain[nb]) openStoredSession(_viewByBrain[nb]);   // brain quen → mở lại phiên đang dở
+    if (!muon && _viewByBrain[nb]) openStoredSession(_viewByBrain[nb]);   // brain quen → mở lại phiên đang dở
   }
-  reloadGraph();
-  connectGraphWatch();   // theo dõi realtime trên nguồn mới
-  loadMemStats();   // bộ nhớ theo vault → đổi vault thì đổi số ký ức
-  loadBrainStats(); // agent/skill/workflow theo vault
-  checkVault();     // kiểm tra cấu trúc vault mới chọn
+  capNhatManChinh();
 });
 
 // ============================================
@@ -2012,7 +2232,11 @@ document.getElementById("fmUse").addEventListener("click", () => {
   graphSource.value = "path:" + fmCurrent;
   localStorage.setItem("javis.graphSource", graphSource.value);
   folderModal.classList.remove("open");
-  reloadGraph();
+  // BÁO ĐỔI BRAIN như mọi đường khác, thay vì chỉ vẽ lại đồ thị. Gán thẳng `.value` không sinh
+  // sự kiện `change`, nên bản cũ đổi não mà khung chat vẫn giữ hội thoại của não trước, trang
+  // Cộng sự vẫn liệt kê trợ lý của não trước và cây thư mục vẫn là cây cũ - mọi thứ ăn theo
+  // brain đều nghe ô này.
+  graphSource.dispatchEvent(new Event("change"));
 });
 window.addEventListener("resize", () => { if (javisGraph) javisGraph.resize(); });
 
@@ -2643,18 +2867,18 @@ voiceBtn.addEventListener("click", () => {
 });
 
 // ---- Voice V1: hai nút trong Cài đặt nhanh (lưu localStorage, không đụng settings.json) ----
-// Im lặng bao lâu thì gửi (500 / 800 / 1200 ms) và có cho ngắt lời Javis bằng giọng không.
+// Im lặng bao lâu thì gửi (500 / 800 / 1200 ms, mặc định 1200 - chủ dự án chốt 17/09) và có cho ngắt lời Javis bằng giọng không.
 (function () {
   // 0.58.8: ba thẻ radio đổi thành một ô chọn (#endpointSel). Giá trị lưu KHÔNG đổi nên
   // người đang dùng không bị reset về mặc định.
-  const ep = localStorage.getItem("javis.endpoint") || "800";
+  const ep = localStorage.getItem("javis.endpoint") || "1200";
   const epSel = document.getElementById("endpointSel");
   if (epSel) {
     epSel.value = ep;
-    if (!epSel.value) epSel.value = "800";      // giá trị cũ không còn trong danh sách
-    turn.opts.minDelay = parseInt(epSel.value, 10) || 800;
+    if (!epSel.value) epSel.value = "1200";      // giá trị cũ không còn trong danh sách
+    turn.opts.minDelay = parseInt(epSel.value, 10) || 1200;
     epSel.addEventListener("change", () => {
-      turn.opts.minDelay = parseInt(epSel.value, 10) || 800;
+      turn.opts.minDelay = parseInt(epSel.value, 10) || 1200;
       localStorage.setItem("javis.endpoint", epSel.value);
     });
   }
@@ -3121,7 +3345,7 @@ if (document.getElementById("settingsBtn")) {
 
   document.getElementById("saveGeneral").addEventListener("click", (e) => {
     _saveSetting("general", { workspace_name: document.getElementById("setWsName").value.trim() }, e.target)
-      .then(() => { document.getElementById("workspaceName").textContent = document.getElementById("setWsName").value.trim() || "Javis OS"; });
+      .then(() => { const wn = document.getElementById("workspaceName"); if (wn) wn.textContent = document.getElementById("setWsName").value.trim() || "Javis OS"; });
   });
   document.getElementById("saveModel").addEventListener("click", (e) => {
     const sel = document.getElementById("setOrModelSel");

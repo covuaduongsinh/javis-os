@@ -123,12 +123,28 @@ check("branding.js truyền đúng true khi tải lên, false khi khôi phục",
 check("css: chỗ logo mang mặt linh vật thì bỏ quầng sáng cam", /\.brand-pet \{ filter: none !important; \}/.test(css));
 
 // ---- 6. Trang "pet" khai đủ ở mọi sổ đăng ký ----
-check("console.js: pet trong RAIL_ITEMS", /"usage", "pet",\s*\n\s*\]\.map/.test(console_js));
-check("console.js: pet trong nhóm Hệ thống", /ids: \["usage", "settings", "pet", "logs", "account"\]/.test(console_js));
-check("console.js: pet có trong VIEW_META", /"usage", "pet"\]\.map\(id =>/.test(console_js));
+// Hỏi "pet CÓ trong danh sách không", KHÔNG hỏi "pet có đứng cuối danh sách không". Bản cũ
+// ghim cả hàng xóm của nó (/"usage", "pet",\n\]/), nên thêm BẤT KỲ trang mới nào vào sau là
+// ba phép thử này đỏ oan - đúng chuyện xảy ra khi thêm trang Chia sẻ (0.59.39). Một phép thử
+// canh sổ đăng ký mà vỡ mỗi lần sổ có thêm mục thì nó đang canh nhầm thứ.
+// Nhận cả danh sách JS (ngoac vuong) lẫn tuple Python (ngoac tron): ui_targets.py dùng tuple.
+function trongDanhSach(src, moc, ten) {
+  const i = src.indexOf(moc);
+  if (i < 0) return false;
+  const khoi = src.slice(i, i + 900);
+  const het = [khoi.indexOf("]"), khoi.indexOf(")")].filter(x => x >= 0);
+  if (!het.length) return false;
+  return new RegExp('"' + ten + '"').test(khoi.slice(0, Math.min.apply(null, het) + 1));
+}
+check("console.js: pet trong RAIL_ITEMS",
+  trongDanhSach(console_js, "const RAIL_ITEMS", "pet"));
+check("console.js: pet trong nhóm Hệ thống",
+  /ids: \[[^\]]*"pet"[^\]]*\], foot: true/.test(console_js));
+check("console.js: pet có trong VIEW_META",
+  trongDanhSach(console_js, "const VIEW_META", "pet"));
 check("console.js: renderPage định tuyến pet", /if \(id === "pet"\) return renderPetPage\(el\);/.test(console_js));
-check("ui-actions.js: pet trong PAGES", /"usage", "pet"\];/.test(uiActions));
-check("ui_targets.py: pet trong PAGES", /"usage", "pet",/.test(uiTargets));
+check("ui-actions.js: pet trong PAGES", trongDanhSach(uiActions, "PAGES", "pet"));
+check("ui_targets.py: pet trong PAGES", trongDanhSach(uiTargets, "PAGES", "pet"));
 check("ui_targets.py: bí danh 'linh vat' trỏ về pet", /"linh vat": "pet"/.test(uiTargets));
 check("ui_targets.py: nhóm tro_ly đã bỏ", !/"tro_ly", "bo_nao"/.test(uiTargets));
 check("ui_targets.py: bí danh 'tro ly' của NHÓM nay trỏ sang bo_nao", /"tro ly": "bo_nao"/.test(uiTargets));
@@ -170,7 +186,8 @@ check("cỡ đi qua biến CSS --pet-size", /width: var\(--pet-size/.test(css)
   && /setProperty\("--pet-size"/.test(pet));
 check("màn hẹp vẫn có trần theo bề ngang màn", /min\(var\(--pet-size[^)]*\), 24vw\)/.test(css));
 const mainPy = read("server/main.py");
-check("server nhận khoá size và khoá màu mắt", /for k in \("shape", "palette", "side", "size", "eye"\)/.test(mainPy));
+check("server nhận khoá size, màu mắt và cỡ mắt",
+  /for k in \("shape", "palette", "side", "size", "eye", "eyeSize"\)/.test(mainPy));
 // "rat_lon" có GẠCH DƯỚI. Luật lọc cũ chỉ tha dấu gạch ngang nên cỡ lớn nhất bị bỏ trong im
 // lặng: chọn xong màn hình đổi ngay (localStorage), F5 là về cỡ cũ, không một dòng lỗi nào.
 check("server không loại cỡ có gạch dưới (rat_lon)",
@@ -199,27 +216,35 @@ check("ws.onclose gọi baoDutMang", /ws\.onclose = \(\) => \{[\s\S]{0,200}baoDu
   check("i18n vi+en có " + k, typeof vi[k] === "string" && typeof en[k] === "string");
 });
 
-// ---- 9b. MÀU MẮT do người dùng chọn (0.59.6) ----
-// Trước đây màu mắt suy tự động từ độ chói của thân. Chủ dự án muốn tự quyết: đen hay trắng,
-// mặc định đen. Đường tự động vẫn còn, nhưng chỉ cho AVATAR TRỢ LÝ - chúng là nhân dạng khác.
+// ---- 9b. MÀU MẮT do người dùng chọn (0.59.6, mở rộng 0.59.36) ----
+// Trước đây màu mắt suy tự động từ độ chói của thân. Chủ dự án muốn tự quyết, mặc định đen.
+// Đường tự động vẫn còn, nhưng chỉ cho AVATAR TRỢ LÝ - chúng là nhân dạng khác.
+//
+// Bản 0.59.6 chốt đúng hai màu và phép thử này khoá luôn nguyên văn dòng khai báo. Tới 0.59.36
+// người dùng xin thêm màu, và dòng đó thành chốt chặn chính tính năng nó đang canh. Nay chỉ
+// khoá HÌNH DẠNG của bảng (mỗi màu mang khoá i18n và mã màu riêng) chứ không khoá SỐ LƯỢNG;
+// việc bảng có đủ màu, đủ đậm và đủ nhãn do test_pet_bang_mau.js lo.
 {
-  check("có bảng hai màu mắt", /var MAU_MAT = \{ den: "#201e1e", trang: "#ffffff" \};/.test(pet));
-  check("mặc định là ĐEN", /size: "vua", eye: "den" \}/.test(pet));
+  check("bảng màu mắt: mỗi màu mang khoá i18n và mã màu",
+    /var MAU_MAT = \{\s*\n\s*den:\s*\{ key: "pet\.eye\.den",\s*mau: "#201e1e" \},/.test(pet));
+  check("đen và trắng vẫn còn nguyên",
+    /trang:\s*\{ key: "pet\.eye\.trang",\s*mau: "#ffffff" \}/.test(pet));
+  check("mặc định là ĐEN", /size: "vua", eye: "den", eyeSize: "thuong" \}/.test(pet));
   check("khoá lạ rơi về mặc định", /if \(!MAU_MAT\[c\.eye\]\) c\.eye = MAC_DINH\.eye;/.test(pet));
   check("con pet đeo màu mắt ĐÃ CHỌN, không suy từ thân nữa",
     /setProperty\("--pet-eye", mauMatCfg\(\)\)/.test(pet));
   check("dấu ấn trên thanh bên cũng theo màu mắt đã chọn",
-    /markSvg: function \(\) \{ return chanDung\(cfg\.shape, cfg\.palette, \{ mat: cfg\.eye \}\); \}/.test(pet));
+    /markSvg: function \(\) \{ return chanDung\(cfg\.shape, cfg\.palette, \{ mat: cfg\.eye, coMat: cfg\.eyeSize \}\); \}/.test(pet));
   // Avatar trợ lý KHÔNG truyền `mat`, nên vẫn đi đường tự động. Mất chốt này là đổi màu mắt
   // pet kéo theo cả danh sách trợ lý đổi theo.
   check("avatar trợ lý vẫn suy tự động (không truyền mat)",
-    /var mat = MAU_MAT\[o\.mat\] \|\| mauMatTuDong\(tone\[0\]\);/.test(pet)
+    /var mat = \(MAU_MAT\[o\.mat\] \|\| \{\}\)\.mau \|\| mauMatTuDong\(tone\[0\]\);/.test(pet)
     && !/previewSvg\(a\.shape, a\.palette, [^)]*mat:/.test(read("dashboard/agent-avatar.js")));
   check("trang Linh vật có ô chọn màu mắt", /data-pet-eye="/.test(console_js)
     && /P\.setCfg\(\{ eye: b\.dataset\.petEye \}\)/.test(console_js));
   check("ô xem thử hình dáng vẽ đúng màu mắt đang chọn",
-    /\{ vanh: true, mat: cur\.eye \}/.test(console_js));
-  check("Đặt lại trả màu mắt về đen", /eye: "den", enabled: true/.test(console_js));
+    /\{ vanh: true, mat: cur\.eye, coMat: cur\.eyeSize \}/.test(console_js));
+  check("Đặt lại trả màu mắt về đen", /eye: "den", eyeSize: "thuong", enabled: true/.test(console_js));
   ["settings.pet_eye", "pet.eye.den", "pet.eye.trang"].forEach(k => {
     check("i18n vi+en có " + k, typeof vi[k] === "string" && typeof en[k] === "string");
   });
@@ -352,6 +377,44 @@ check("ws.onclose gọi baoDutMang", /ws\.onclose = \(\) => \{[\s\S]{0,200}baoDu
   check("bodyOf tra bảng icon riêng trước Lucide", /if \(RIENG\[name\]\) return RIENG\[name\];/.test(icons));
   check("console.js: trang pet dùng icon đó chứ không phải mặt cười chung",
     /pet: "javis-pet",/.test(console_js));
+}
+
+// ---- 10e. Hình NGÔI SAO và ô chọn CỠ MẮT (0.59.30) ----
+// Hai thứ này hỏng theo kiểu im lặng khác nhau, nên soi riêng:
+//   - Hình sao: thiếu khoá dịch thì ô chọn hiện ra một cái nhãn trơ là "pet.shape.star".
+//   - Cỡ mắt: thiếu tên khoá trong danh sách lọc của máy chủ thì bấm chọn đổi ngay trên màn,
+//     F5 xong về cỡ cũ, không một dòng báo lỗi. Đúng vết xe của cỡ "rat_lon" hồi 15/09.
+{
+  const avatarPy = read("server/agent_avatar.py");
+
+  check("pet.js có hình sao trong bảng hình dáng", /star:\s*\{ key: "pet\.shape\.star"/.test(pet));
+  // Sao phải là ĐƯỜNG CONG, không phải 10 đoạn thẳng: bo tròn mới ra dáng mũm mĩm, mà một
+  // hình toàn lệnh L thì chắc chắn chưa bo góc nào.
+  {
+    const dSao = (pet.match(/star:\s*\{ key: "pet\.shape\.star",\s*d: "([^"]+)"/) || [])[1] || "";
+    check("đường sao có bo góc (dùng lệnh Q) và khép kín",
+      (dSao.match(/Q/g) || []).length >= 10 && /Z\s*$/.test(dSao));
+  }
+  check("agent_avatar.py nhận hình sao cho avatar trợ lý", /"star"/.test(avatarPy));
+  check("khoá dịch tên hình sao đủ hai thứ tiếng", !!vi["pet.shape.star"] && !!en["pet.shape.star"]);
+
+  check("pet.js có bảng cỡ mắt", /var EYE_SIZES = \{/.test(pet));
+  check("cỡ mắt vào cấu hình mặc định và được chuẩn hoá",
+    /eyeSize: "thuong"/.test(pet) && /if \(!EYE_SIZES\[c\.eyeSize\]\) c\.eyeSize = MAC_DINH\.eyeSize;/.test(pet));
+  // Hệ số phải được dùng THẬT ở CẢ HAI đường vẽ. Vẽ mắt sống mà quên thì chọn cỡ xong con pet
+  // ở mép màn hình không đổi gì; vẽ chân dung tĩnh mà quên thì ô xem thử và dấu ấn trên thanh
+  // bên nói khác con pet thật.
+  check("cỡ mắt được nhân vào mắt SỐNG (veMat)", /function veMat\([\s\S]{0,900}heSoMat\(\)/.test(pet));
+  check("cỡ mắt được nhân vào chân dung TĨNH (chanDung)", /function chanDung\([\s\S]{0,2200}7\.2 \* k/.test(pet));
+  check("mắt to thì nới khoảng cách hai mắt cho khỏi chạm nhau", /function cachMat\(/.test(pet));
+  check("JavisPet phơi danh sách cỡ mắt ra cho trang cài đặt", /eyeSizes: function \(\)/.test(pet));
+
+  check("trang Linh vật có hàng nút chọn cỡ mắt",
+    /data-pet-eye-size=/.test(console_js) && /settings\.pet_eye_size/.test(console_js));
+  check("nút Đặt lại trả cỡ mắt về mặc định", /eyeSize: "thuong"/.test(console_js));
+  ["settings.pet_eye_size", "pet.eyesize.thuong", "pet.eyesize.to", "pet.eyesize.rat_to"].forEach(k => {
+    check("khoá dịch " + k + " đủ hai thứ tiếng", !!vi[k] && !!en[k]);
+  });
 }
 
 // ---- 11. Không có emoji trong menu (test_icons cũng bắt, nhưng bắt ở đây thì đọc ra lý do) ----

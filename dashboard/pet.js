@@ -28,23 +28,53 @@
     triangle: { key: "pet.shape.triangle", d: "M147 85 Q160 64 173 85 L244 211 Q256 234 230 234 H90 Q64 234 76 211 Z" },
     cloud:    { key: "pet.shape.cloud",    d: "M105 224 C62 224 54 171 84 155 C71 119 102 92 131 106 C149 66 209 81 214 118 C255 110 273 160 246 182 C258 219 219 244 191 226 C167 249 127 246 105 224 Z" },
     pentagon: { key: "pet.shape.pentagon", d: "M150 80 Q160 73 170 80 L235 127 Q244 133 240 145 L216 222 Q213 232 201 232 H119 Q107 232 104 222 L80 145 Q76 133 85 127 Z" },
+    // NGÔI SAO MŨM MĨM. Sao tiêu chuẩn có bán kính trong bằng 0,38 bán kính ngoài, ra năm cái
+    // gai nhọn; ở đây là 52/86 tức 0,60, nên cánh ngắn và bè, thân phình ra như một cục bông.
+    // Cả mười góc đều bo bằng cung Q, đỉnh cánh bo mềm và chỗ hõm giữa hai cánh bo sâu hơn.
+    // Đừng đẩy bán kính trong lên nữa: dựng thử tới 0,65 thì cánh tan hết, nhìn ra ngũ giác
+    // mọc bướu chứ không còn là ngôi sao (đã dựng ảnh so từng bước trước khi chốt con số này).
+    star:     { key: "pet.shape.star",     d: "M147.2 92.5 Q160 74 172.8 92.5 L175.3 96 Q190.6 117.9 216.2 125.7 L220.3 126.9 Q241.8 133.4 228.2 151.3 L225.6 154.7 Q209.5 176.1 210 202.8 L210.1 207.1 Q210.5 229.6 189.3 222.2 L185.3 220.8 Q160 212 134.7 220.8 L130.7 222.2 Q109.5 229.6 109.9 207.1 L110 202.8 Q110.5 176.1 94.4 154.7 L91.8 151.3 Q78.2 133.4 99.7 126.9 L103.8 125.7 Q129.4 117.9 144.7 96 Z" },
   };
 
   // Mỗi bảng màu tự mang cả hai tông: [thân, vành quỹ đạo, dự phòng]. Tông theo giao diện đang bật
   // (javisTheme), nên pet không bao giờ chói lên giữa nền tối.
+  // Mỗi bảng màu tự mang cả hai tông: [thân, vành quỹ đạo, dự phòng]. Tông theo giao diện đang bật
+  // (javisTheme), nên pet không bao giờ chói lên giữa nền tối.
+  //
+  // TÔNG TỐI SUY TỪ TÔNG SÁNG, GIỮ NGUYÊN SẮC (0.59.36). Bản cũ đặt tay từng cặp, và tay thì
+  // trôi: tông tối của `amber` rơi từ 30 độ (cam) sang 43 độ (vàng), nên chọn "Hổ phách" ở
+  // giao diện tối lại ra một con pet vàng. Tệ hơn, cả 12 tông tối đều bị đẩy lên dải sáng
+  // 63-83% và độ bão hoà bị gọt, thành ra màu nào cũng hoá pastel nhợt na ná nhau. Người dùng
+  // báo 18/09 đúng hai câu: "bảng màu hơi đơn điệu, các màu sắc không thay đổi rõ rệt" và
+  // "rất thích linh vật màu cam mà không có" - màu cam CÓ SẴN, chỉ là giao diện tối nuốt mất.
+  //
+  // Nay tông tối tính bằng công thức từ chính tông sáng: GIỮ NGUYÊN SẮC, hạ bão hoà 12%, đưa
+  // độ sáng về dải 58-78%. Nhờ giữ sắc mà cam ra cam; nhờ dải sáng THẤP HƠN bản cũ mà nó còn
+  // đỡ chói hơn trước, tức nỗi lo cũ không bị đánh đổi. Tông SÁNG giữ nguyên không đụng tới,
+  // nên ai đang dùng giao diện sáng không thấy gì đổi khác.
+  //
+  // Đổi một ô màu ở đây thì SỬA CẢ HAI TÔNG cho khớp công thức, đừng chỉ sửa một bên.
   var PALETTES = {
-    amber:    { key: "pet.color.amber",    sun: ["#F28C28", "#F7C98F", "#F7E3CF"], moon: ["#E8C97A", "#F3DEAA", "#2B241D"] },
-    pearl:    { key: "pet.color.pearl",    sun: ["#E3DCCF", "#B8AA95", "#EAE4D9"], moon: ["#DDD7CA", "#FFF0D4", "#292720"] },
-    clay:     { key: "pet.color.clay",     sun: ["#B76A4B", "#E5AA87", "#EEDDD2"], moon: ["#CEA58C", "#F1CFB5", "#30231E"] },
-    rose:     { key: "pet.color.rose",     sun: ["#CB6576", "#F2ABAE", "#F2DCE0"], moon: ["#DCA4B0", "#F4CBD2", "#30212A"] },
-    honey:    { key: "pet.color.honey",    sun: ["#D5A32D", "#F3D381", "#F2E7C8"], moon: ["#DCC888", "#F6E7B6", "#2D291C"] },
-    sage:     { key: "pet.color.sage",     sun: ["#639574", "#AAD2A9", "#DDE9DC"], moon: ["#A5C5A6", "#D3E6C5", "#202D25"] },
-    jade:     { key: "pet.color.jade",     sun: ["#379E90", "#8FD6C5", "#D7EBE4"], moon: ["#8BC6BA", "#C2E9D9", "#1D2C29"] },
-    blue:     { key: "pet.color.blue",     sun: ["#548EC5", "#A4CDEB", "#DCE7F0"], moon: ["#9DBBDB", "#CDDEF1", "#212A35"] },
-    lavender: { key: "pet.color.lavender", sun: ["#9272C2", "#C9B2E7", "#E8DFF1"], moon: ["#BBA9D7", "#E0CEF1", "#292333"] },
-    pink:     { key: "pet.color.pink",     sun: ["#C67FAB", "#EDB9D6", "#F0DFE9"], moon: ["#D3AEC7", "#F1D3E4", "#30232D"] },
-    slate:    { key: "pet.color.slate",    sun: ["#7B8794", "#B8C4CD", "#E0E4E8"], moon: ["#ADB7C2", "#D6E0E8", "#252A30"] },
-    cocoa:    { key: "pet.color.cocoa",    sun: ["#79604F", "#BFA38A", "#E8DFD5"], moon: ["#B9A38A", "#E3CDB0", "#2B2620"] },
+    amber:      { key: "pet.color.amber",      sun: ["#F28C28", "#F7C98F", "#F7E3CF"], moon: ["#EBA35D", "#EEC297", "#2D251D"] },
+    pearl:      { key: "pet.color.pearl",      sun: ["#E3DCCF", "#B8AA95", "#EAE4D9"], moon: ["#D4CBBA", "#E7E2DA", "#2D271D"] },
+    clay:       { key: "pet.color.clay",       sun: ["#B76A4B", "#E5AA87", "#EEDDD2"], moon: ["#BF8771", "#D0AC9D", "#2D221D"] },
+    rose:       { key: "pet.color.rose",       sun: ["#CB6576", "#F2ABAE", "#F2DCE0"], moon: ["#D28C98", "#E1BAC0", "#2D1D20"] },
+    honey:      { key: "pet.color.honey",      sun: ["#D5A32D", "#F3D381", "#F2E7C8"], moon: ["#D4B05B", "#DEC68F", "#2D281D"] },
+    sage:       { key: "pet.color.sage",       sun: ["#639574", "#AAD2A9", "#DDE9DC"], moon: ["#81A78E", "#A6BFAF", "#1E2C23"] },
+    jade:       { key: "pet.color.jade",       sun: ["#379E90", "#8FD6C5", "#D7EBE4"], moon: ["#66C1B5", "#95D0C8", "#1D2D2B"] },
+    blue:       { key: "pet.color.blue",       sun: ["#548EC5", "#A4CDEB", "#DCE7F0"], moon: ["#7CA5CB", "#AAC3DA", "#1D252D"] },
+    lavender:   { key: "pet.color.lavender",   sun: ["#9272C2", "#C9B2E7", "#E8DFF1"], moon: ["#AC96CC", "#CDC0DF", "#231D2D"] },
+    pink:       { key: "pet.color.pink",       sun: ["#C67FAB", "#EDB9D6", "#F0DFE9"], moon: ["#D1A2BF", "#E4CCDB", "#2D1D27"] },
+    slate:      { key: "pet.color.slate",      sun: ["#7B8794", "#B8C4CD", "#E0E4E8"], moon: ["#969EA7", "#B7BDC3", "#222528"] },
+    cocoa:      { key: "pet.color.cocoa",      sun: ["#79604F", "#BFA38A", "#E8DFD5"], moon: ["#A89080", "#C0B0A5", "#2C241E"] },
+    cam:        { key: "pet.color.cam",        sun: ["#FA4F05", "#F89A72", "#F6DBD0"], moon: ["#EF733E", "#EF9E7C", "#2D221D"] },
+    nang:       { key: "pet.color.nang",       sun: ["#F5D014", "#F6E27E", "#F6EFD0"], moon: ["#ECD14B", "#EDDC87", "#2D2A1D"] },
+    chanh:      { key: "pet.color.chanh",      sun: ["#93B12F", "#C0D775", "#E9EFD7"], moon: ["#B1CB5D", "#C6D68F", "#292D1D"] },
+    bacha:      { key: "pet.color.bacha",      sun: ["#38B286", "#81D4B6", "#D8EDE6"], moon: ["#63C5A2", "#92D3BB", "#1D2D27"] },
+    thanhthien: { key: "pet.color.thanhthien", sun: ["#1EA3C8", "#6BCBE5", "#D4EBF2"], moon: ["#4EBBDA", "#85CCE0", "#1D2A2D"] },
+    cham:       { key: "pet.color.cham",       sun: ["#4052C9", "#969FDF", "#D8DBEE"], moon: ["#6A77CC", "#9BA3D9", "#1D1F2D"] },
+    tim:        { key: "pet.color.tim",        sun: ["#AD55C3", "#D3A6DE", "#E9D9ED"], moon: ["#BA7CCA", "#D0AAD9", "#2A1D2D"] },
+    ruby:       { key: "pet.color.ruby",       sun: ["#D83137", "#E78E91", "#F1D5D6"], moon: ["#D76064", "#E09497", "#2D1D1D"] },
   };
 
   // Cỡ pet. Số là bề ngang tính bằng px trên MÀN RỘNG; màn hẹp nhân thêm hệ số ở dưới.
@@ -59,12 +89,39 @@
   // Màn hẹp KHÔNG thu nhỏ nữa. Ngược lại: ngón tay to hơn con trỏ chuột, và màn hình bé thì
   // một chấm 52px còn khó thấy hơn trên màn rộng. Giữ nguyên cỡ đã chọn.
 
-  // MÀU MẮT do người dùng chọn, hai lựa chọn thôi: đen hoặc trắng. Trước đây con số này suy
-  // tự động từ độ chói của thân (xem mauMatTuDong), nhưng chủ dự án muốn tự quyết - bảng màu
-  // sáng thì mắt trắng nhìn cũng có nét riêng, và "tự động" thì không ai đoán được nó sẽ ra gì.
+  // MÀU MẮT do người dùng chọn. Trước đây con số này suy tự động từ độ chói của thân (xem
+  // mauMatTuDong), nhưng chủ dự án muốn tự quyết - "tự động" thì không ai đoán được nó ra gì.
   // Avatar trợ lý KHÔNG theo lựa chọn này: chúng là nhân dạng khác, vẫn suy tự động.
-  var MAU_MAT = { den: "#201e1e", trang: "#ffffff" };
-  var MAC_DINH = { enabled: true, shape: "circle", palette: "amber", side: "right", pos: 0.62, size: "vua", eye: "den" };
+  //
+  // Từ 0.59.36 có bảy màu thay vì hai. Mắt là TOÀN BỘ chỗ diễn cảm xúc của nhân vật này (không
+  // có miệng), nên màu mắt đổi tính cách mạnh hơn cả màu thân. Năm màu thêm đều ĐẬM và bão hoà
+  // cao: con ngươi phải đọc ra là con ngươi trên mọi thân, kể cả thân sẫm nhất (cocoa). Thêm
+  // màu nhạt vào đây thì trên thân sáng nó biến mất và khuôn mặt thành trống trơn.
+  // Mỗi màu mang theo KHOÁ i18n của nó, đúng cấu trúc của SHAPES/SIZES/PALETTES. Giao diện
+  // tra `mats[k].key` chứ KHÔNG ghép `"pet.eye." + k`: bộ quét i18n chỉ nhận ra khoá khi nó
+  // được viết nguyên văn ngay trong lời gọi dịch, nên khoá ghép chuỗi lọt lưới và một màu
+  // thiếu nhãn sẽ đi thẳng ra mắt người dùng mà không test nào kêu.
+  var MAU_MAT = {
+    den:   { key: "pet.eye.den",   mau: "#201e1e" },
+    trang: { key: "pet.eye.trang", mau: "#ffffff" },
+    nau:   { key: "pet.eye.nau",   mau: "#5A3A28" },
+    xanh:  { key: "pet.eye.xanh",  mau: "#2A62B0" },
+    ngoc:  { key: "pet.eye.ngoc",  mau: "#16806F" },
+    tim:   { key: "pet.eye.tim",   mau: "#6F45A8" },
+    vang:  { key: "pet.eye.vang",  mau: "#C2870F" },
+  };
+
+  // CỠ MẮT. Hệ số nhân vào bán kính con mắt, áp cho MỌI hình dáng chứ không riêng hình nào.
+  // Mắt là toàn bộ chỗ diễn cảm xúc của nhân vật này (không có miệng), nên cho người dùng
+  // kéo to lên là đổi hẳn tính cách: mắt thường thì điềm đạm, mắt rất to thì ngây thơ.
+  // Đừng vượt quá 1,5: bản dựng thử ở 1,7 thì hai con mắt chạm nhau ở giữa mặt, và lúc pet
+  // nép vào mép màn hình (hai mắt dồn sang nửa thân còn thấy) chúng chồng lên nhau hẳn.
+  var EYE_SIZES = {
+    thuong:  { key: "pet.eyesize.thuong", k: 1 },
+    to:      { key: "pet.eyesize.to",     k: 1.25 },
+    rat_to:  { key: "pet.eyesize.rat_to", k: 1.5 },
+  };
+  var MAC_DINH = { enabled: true, shape: "circle", palette: "amber", side: "right", pos: 0.62, size: "vua", eye: "den", eyeSize: "thuong" };
 
   // DÁNG LIẾC - chữ ký của nhân vật. Linh vật KHÔNG nhìn thẳng lúc nghỉ: nó liếc chéo lên
   // phía trên bên phải, đúng như hình logo tĩnh. Nhìn thẳng thì ra một cái mặt cười vô hồn;
@@ -174,7 +231,13 @@
     return (rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722) > 0.179 ? "#201e1e" : "#ffffff";
   }
   // Màu mắt của CON PET: lựa chọn của người dùng, không suy từ thân nữa.
-  function mauMatCfg() { return MAU_MAT[cfg.eye] || MAU_MAT.den; }
+  function mauMatCfg() { return (MAU_MAT[cfg.eye] || MAU_MAT.den).mau; }
+  // Hệ số cỡ mắt đang chọn.
+  function heSoMat() { return (EYE_SIZES[cfg.eyeSize] || EYE_SIZES.thuong).k; }
+  // Khoảng cách từ tâm cặp mắt ra mỗi con. Mắt to thì NỚI RA, nhưng nới ít hơn mức mắt phình:
+  // nới đủ hệ số thì hai con mắt dạt hẳn ra hai bên thái dương, nhìn như một con vật khác.
+  // Dựng ảnh so ba cỡ rồi chốt: mũi tên 1 -> 1,5 thì khoảng cách chỉ đi 15 -> 18,5.
+  function cachMat(goc) { return goc * (1 + (heSoMat() - 1) * 0.47); }
 
   // ---- Lưu / nạp ----
   function docLocal() {
@@ -226,6 +289,7 @@
     if (c.side !== "left" && c.side !== "right") c.side = MAC_DINH.side;
     if (!SIZES[c.size]) c.size = MAC_DINH.size;
     if (!MAU_MAT[c.eye]) c.eye = MAC_DINH.eye;
+    if (!EYE_SIZES[c.eyeSize]) c.eyeSize = MAC_DINH.eyeSize;
     c.pos = kep(Number(c.pos) || MAC_DINH.pos, 0.05, 0.95);
     c.enabled = c.enabled !== false;
     return c;
@@ -344,13 +408,20 @@
     var a, b;
     if (el && el.dataset.out !== "1") {
       var tam = cfg.side === "right" ? -34 : 34;   // tâm của cặp mắt, lệch về phía còn thấy
-      a = [tam - 13, 0]; b = [tam + 13, 0];
+      var c = cachMat(13);
+      a = [tam - c, 0]; b = [tam + c, 0];
     } else {
-      a = [-15, 0]; b = [15, 0];
+      var c2 = cachMat(15);
+      a = [-c2, 0]; b = [c2, 0];
     }
+    // Cỡ mắt đi bằng scale trên chính nhóm đã dịch chuyển, chứ không sửa từng con số trong
+    // bảng EYES: mỗi biểu cảm ở đó là một hình riêng (ellipse, path cong, gạch ngang), nhân
+    // tay thì phải nhân đúng chín chỗ và cứ thêm một biểu cảm là thêm một chỗ để quên.
+    var k = heSoMat();
+    var co = k === 1 ? "" : " scale(" + k + ")";
     gEyes.innerHTML =
-      '<g transform="translate(' + (160 + a[0]) + " " + (160 + a[1]) + ')">' + trai + "</g>" +
-      '<g transform="translate(' + (160 + b[0]) + " " + (160 + b[1]) + ')">' + phai + "</g>";
+      '<g transform="translate(' + (160 + a[0]) + " " + (160 + a[1]) + ")" + co + '">' + trai + "</g>" +
+      '<g transform="translate(' + (160 + b[0]) + " " + (160 + b[1]) + ")" + co + '">' + phai + "</g>";
   }
 
   // ---- Vòng vẽ ----
@@ -630,11 +701,13 @@
   //           trong cài đặt trợ lý liếc sang trái và hơi xuống, theo yêu cầu của chủ dự án.
   //   mat   - khoá MÀU MẮT ("den" / "trang"). Chỗ nào vẽ CON PET thì truyền vào để chân dung
   //           khớp với con pet sống; bỏ trống (avatar trợ lý) thì suy tự động từ độ chói thân.
+  //   coMat - khoá CỠ MẮT ("thuong" / "to" / "rat_to"), cùng lý do như trên: ô xem thử và dấu
+  //           ấn thanh bên truyền vào, avatar trợ lý bỏ trống nên giữ cỡ thường.
   function chanDung(shape, palette, opts) {
     var o = opts || {};
     var d = (SHAPES[shape] || SHAPES.circle).d;
     var tone = (PALETTES[palette] || PALETTES.amber)[sang() ? "sun" : "moon"];
-    var mat = MAU_MAT[o.mat] || mauMatTuDong(tone[0]);
+    var mat = (MAU_MAT[o.mat] || {}).mau || mauMatTuDong(tone[0]);
     var lx = o.liecX === undefined ? LIEC_X : Number(o.liecX);
     var ly = o.liecY === undefined ? LIEC_Y : Number(o.liecY);
     var ex = 160 + lx, ey = 160 + ly;
@@ -647,10 +720,20 @@
     // Khung NỚI RA khi có vành, giữ nguyên khi không: hình tam giác phóng 1,14 lần cộng nửa
     // nét vẽ chạm tới 274, tràn khỏi khung cũ (58..262). Nới cho mọi chân dung thì avatar trợ
     // lý và dấu ấn đang dùng tự nhiên bé lại, đổi diện mạo một chỗ không ai yêu cầu.
+    // Cỡ mắt: cùng hệ số và cùng luật nới khoảng cách với con pet sống, để ô xem thử không
+    // bao giờ nói khác cái đang đứng ở mép màn hình.
+    // GIỮ NGUYÊN KIỂU SỐ tới lúc nối chuỗi. Bản 0.59.30 làm tròn ngay ở đây bằng toFixed() nên
+    // `cach` thành CHUỖI, và `ex + cach` không còn là phép cộng mà là phép nối: con mắt phải
+    // nhảy ra toạ độ 17615, tức ngoài khung, nên mọi chân dung tĩnh (ô chọn ở trang Linh vật,
+    // dấu ấn thanh bên, avatar trợ lý) chỉ còn MỘT con mắt. Mắt trái vẫn đúng vì phép trừ tự
+    // ép chuỗi về số, nên nhìn qua tưởng là cố ý.
+    var k = (EYE_SIZES[o.coMat] || EYE_SIZES.thuong).k;
+    var cach = 15 * (1 + (k - 1) * 0.47);
+    var rx = 7.2 * k, ry = 17.5 * k;
     return '<svg viewBox="' + (o.vanh ? "42 42 236 236" : "58 58 204 204") + '" aria-hidden="true">' + vanh +
       '<path d="' + d + '" fill="' + tone[0] + '"/>' +
-      '<ellipse cx="' + (ex - 15) + '" cy="' + ey + '" rx="7.2" ry="17.5" fill="' + mat + '"/>' +
-      '<ellipse cx="' + (ex + 15) + '" cy="' + ey + '" rx="7.2" ry="17.5" fill="' + mat + '"/></svg>';
+      '<ellipse cx="' + (ex - cach) + '" cy="' + ey + '" rx="' + rx + '" ry="' + ry + '" fill="' + mat + '"/>' +
+      '<ellipse cx="' + (ex + cach) + '" cy="' + ey + '" rx="' + rx + '" ry="' + ry + '" fill="' + mat + '"/></svg>';
   }
 
   // ---- DẤU ẤN trên thanh bên ----
@@ -668,7 +751,7 @@
       if (o.dataset.brandGoc === undefined) o.dataset.brandGoc = o.innerHTML;
       if (dung) {
         o.classList.add("brand-pet");
-        o.innerHTML = chanDung(cfg.shape, cfg.palette, { mat: cfg.eye });
+        o.innerHTML = chanDung(cfg.shape, cfg.palette, { mat: cfg.eye, coMat: cfg.eyeSize });
       } else if (o.classList.contains("brand-pet")) {
         o.classList.remove("brand-pet");
         o.innerHTML = o.dataset.brandGoc;
@@ -699,10 +782,12 @@
     // Ô xem thử trên trang Linh vật, và DẤU ẤN thay cho logo trên thanh bên: cùng một hàm,
     // vì hai chỗ đó phải là cùng một khuôn mặt.
     previewSvg: chanDung,
-    markSvg: function () { return chanDung(cfg.shape, cfg.palette, { mat: cfg.eye }); },
+    markSvg: function () { return chanDung(cfg.shape, cfg.palette, { mat: cfg.eye, coMat: cfg.eyeSize }); },
     // Danh sách màu mắt cho ô chọn ở trang Linh vật. Trả khoá + mã màu để chỗ vẽ khỏi phải
     // khai lại bảng màu lần thứ hai.
-    eyeColors: function () { return Object.assign({}, MAU_MAT); },
+    eyeColors: function () { return Object.assign({}, MAU_MAT); },   // {ten: {key, mau}}
+    // Danh sách CỠ MẮT cho ô chọn ở trang Linh vật.
+    eyeSizes: function () { return EYE_SIZES; },
     // Thanh bên có đang dùng khuôn mặt linh vật thay cho logo không.
     usingMark: function () { return dungDauAn(); },
     // Lưu NGAY lên máy chủ rồi đọc lại để chắc chắn đã vào (nút Lưu trang Linh vật).

@@ -4,6 +4,488 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.64.21] - 2026-09-23
+### Thêm mới
+- **Dùng Javis ngay trong ChatGPT.** Chat trên chatgpt.com bằng gói của bạn, và ChatGPT tự gọi công cụ của Javis: xem số liệu, đọc brain, tạo nhắc lịch, gửi Zalo. Phần suy nghĩ không tốn hạn mức Codex.
+- Bật ở thẻ **ChatGPT** trên trang Models, chép địa chỉ rồi dán vào ChatGPT. Hướng dẫn từng bước có link ngay trên thẻ.
+- **Bạn giữ quyền:** chọn mức Toàn quyền, Tự làm có giới hạn, hoặc Chỉ đọc; đổi là có hiệu lực ngay. Nút **Ngắt mọi kết nối** cắt hết trong một lần bấm.
+- Cần gói ChatGPT trả phí, máy tính để cài lần đầu, và Javis có tên miền https.
+
+## [0.64.20] - 2026-09-23
+### Thay đổi
+- **Gỡ model ChatGPT Web.** Nó lái một trình duyệt vào chatgpt.com, mà trên máy chủ thuê thì trang đó chặn theo địa chỉ IP, nên không chạy được. Đã đối chiếu hai dự án khác làm cùng việc: cả hai đều phải chạy trình duyệt trên máy tính ở nhà.
+- **Ai đang chọn ChatGPT Web thì lượt chat kế tiếp tự chuyển sang model ChatGPT qua Codex**, kèm một dòng báo. Không phải làm gì thêm.
+- **Trang Công cụ bỏ mục "Thư viện lái trình duyệt"**, và Javis tự dọn chừng 140 MB nó từng cài. Mục Trình duyệt vẫn giữ cho kết nối Playwright.
+- Bản sau sẽ làm hướng ngược lại: bạn chat trên ChatGPT, và ChatGPT tự gọi công cụ của Javis.
+
+## [0.64.19] - 2026-09-23
+### Sửa lỗi
+- **Tab Cài đặt trợ lý báo "Không tải được trợ lý này" dù trợ lý vẫn còn.** Khi một trợ lý đang trả lời, máy chủ bận nên lần tải bị quá giờ. Nay các phần đó chạy riêng, lần đầu trượt thì tự thử lại, và lúc chờ hiện "Đang tải..." thay vì khung trống.
+### Thay đổi
+- **Tài liệu của trợ lý gom về một chỗ.** Nút "File & link" trên đầu đổi tên thành **Tài liệu**, mở cùng một ngăn với nút trong Cài đặt. Đầu ngăn có hai ô: **Của trợ lý** (mọi cuộc đều thấy) và **Chỉ cuộc này**, kèm số lượng và một câu nói rõ đang gắn vào đâu.
+
+## [0.64.18] - 2026-09-23
+### Sửa lỗi
+- **Trình duyệt ChatGPT Web hết tự khai mình là máy tự động.** Javis vẫn tải bản Chromium rút gọn và chạy ẩn, nên trang chatgpt.com nhìn phát ra ngay: User-Agent ghi `HeadlessChrome`, không có plugin nào. Nay tải bản đầy đủ và chạy có cửa sổ trên một màn hình ảo, nên nó khai `Chrome` như một máy bình thường.
+### Thay đổi
+- **Nút tải trình duyệt nặng thêm chừng 70MB** vì đổi sang bản đầy đủ. Bản rút gọn nhẹ hơn nhưng không bao giờ qua nổi cửa kiểm tra, nên nhẹ mà vô dụng.
+- **Khi vẫn kẹt ở Cloudflare, Javis nói thẳng là bí và chỉ đường khác** thay vì bảo bạn bấm "Kiểm tra lại" mãi. Trên máy chủ thuê thì cửa đó xét địa chỉ IP, bấm thêm không đổi gì.
+
+## [0.64.17] - 2026-09-23
+### Sửa lỗi
+- **Tài khoản ChatGPT gói Team dán cookie không vào được.** Cookie của các tài khoản này quá dài nên trình duyệt tự cắt làm hai dòng `.0` và `.1`, mà Javis chỉ nhận đúng một cái tên duy nhất. Nay nhận cả hai dòng đó.
+- **Dán nửa cookie không còn âm thầm trôi qua.** Trước đây copy thiếu một nửa thì Javis vẫn nhận rồi báo "chưa đăng nhập", không ai đoán ra thiếu ở đâu. Nay nó nói thẳng là còn thiếu mảnh nào.
+- Nối hai nửa lại thành một chuỗi rồi dán cũng được: Javis tự cắt lại cho vừa giới hạn của trình duyệt.
+
+## [0.64.16] - 2026-09-23
+### Sửa lỗi
+- **Đổi trợ lý giữa lúc trợ lý khác đang trả lời thì màn hình đứng yên.** Vài việc chạy ngầm (kiểm tra đăng nhập Antigravity, dò lại danh sách công cụ MCP) chiếm luồng chính của máy chủ, nên mọi thao tác khác phải xếp hàng chờ. Nay các việc đó chạy riêng, bấm sang trợ lý khác là đổi ngay.
+- **Lượt chat trên Antigravity CLI có lúc treo tới khi bị cắt** vì Javis đọc log lỗi của `agy` quá muộn. Nay đọc song song.
+
+## [0.64.15] - 2026-09-23
+### Thay đổi
+- **Bỏ dải "VỪA GỌI" chữ xanh lá cạnh ô chọn model.** Từng bước Javis gọi tool giờ đã hiện ngay trong khung chat, nên dải này chỉ lặp lại thứ bạn vừa thấy và chiếm chỗ.
+
+## [0.64.14] - 2026-09-23
+### Sửa lỗi
+- **Dán cookie ChatGPT xong bị báo "cookie hết hạn" dù trên máy vẫn chat bình thường.** Javis chỉ chờ 3 giây rồi kết luận, mà chatgpt.com là trang nặng, thường chưa vẽ xong trong từng đó. Nay chờ tới 45 giây và chờ ĐÚNG thứ cần chờ.
+- **Và khi vẫn không xong, Javis nói nó thấy gì** thay vì đổ lỗi cho cookie: trang đang dừng ở đâu, tiêu đề là gì, có phải đang mắc ở cửa kiểm tra Cloudflare không. Ba tình huống khác hẳn nhau trước đây gộp chung một câu.
+
+## [0.64.13] - 2026-09-23
+### Sửa lỗi
+- **Trang Code trên điện thoại: bấm nút lịch sử không ra danh sách hội thoại.** Nút đó gọi nhầm kiểu thu gọn của máy tính, nên trên điện thoại nó bấm mà không có gì xảy ra. Nay mở ngăn kéo như trang Trò chuyện, chạm ra ngoài là đóng.
+- **Trang Code trên điện thoại: không thấy chỗ thêm thư mục và đổi chế độ.** Dải chip đó nằm trong hàng model, mà hàng model thì bị ẩn trên điện thoại. Nay nó có hàng riêng ngay dưới thanh tiêu đề.
+### Thay đổi
+- **Thẻ ChatGPT gọn lại.** Bỏ nút "Đóng trình duyệt" và khối chữ hướng dẫn dài. Hướng dẫn đầy đủ chuyển sang một trang tài liệu riêng, trên thẻ chỉ còn một đường link.
+
+## [0.64.12] - 2026-09-22
+### Thay đổi
+- **Bỏ màn đăng nhập ChatGPT bằng chụp màn hình.** Nó chỉ hiện ra khi máy đã cài đủ trình duyệt, mà đúng lúc cần nhất thì lại không bấm được. Giờ chỉ còn một đường duy nhất: dán cookie.
+- **Ô dán cookie luôn hiện**, kể cả khi máy chưa tải trình duyệt, kèm câu nói rõ còn thiếu gì. Trước đây nó bị giấu cùng lúc với nút đăng nhập nên người dùng không thấy đường nào cả.
+- Ít đi một đường mở trình duyệt trên máy chủ, nên mật khẩu không còn cách nào đi qua máy chủ Javis nữa.
+
+## [0.64.11] - 2026-09-22
+### Thêm mới
+- **Đăng nhập ChatGPT Web bằng cách dán cookie.** Mở chatgpt.com trên máy bạn, copy một giá trị cookie, dán vào ô trong thẻ ChatGPT. Không phải gõ mật khẩu trong khung đăng nhập nữa, nên mật khẩu cũng không đi qua máy chủ Javis.
+- Nhận cả ba kiểu dán: chỉ mỗi giá trị token, cả chuỗi `tên=giá trị; ...`, hoặc file JSON xuất từ tiện ích cookie. Javis tự bỏ những cookie không mang sang máy khác được.
+- Màn đăng nhập cũ vẫn còn nguyên cho ai thích bấm tay.
+
+## [0.64.10] - 2026-09-22
+### Sửa lỗi
+- **Vẫn không thấy nút Đăng nhập ChatGPT dù đã tải trình duyệt.** Javis tìm file chạy theo đường dẫn gõ cứng, mà bố cục thư mục của Chromium khác nhau tuỳ bản tải và tuỳ loại máy (máy ARM để ở chỗ khác). Nay Javis quét tìm file chạy thay vì đoán đường dẫn.
+- **Câu báo "chưa có trình duyệt" nay nói luôn nó đã tìm ở đâu và thấy gì.** Trước đây gặp câu đó thì không ai biết làm gì tiếp, kể cả người viết ra nó.
+
+## [0.64.9] - 2026-09-22
+### Sửa lỗi
+- **Trang Công cụ báo "Sẵn sàng" mà thẻ ChatGPT vẫn kêu thiếu trình duyệt.** Javis tải Chromium về thành hai thư mục, và nó chỉ biết tìm file chạy trong một thư mục. Rơi vào thư mục kia là tải xong vẫn báo chưa có gì, nên nút **Đăng nhập ChatGPT** không bao giờ hiện ra.
+- Nay hai trang hỏi chung đúng một chỗ, nên không còn cảnh một bên báo xong một bên báo thiếu.
+- **Tải trình duyệt xong là thẻ ChatGPT nhận ra ngay**, không phải khởi động lại Javis mới thấy.
+
+## [0.64.8] - 2026-09-22
+### Thêm mới
+- **Trang Công cụ có thêm mục "Thư viện lái trình duyệt".** Đây là thứ model **ChatGPT Web** cần. Bấm một nút là Javis tự tải về, khỏi mở terminal gõ lệnh. Tải xong nhớ khởi động lại Javis thì model mới hiện trong ô chọn model.
+- Cài **theo yêu cầu** nên bản cài mặc định không nặng thêm một byte nào: gói này khoảng 143 MB mà phần lớn máy không dùng tới. Gỡ cũng bằng một nút, và chỉ gỡ đúng bản Javis tải, không đụng gì khác trên máy.
+- Cả hai mục ở trang Công cụ đều tải vào ổ dữ liệu nên **sống qua mỗi lần cập nhật**, không phải tải lại.
+- **Đăng nhập ChatGPT ngay trong Javis, không cần máy chủ có màn hình.** Bấm Đăng nhập ở thẻ ChatGPT là trang ChatGPT hiện ra ngay trong dashboard: bấm và gõ như đang dùng trình duyệt bình thường, xong khung tự đóng. Nhờ vậy model **ChatGPT Web** dùng được cả trên VPS.
+### Sửa lỗi
+- **Engine ChatGPT Web không còn hỏng khi hai việc chạy chồng nhau.** Trước đây mở trang và gửi tin cùng lúc có thể làm lượt chat chết giữa chừng. Nay mọi thao tác trình duyệt đi qua một hàng đợi duy nhất.
+
+## [0.64.7] - 2026-09-22
+### Thêm mới
+- **Xem được mỗi lượt chat đang gánh bao nhiêu chữ, và chữ đó nằm ở đâu.** Trang chẩn đoán nay có bảng phân bổ: phần não chung, phần kênh hội thoại, phần skill, phần bộ nhớ, mỗi phần bao nhiêu ký tự và chiếm bao nhiêu phần trăm. Trước đây chỉ đoán được.
+- Con số đo ngay trên máy anh chứ không phải ước lượng, nên brain nào nặng bất thường là thấy ngay nặng ở chỗ nào.
+### Cải thiện
+- **Prompt lõi không thể phình thêm nữa.** Trần ký tự của nó đã đông cứng và được canh ở hai nơi, nên muốn nới phải sửa hai chỗ kèm lý do. Ba lần trước trần này bị nới cho xong việc, mỗi lần là mọi lượt chat của mọi model nặng thêm.
+- Thêm luật mới thì phải đẩy một mục cũ sang skill hoặc sang tài liệu, đổi chỗ đặt chứ không mất năng lực nào.
+
+## [0.64.6] - 2026-09-22
+### Sửa lỗi
+- **Dựng máy mới không còn hàng chục biến môi trường đỏ.** File mẫu `env.example` trước đây có gần trăm dòng chú thích. Các nền tảng deploy tự quét file này rồi cắt mọi dòng có dấu `=` thành một biến, nên mỗi dòng chú thích hoá ra một biến tên `#` và bảng Environment đỏ rực, chặn luôn nút triển khai. Nay file mẫu chỉ còn bốn dòng `TÊN=giá trị`, không một dòng chú thích nào.
+- Phần giải thích từng biến **không mất đi**, nó nằm ở trang **Cấu hình .env** trong tài liệu, đầy đủ hơn khối chú thích cũ. Ai đã lỡ dính thì xoá hết các dòng có dấu `#` trong ô Environment một lần là sạch.
+### Cải thiện
+- **Model ChatGPT Web tự hiện ra khi máy dùng được, khỏi khai báo gì.** Bản trước bắt đặt tay một biến môi trường mới thấy model, mà biến đó không tự tạo ra được trình duyệt, nên máy thiếu đồ vẫn bày model ra rồi hỏng lúc chọn. Nay Javis tự dò: đủ đồ thì model nằm sẵn trong ô chọn, thiếu thì thẻ ChatGPT ở trang Models nói rõ thiếu gì và bấm ở đâu.
+
+## [0.64.5] - 2026-09-22
+### Cải thiện
+- **Chạy nhiều phiên sửa cùng lúc không còn giẫm số phiên bản của nhau.** Quy ước mới: phiên nào cũng đặt xí chỗ số phiên bản ngay từ đầu bằng một PR nháp, nên các phiên khác nhìn vào là biết số đó đã có người lấy. Anh sẽ ít gặp cảnh một thay đổi xong xuôi rồi phải làm lại chỉ vì trùng số.
+- Mỗi lượt chat nhẹ đi một chút: phần quy ước dành riêng cho lập trình đã tách khỏi prompt lõi, vì người dùng không bao giờ cần tới nó.
+
+## [0.64.3] - 2026-09-22
+### Sửa lỗi
+- **Mở trang Cộng sự nhanh hơn nhiều lần.** Danh sách trợ lý đang kéo theo cả bài prompt hệ thống của từng người: đo trên một bộ não 14 trợ lý là **366 KB** cho một thứ chỉ hiện tên và vai trò. Nay còn **2,9 KB**. Đây là chỗ làm cột trái trống trơn mấy giây mỗi lần mở trang từ menu linh vật.
+- Bài prompt vẫn lấy đủ, nhưng chỉ cho đúng trợ lý bạn đang mở trong ô sửa. Nếu lần lấy đó hỏng, Javis báo lỗi kèm nút thử lại thay vì mở ô trống (mở trống rồi bấm Lưu là mất bài prompt thật).
+- Ô chọn trợ lý trong Chatbot, lưới thẻ trong Studio và ô chọn từng bước của quy trình cũng nhẹ theo.
+
+## [0.64.2] - 2026-09-22
+### Cải thiện
+- **Menu chọn thư mục trong mục Coding gọn lại.** Tên thư mục và đường dẫn để chữ nhỏ, đọc lướt là đủ, nên menu không còn choán nửa màn hình như trước.
+- **Menu dài không tràn ra ngoài nữa.** Nhiều thư mục thì menu tự cuộn trong khung và tự lật lên hay xuống theo chỗ trống, thay vì đổ ra đè lên thanh điều hướng bên trái.
+- Trên điện thoại chữ trong menu vẫn giữ cỡ cũ cho dễ bấm.
+
+## [0.64.1] - 2026-09-22
+### Sửa lỗi
+- **Đổi bộ não khi đang ở trang Cộng sự không còn trắng màn.** Mỗi lần đổi não, Javis nạp lại cả quả cầu tri thức của màn chính dù bạn đang nhìn trang khác, và việc đó khoá màn hình vài giây. Nay nó chờ tới lúc bạn quay về màn chính mới nạp.
+- **Khung chat giữa trang Cộng sự không còn hiện hội thoại của não cũ.** Đổi não xong, khung chat mở đúng hội thoại của trợ lý đang chọn trong não mới.
+- **Chọn trợ lý khác nhanh hơn hẳn.** Bảng cài đặt bên phải không còn hỏi lại máy chủ danh sách kỹ năng và cấu hình model sau mỗi cú bấm.
+- Chọn một thư mục ngoài làm bộ não giờ cũng làm mới cả trang: trước đây chỉ quả cầu đổi, còn danh sách trợ lý và cây thư mục vẫn của não trước.
+
+## [0.64.0] - 2026-09-22
+### Thêm mới
+- **Thêm model `chatgpt-web` trong thẻ ChatGPT.** Chọn nó ở ô chọn model là Javis chạy bằng phiên ChatGPT trong trình duyệt của bạn, không tiêu lượt Codex. Vẫn gọi được tool, đọc ghi file trong bộ não, đặt lịch, chạy skill như mọi bộ não khác.
+- Cần bật một lần bằng biến môi trường `JAVIS_ENABLE_WEB_CHAT=true` rồi khởi động lại. Chưa bật thì model này không hiện ra, và mọi thứ khác chạy y như cũ.
+- Trang **Models**, trong thẻ ChatGPT, có thêm nút mở cửa sổ đăng nhập, nút kiểm tra lại và nút đóng trình duyệt. Javis không cầm mật khẩu của bạn: bạn tự đăng nhập một lần trong cửa sổ đó.
+- Lưu ý khi dùng: mỗi lượt là một cuộc chat thật trên chatgpt.com, nên **Memory** và **Custom instructions** của tài khoản sẽ ảnh hưởng câu trả lời. Muốn Javis trả lời thuần theo prompt của mình thì tắt hai thứ đó trong cài đặt ChatGPT. Mỗi vòng gọi tool cũng mất vài chục giây, nên việc nhiều bước vẫn nên để Codex.
+## [0.63.10] - 2026-09-22
+### Sửa lỗi
+- **Bộ não Antigravity giờ cũng hiện tiến trình.** Khối "Đã chạy N bước" thêm ở bản trước không bao giờ xuất hiện khi chạy Antigravity, kể cả lúc nó gọi công cụ thật. Lý do: `agy` báo việc nó làm theo một khuôn mà Javis đọc sót, nên mọi lần gọi công cụ rơi vào hư không.
+- Kèm theo đó, Javis nay biết lượt Antigravity đã chạy lệnh ngoài hay chưa. Trước đây gặp lỗi mạng tạm thời nó có thể chạy lại cả lượt và làm lần hai những việc đã làm rồi.
+
+## [0.63.9] - 2026-09-22
+### Thêm mới
+- **Một việc trong mục Coding giờ gắn được NHIỀU thư mục.** Bấm chip thư mục rồi tích chọn bao nhiêu cái tuỳ ý, menu không đóng giữa chừng nên chọn liền mấy cái một lúc. Hợp với việc đụng cả mã nguồn lẫn tài liệu, hay app với thư viện dùng chung.
+- Thư mục **đầu danh sách là thư mục chính**: Javis đứng ở đó và mọi thao tác git chạy ở đó. Các thư mục còn lại Javis vẫn đọc và sửa được bằng đường dẫn đầy đủ. Bỏ tích cái chính thì cái kế tiếp lên thay.
+### Sửa lỗi
+- **Chữ xanh nhạt trong menu thư mục và menu mức quyền giờ đọc được.** Nó đang lấy màu viền làm màu chữ nên mờ gần như tàng hình.
+- Bỏ dòng giải thích dài ở chân hộp thêm thư mục.
+
+## [0.63.8] - 2026-09-22
+### Thêm mới
+- **Đợi lâu không còn mù tịt.** Khi Javis phải gọi nhiều công cụ để trả lời, khung chat giờ liệt kê từng bước ngay trên câu trả lời thay vì chỉ một dòng nhấp nháy rồi mất. Trả lời xong, danh sách tự gấp thành một dòng `Đã chạy 6 bước`, bấm vào là bung ra xem lại.
+- Danh sách bước sống qua F5, nên tải lại trang vẫn đối chiếu được Javis đã làm những gì. Lượt trả lời thẳng, không gọi công cụ nào thì không mọc thêm dòng nào cả.
+
+## [0.63.7] - 2026-09-22
+### Cải thiện
+- **Máy yếu bớt đơ hẳn khi mở màn chính.** Quả cầu não trước đây vẽ lại liên tục cả khi không có gì chuyển động, đốt CPU suốt ngày dù bạn chỉ ngồi nhìn. Nay nó đứng yên lúc rảnh và sống lại ngay khi bạn nói, khi Javis đang nghĩ, hoặc khi bạn rê chuột vào nó.
+- Đo trên một bộ não 844 note: lúc không ai đụng vào gì, màn chính giảm từ **34% xuống 19,7%** một nhân CPU. Não càng nhiều note thì càng đỡ được nhiều.
+- Hiệu ứng thở và hiệu ứng rọi sáng khi trỏ vào một chấm vẫn nguyên, chỉ tắt trong lúc bạn không tương tác.
+
+## [0.63.6] - 2026-09-22
+### Sửa lỗi
+- **Chữ mức quyền không còn bị chìm.** Ba chip Plan, Tự động, Toàn quyền trước đây lấy màu viền làm màu chữ nên chữ trong mờ như đang bị tắt. Riêng chip **Toàn quyền** thì dùng một mã màu không hề tồn tại, nên mức nguy hiểm nhất lại trông y hệt mức thường. Nay mỗi mức có màu chữ và nền riêng, nhìn lướt cũng thấy.
+### Cải thiện
+- **Hộp thêm thư mục mở ra ở những chỗ đáng bắt đầu**: bộ não đang mở, thư mục chứa các bộ não, thư mục nhà. Trước đây nó mở thẳng vào thư mục nhà, mà trên máy chủ chỗ đó thường trống trơn nên bạn không đi tới đâu được. Có nút hình ngôi nhà để quay lại danh sách này khi đã duyệt sâu.
+- Thư mục nào là repo git thì có dấu riêng ngay trong danh sách, và rê chuột vào một dòng là thấy đường dẫn đầy đủ.
+
+## [0.63.5] - 2026-09-22
+### Sửa lỗi
+- **Bấm một file trong mục Coding giờ mở ra được.** Trước đó bấm file trong cây thư mục, hay bấm chip file đang mở ở thanh đính kèm, đều không có gì xảy ra và cũng không báo lỗi gì. Nay mở đúng trình sửa như bên Trò chuyện.
+- **Thấy được mức quyền ngay khi chưa gắn thư mục.** Chip Plan / Tự động / Toàn quyền trước đây chỉ hiện sau khi gắn thư mục, trong khi mức quyền đã có hiệu lực ngay từ câu chat đầu tiên. Tức là bạn đang chạy ở một mức mà mình không nhìn thấy và không đổi được.
+- **Icon nhóm Code trở lại hình file mã** thay cho cái cờ lê, vì cờ lê nói về sửa chữa và cài đặt chứ không nói về mã nguồn.
+
+## [0.63.4] - 2026-09-22
+### Cải thiện
+- **Thêm thư mục ở mục Coding giờ là bấm chọn, không phải gõ đường dẫn.** Bấm "Thêm thư mục" là mở ra một hộp duyệt thư mục: bấm vào để đi vào, bấm `.. (lên trên)` để ra, thư mục nào là repo git thì có dấu riêng. Ai đã có sẵn đường dẫn trong tay thì dán vào ô trên cùng rồi Enter vẫn nhanh như trước.
+- Chọn sai thì hộp **giữ nguyên và báo lỗi tại chỗ**, không đóng lại bắt bạn mở và duyệt lại từ đầu.
+- **Icon mục Coding đổi thành ký hiệu `</>`** cho nhìn là biết ngay, thay cho icon một file mã dễ lẫn với mục Tệp tin.
+
+## [0.63.3] - 2026-09-22
+### Sửa lỗi
+- **Chat qua Antigravity bớt cảnh trả lời nhầm câu hỏi cũ.** Gói lịch sử hội thoại gửi kèm mỗi lượt đang dài quá mức, nên khi phải đi đường file thì model hay đọc được nửa đầu rồi trả lời một câu đã hỏi từ lâu. Nay gói này gọn lại, vẫn giữ phần hội thoại gần nhất.
+- **Skill thứ 21 trở đi không còn bị Javis bỏ quên.** Brain nào có nhiều skill thì trước đây Javis chỉ nhìn thấy 20 cái đầu theo bảng chữ cái, những cái tên vần sau coi như không tồn tại. Nay Javis nhìn thấy nhiều hơn, và ưu tiên đúng những skill bạn hay dùng.
+- **Plugin chặn được một hành động sai trước khi nó xảy ra.** Phần mở rộng của Javis vốn chỉ đứng nhìn rồi ghi sổ; nay nó dừng được một lời gọi sai và nói rõ lý do. Plugin viết hỏng thì Javis vẫn chạy bình thường chứ không đứng im.
+
+## [0.63.2] - 2026-09-22
+### Cải thiện
+- **Cột trái của mục Coding giờ là đúng cột hội thoại bên Trò chuyện**: có tab Hội thoại và Thư mục, ô tìm, ghim, gom nhóm, chia theo ngày, đổi tên, xoá. Không còn một danh sách rút gọn riêng nữa.
+- **Thêm chế độ Plan.** Ba chế độ đọc là Plan, Tự động, Toàn quyền, mỗi cái có một dòng nói rõ nó cho làm gì. Plan không chỉ khoá việc sửa file mà còn bảo Javis đọc mã rồi trả về một kế hoạch để bạn duyệt.
+- Javis giờ được nói rõ trong mỗi lượt là nó đang đứng ở thư mục nào và nhánh nào, nên bớt hẳn chuyện đoán nhầm đường dẫn.
+
+## [0.63.1] - 2026-09-22
+### Cải thiện
+- **Mục Coding: vào là nhắn được ngay.** Bản trước chặn bằng màn "Chưa có repo nào", phải khai một repo mới gõ được câu đầu tiên. Nay mở trang là có sẵn một việc, gắn thư mục lúc nào cũng được; chưa gắn thì Javis làm trong bộ não như mọi cuộc trò chuyện khác.
+- **Thêm THƯ MỤC, không bắt phải là repo git.** Thư mục script, thư mục tài liệu, dự án mới tinh đều dùng được. Có git thì Javis tự nhận ra và mở thêm nhánh, worktree, điểm hồi; không có thì ba thứ đó ẩn đi chứ không báo lỗi.
+- **Cột trái giờ liệt kê VIỆC đang làm** chứ không phải danh sách thư mục, kèm tên thư mục nhỏ ở dưới mỗi việc. Đổi thư mục giữa chừng cũng được.
+- Ô nhập đường dẫn nằm gọn trong app thay vì hộp thoại của trình duyệt, và icon của mục đổi cho đúng việc (bản trước là icon nhánh git).
+
+## [0.63.0] - 2026-09-22
+### Thêm mới
+- **Mục Coding mới** trong nhóm Code trên thanh bên. Khai báo repo của bạn một lần, rồi chat như bình thường: Javis làm việc NGAY TRONG repo đó thay vì trong bộ não, nên nó đọc đúng file, chạy đúng test, không còn đọc nhầm cây thư mục.
+- Ngay trên ô nhập có một hàng nút nhỏ cho biết và đổi được: repo nào, nhánh nào, có worktree riêng không, mức quyền tới đâu. Nút chọn model vẫn là nút cũ, không mọc thêm cái thứ hai.
+- **Worktree riêng cho từng phiên**: hai việc chạy song song trên cùng một repo không còn giẫm chân nhau. Còn sửa dở thì Javis từ chối gỡ và nói rõ đang giữ ở đâu.
+- **Điểm hồi**: đặt một mốc trước khi để Javis sửa, hỏng thì kéo repo về mốc đó. Bỏ repo khỏi Javis không xoá gì trên đĩa.
+
+## [0.62.6] - 2026-09-22
+### Sửa lỗi
+- **Cài Javis ra màn hình chính máy tính bảng thì xoay ngang được rồi.** Trước đây app tự khai với hệ điều hành là "chỉ chạy dọc", nên xoay ngang tablet là Android ép giao diện vào một cột hẹp giữa màn, hai bên mờ đi. Nay app xoay theo máy: dọc thì dọc, ngang thì bung hết chiều ngang.
+- Trên máy đã cài icon Javis từ trước, gỡ icon cũ rồi **Thêm vào màn hình chính** lại một lần để máy đọc bản khai mới.
+
+## [0.62.5] - 2026-09-21
+### Sửa lỗi
+- **Gỡ mục "Chatbot" lạc vào cuối nhóm Hệ thống** trên thanh bên, cạnh Tài khoản. Nó đáng lẽ đã bị ẩn từ 0.61.0 khi Chatbot gộp thành tab, nhưng bộ lọc bỏ sót đúng nhánh này nên nó vẫn hiện suốt.
+### Cải thiện
+- **Đổi tên cho gọi đúng việc.** Mục trên thanh bên: **Hội thoại** thành **Chatbot**. Ba tab bên trong: **Hòm thư bot**, **Tài khoản bot**, **Tạo chatbot**.
+- Nói "hòm thư bot", "tài khoản bot" hay "tạo chatbot" cũng mở đúng chỗ.
+
+## [0.62.4] - 2026-09-21
+### Cải thiện
+- **Tab "Kênh" đổi tên thành "Tài khoản bot".** Gọi đúng thứ nằm trong đó: các tài khoản bot Telegram, Zalo Bot và Zalo cá nhân mà khách nhắn tới.
+- **Mỗi brain chỉ thấy tài khoản bot của brain mình.** Trước đây tab này trộn tài khoản của mọi brain nên nhìn không biết cái nào là của mình. Thêm tài khoản ở brain nào thì nó thuộc brain đó; form tạo bot cũng chỉ cho chọn tài khoản trong brain đang mở.
+- Có nút **Xem mọi brain** để tìm lại một tài khoản lỡ thêm nhầm chỗ, và trong ô Sửa tài khoản có thêm mục **Brain của tài khoản** để chuyển nó sang brain khác mà không mất lịch sử hội thoại.
+- Tài khoản cũ không đoán ra được chủ thì hiện ở **mọi** brain kèm ghi chú, để không có token nào tồn tại mà không màn hình nào thấy.
+
+## [0.62.3] - 2026-09-21
+### Thêm mới
+- **Chatbot giờ chạy đúng model bạn chọn cho trợ lý.** Trước đây bot mượn lời dặn của trợ lý nhưng lại luôn chạy model chính, nên chọn model cho trợ lý xong bật bot lên là nó nói chuyện với khách bằng một model khác hẳn. Nay bot dùng đúng model trong ô Model của trợ lý đó, và thẻ ở trang Chatbot ghi luôn model ấy để bạn nhìn là biết.
+### Cải thiện
+- **Ô chọn Model của trợ lý nay giống hệt ô chọn model dưới khung chat**: có ô tìm, và nhà cung cấp chưa cắm API key vẫn hiện ra kèm ổ khoá thay vì bị giấu đi, bấm vào là sang thẳng trang Models để mở khoá.
+- Dòng **Mặc định** nói thật hơn: để Mặc định thì trợ lý chạy model chính khi chat và khi làm chatbot, còn khi nằm trong một quy trình thì chạy model việc nền.
+
+## [0.62.2] - 2026-09-21
+### Sửa lỗi
+- **Xoá một tài khoản kênh hết vòng vo.** Trước đây tài khoản đang có bot trực thì Javis đá bạn sang tab Chatbot, mà bot ấy thường nằm ở brain khác nên chỉ nhận được câu "đổi brain rồi thử lại" và không biết đổi sang brain nào. Nay chỉ một câu hỏi: gỡ khỏi bot đó rồi xoá luôn? Đồng ý là xong.
+- **Thẻ ở tab Kênh nói rõ bot đang trực nằm ở brain nào**, ví dụ `Bot trực: Chốt đơn · brain Shop Giày`. Tab này luôn hiện tài khoản của mọi brain vì một token là tài khoản có thật ngoài đời, không thuộc brain nào; giờ thì nhìn là biết bot của nó sống ở đâu.
+- Gỡ tài khoản cuối cùng của một bot thì Javis nói trước, và tắt bot đó đi thay vì để nó khoe đang bật mà không còn chỗ nào để trực. Bản ghi bot vẫn còn, gắn tài khoản khác vào là bật lại được.
+
+## [0.62.1] - 2026-09-21
+### Sửa lỗi
+- **App HTML chia sẻ ra ngoài hết trắng trang.** Trang mở qua link `/s/` chạy trong hộp cách ly nên mọi câu lệnh nhớ tông màu hay bộ lọc đều ném lỗi và giết cả trang, dù dữ liệu bên cạnh đã tải xong. Nay Javis tự vá chỗ đó khi phục vụ trang: app chạy mượt, mà lớp cách ly vẫn nguyên vẹn không nới một chút nào.
+- **Hộp Xoá kết nối được dựng lại** theo đúng mẫu hộp thoại của trang Kho: đọc một mạch từ trên xuống, nút bấm dính đáy, và trên điện thoại thì trượt lên từ mép dưới. Ô tích nhỏ xíu thành một hàng gạt bấm được cả dải.
+### Cải thiện
+- **Mở một khối mã trong ghi chú giờ hiện hộp giữa màn hình**, không còn dính mép phải. Chữ tự xuống dòng cho vừa khung nên không phải kéo ngang để đọc, bấm ra ngoài là đóng, và có nút `Xuống dòng` để tắt đi khi cần xem nguyên dòng.
+
+## [0.62.0] - 2026-09-21
+### Thêm mới
+- **Trợ lý có tủ tài liệu riêng.** Mở `Cài đặt trợ lý` ở trang Cộng sự, bấm `Mở khung tài liệu & link` để gắn file trong brain hoặc dán đường link cho riêng trợ lý đó. Trợ lý luôn thấy danh sách này, ở mọi cuộc trò chuyện với nó lẫn mọi bước quy trình gọi tới nó.
+- **Ghim một file là trợ lý đọc sẵn.** Bấm ghim thì nội dung file được nạp thẳng vào đầu mỗi lượt, không phải chờ nó tự mở. Đúng luật ghim của khung project, và tài liệu đi theo file trợ lý nên xuất trợ lý ra hay copy brain sang máy khác vẫn còn nguyên.
+### Cải thiện
+- **Bỏ ô Nhóm trong Cài đặt trợ lý.** Gom nhóm giờ chỉ còn một chỗ là thanh nhóm ở cột trái. Trước đây hai chỗ cùng đặt một thứ, nên đổi nhóm ở cột trái rồi bấm Lưu trong form là nhóm nhảy về giá trị cũ mà không báo gì.
+### Sửa lỗi
+- **Viền cam khi bấm vào ô nhập hết bị lẹm** ở cột cài đặt bên phải trang Cộng sự.
+
+## [0.61.5] - 2026-09-21
+### Sửa lỗi
+- **Trang Mức dùng mở ra là thấy số ngay.** Trước đây mỗi lần vào trang phải đợi Javis đọc lại toàn bộ nhật ký phiên rồi mới vẽ, mà trên máy dùng nhiều thì đó là 602 MB và hơn 26 giây ngồi nhìn chữ "Đang dựng chỉ số token...". Nay trang vẽ ngay bằng số đã có, phần quét chạy lặng lẽ ở nền và chỉ cập nhật lại khi thật sự có số mới.
+- **Việc quét nhật ký nhẹ hẳn.** Javis giờ đọc tiếp từ chỗ lần trước dừng thay vì đọc lại cả file từ đầu, nên một phiên đang chạy ghi thêm vài dòng không còn kéo theo cả chục megabyte đọc lại. Đo trên máy chủ dự án: 26,7 giây xuống còn chưa tới một phần mười giây.
+- Số liệu token vẫn đếm y như cũ, không sai lệch một con số nào: đã dựng lại chỉ số từ đầu bằng cả mã cũ lẫn mã mới trên cùng 651 file để đối chiếu.
+
+## [0.61.4] - 2026-09-21
+### Sửa lỗi
+- **Trang Cập nhật hết ngồi chờ.** Trước đây mỗi lần mở trang phải tải gần 2 MB nhật ký về rồi mới vẽ được dòng nào, nên nó nằm im ở chữ "Đang tải nhật ký cập nhật..." đủ lâu để trông như hỏng. Nay trang chỉ lấy đúng 20 bản đang xem: mở xong gần như tức thì, bấm sang trang cũ hơn cũng vậy.
+- **Nút "Kiểm tra lại" lấy đúng bản mới nhất.** Nó ép máy chủ bỏ bản nhật ký đang giữ sẵn rồi hỏi lại GitHub, thay vì đọc lại bản cũ trong bộ nhớ.
+- **Javis hết nói "chưa biết đang làm việc trên brain nào"** khi bạn tự mở một phiên Codex rồi nhờ nó giao việc hay xem lịch. Nó tự lấy brain đang mở, và ghi rõ trong câu trả lời là đang chạy trên brain nào để bạn không bao giờ phải đoán.
+
+## [0.61.3] - 2026-09-21
+### Sửa lỗi
+- **Javis không còn nói "chưa có dữ liệu" ngay trên bộ não của bạn.** Câu nào nhắc tới dữ liệu, dự án, quy trình, skill hay trợ lý giờ luôn đi đường đầy đủ, có tool và có bộ não. Trước đây mức Siêu tiết kiệm nhận nhầm chúng là chat vặt rồi trả lời chay, thậm chí bảo bạn tự dán tài liệu vào.
+- **Câu nói tiếp không còn mất mạch.** Nhắn "ừ, vậy viết bài đi" sau khi đã bàn xong chủ đề thì Javis viết tiếp, thay vì hỏi lại "bạn muốn viết về chủ đề gì".
+- **Gọi đúng tên một quy trình của bạn thì Javis nhường về đường có chạy được quy trình đó**, thay vì trả lời chay vì quy trình vốn không nằm trong danh sách tool.
+- Chat thường (giải thích, dịch, đặt tiêu đề, nghĩ ý tưởng) vẫn đi đường tắt tiết kiệm như cũ.
+
+## [0.61.2] - 2026-09-21
+### Sửa lỗi
+- **Thẻ ở tab Kênh hết tràn chữ.** Câu lỗi dài (nhất là lỗi MCP, một cục chữ liền không có dấu cách) trước đây chạy ra ngoài thẻ và đè lên thẻ bên cạnh. Nay nó xuống dòng gọn trong thẻ, di chuột vào đọc được câu đầy đủ.
+- **Nút Xoá tài khoản kênh hiện trở lại.** Trước đây tài khoản nào đang có bot trực thì nút Xoá biến mất, không một lời giải thích. Nay nút luôn có: bấm vào là Javis nói rõ bot nào đang giữ và mở thẳng form sửa bot đó để bạn bỏ chọn.
+- Thẻ Zalo cá nhân có nút **Mở Kết nối** để sang đúng chỗ ngắt kết nối, thay vì không có lối nào.
+- Nút `Mở Kết nối` trong bảng Thêm tài khoản hết bị bóp méo thành hai dòng.
+
+## [0.61.1] - 2026-09-21
+### Cải thiện
+- **Tạo bot giờ đi hai bước.** Bước 1 chỉ hỏi bot trả lời ở tài khoản nào, bước 2 mới đặt tên và cài đặt. Sửa bot thì vào thẳng bước 2.
+- **Bớt chữ ở chỗ chọn kênh.** Hướng dẫn lấy token của từng kênh không còn nằm sẵn trong form tạo bot nữa, chỉ hiện khi bạn thật sự chọn kênh đó. Cần nối kênh mới thì bấm `Kết nối kênh mới` ngay trong form.
+- **Danh sách kênh xếp dọc**, mỗi kênh một hàng thay vì lưới hai cột chật. Thêm kênh về sau vẫn đọc được trên điện thoại.
+- **Ngôn ngữ, chuyển người thật và nhóm** gấp vào mục `Cài đặt thêm`. Mức quyền vẫn nằm ngoài, không giấu.
+
+## [0.61.0] - 2026-09-21
+### Thêm mới
+- **Chatbot và Hội thoại về chung một trang.** Mục Hội thoại trên thanh bên giờ có ba tab: Hộp thư (tin khách), Kênh (mọi tài khoản khách nhắn tới) và Chatbot (nhân viên AI). Nói "mở chatbot" vẫn tới đúng tab.
+- **Trả lời khách ngay trong Hộp thư.** Mở một cuộc chat, gõ câu trả lời ở ô dưới cùng rồi Enter. Gửi từ đây là bạn tiếp quản cuộc đó, bot im cho tới khi bạn bấm Trả lại AI. Zalo cá nhân gửi dưới tên chính bạn, ô soạn tin nói rõ.
+- **Tab Kênh đối xử mọi kênh như nhau.** Bot Telegram, bot Zalo, Zalo cá nhân đều là một thẻ cùng kiểu: trạng thái, bot đang trực, số hội thoại, năng lực (vào nhóm, gửi file, trả lời từ Javis). Thêm tài khoản bằng token ngay tại đây; kênh mới về sau chỉ việc xuất hiện thêm.
+### Cải thiện
+- **Một bot trực được nhiều tài khoản.** Token tách khỏi bot thành tài khoản kênh; form tạo bot tích chọn tài khoản có sẵn hoặc dán token mới. Bot cũ tự chuyển sang mô hình mới, hội thoại và token giữ nguyên.
+
+## [0.60.1] - 2026-09-20
+### Thêm mới
+- **Gói Quản lý khách hàng (CRM) trong Kho cài đặt.** Đặt lên hộp thư Hội thoại: hỏi Javis khách nào chờ lâu chưa được trả lời, một khách đã hỏi gì, gắn tag VIP, ghi chú, thống kê khách mới theo tuần, xuất Excel. Kèm trợ lý chăm sóc khách và quy trình rà soát mỗi ngày. Cần bản này để cài.
+
+## [0.60.0] - 2026-09-20
+### Thêm mới
+- **Trang Hội thoại (nhóm Năng lực): hộp thư khách.** Mọi tin khách nhắn cho bot Telegram hay Zalo Bot của bạn được lưu thành từng cuộc hội thoại, đọc lại được ngay trong Javis: ai nhắn, kênh nào, bot trả lời gì, cuộc nào chưa đọc. Trên điện thoại là một cột, bấm vào mở lịch sử.
+- **Tiếp quản một cuộc chat.** Bấm Tiếp quản là bot im ở đúng khách đó để bạn tự trả lời trong app, xong bấm Trả lại AI. Thẻ bot ở trang Chatbot có thêm số hội thoại hôm nay và nút mở thẳng hộp thư.
+- **Zalo cá nhân thành một kênh của hộp thư.** Tài khoản đã quét QR ở trang Kết nối có công tắc Ghi hội thoại; bật lên là tin khách nhắn vào Zalo của bạn cũng về hộp thư, chỉ lưu từ lúc bật. Mặc định tắt, bot chưa tự trả lời qua kênh này.
+- Nói "mở hộp thư khách" hoặc "xem tin nhắn khách" là Javis mở đúng trang. Hướng dẫn đầy đủ ở tài liệu số 28.
+
+## [0.59.50] - 2026-09-20
+### Cải thiện
+- **Giao diện tiếng Anh hết lọt chữ Việt:** chip lọc danh mục ở trang Kết nối (Văn phòng, Nhắn tin, Quảng cáo...), cột nhóm bên trái Javis Store và nhóm "Khác" trên thanh bên nay đổi theo ngôn ngữ đã chọn. Tên nhóm do gói cộng đồng tự đặt vẫn giữ nguyên.
+- Lời nhắc tải bản .dmg trong lệnh cài Ollama trên Mac cũng có bản tiếng Anh.
+
+## [0.59.49] - 2026-09-20
+### Cải thiện
+- **Trang Chia sẻ: ô tìm hiện ngay từ khi có 2 link,** không đợi tới 9 link như trước, và khi gõ có dòng "Khớp x / y link" bên dưới. Danh sách vẫn chia trang 20 link. Trên điện thoại đường dẫn, link và nút Chép/Thu hồi to hơn để đọc và chạm dễ.
+
+## [0.59.48] - 2026-09-20
+### Sửa lỗi
+- **Việc nền dài không còn bị cắt ở phút 15 rồi chạy lại từ đầu.** Trần một lần chạy giờ theo đúng trần của engine (mặc định 1 giờ), và khi hết giờ Javis giết hẳn tiến trình cũ trước khi thử lại, không còn hai bản cùng chạy. Tắt hay cập nhật máy chủ giữa chừng cũng không huỷ câm việc đang chạy nữa: việc về hàng đợi và tự chạy lại sau khi lên.
+- **Chat với Claude Code hay Codex khi hết lượt gói: hiện đúng thẻ hết lượt kèm giờ tự chạy lại,** thay vì một bong bóng tiếng Anh trông như câu trả lời. Grok Build mất mạch cũ sau khi cập nhật CLI thì tự mở mạch mới thay vì đỏ mãi.
+- **Nhắc hẹn và loop không còn chặn nhau.** Một loop chạy 25 phút từng làm nhắc 7 giờ sáng đến trễ; nay việc dài chạy nền, nhắc giờ nào bắn giờ đó. Nhắc lặp đã huỷ trong lúc đang chạy không sống lại; loop gặp lỗi engine không lặp vô hạn mà ghi lỗi và tự tạm dừng như thiết kế.
+- **Trang Cộng sự:** mở hội thoại cũ từ tab Lịch sử rồi sang Trò chuyện không còn gửi nhầm vào phiên trợ lý; bấm Lưu ở cột Cài đặt không còn kéo cộng sự về nhóm cũ sau khi vừa chuyển nhóm. Giao việc trùng tên với việc đang kẹt thì Javis nói thẳng thay vì báo "đã giao".
+### Cải thiện
+- **Trên điện thoại,** nút ghim/chuyển/đổi tên/xoá của hàng hội thoại và nút chép mã luôn hiện (trước chỉ hiện khi rê chuột). Chữ ở cột cộng sự và bảng nhóm lên cỡ 16px. Lỗi engine không kèm thêm bong bóng "(không có nội dung)". Giờ hẹn chạy lại của việc nền hiện theo múi giờ của bạn.
+
+## [0.59.47] - 2026-09-20
+### Cải thiện
+- **Bộ chọn nhóm ở trang Cộng sự giống bộ chọn project bên Trò chuyện.** Bấm vào thanh nhóm là mở bảng: Tất cả nhóm, Chưa xếp nhóm, rồi từng nhóm kèm số người và nút ba chấm để đổi tên hoặc xoá nhóm (xoá chỉ đưa người về Chưa xếp nhóm), cuối bảng là "+ Nhóm mới". Nút tạo nhóm cũng đứng ngay cạnh thanh. Nhóm vừa tạo chưa có ai vẫn hiện trong bảng và trong danh sách để bạn kéo cộng sự vào.
+
+## [0.59.46] - 2026-09-20
+### Sửa lỗi
+- **Link chia sẻ của ứng dụng .html giờ đọc được file dữ liệu kèm theo.** Trước đây app đọc data.json hay .csv bên cạnh, chia sẻ xong mở ra trống trơn: đường dẫn tương đối trỏ sai chỗ, và trang chạy trong hộp cách ly nên bị trình duyệt chặn đọc. Nay cả hai đã sửa; app cần nằm trong một thư mục riêng (ví dụ apps/ten-app/) để chỉ file trong thư mục đó được mở, ghi chú ngoài thư mục vẫn kín.
+### Thêm mới
+- **Trang Cộng sự gom cộng sự theo nhóm.** Chọn "Tất cả nhóm" là danh sách chia thành từng nhóm, bấm tiêu đề để thu gọn hay mở, số người hiện bên phải. Nút "..." trên tiêu đề cho đổi tên cả nhóm hoặc chỉ xem nhóm đó. Nhóm là gì tuỳ bạn đặt (phòng ban, dự án, mục đích), chuyển cộng sự sang nhóm khác hay lập nhóm mới vẫn ở menu "..." của từng cộng sự.
+
+## [0.59.45] - 2026-09-20
+### Cải thiện
+- **Chat dài với Antigravity: câu hỏi chép lên dòng lệnh dài gấp 4 lần và giữ cả đầu lẫn cuối.** Khi bạn dán một bài dài rồi chốt yêu cầu ở câu cuối, bản trước chỉ chép 1500 ký tự đầu nên yêu cầu ở cuối bị rơi mất. Giờ chép tới 6000 ký tự, dài hơn thì giữ phần mở đầu và phần chốt, chỉ lược đoạn giữa (vẫn có đủ trong file ngữ cảnh).
+
+## [0.59.44] - 2026-09-20
+### Sửa lỗi
+- **Việc nền chạy bằng Antigravity CLI ở mức auto đã dùng được shell và ghi file thật.** Trước đó Javis truyền hai cờ đi cùng nhau khiến agy tự huỷ tool sau 5 giây, việc Kanban, Loop và bước Workflow chạy rồi báo "không khởi động được lớp công cụ" mà log không có lỗi nào. Giờ mức auto chỉ giữ cờ tự duyệt, rào hành động ra ngoài vẫn ở hub như cũ.
+- **Chat dài với Antigravity không còn trả lời lạc đề sang câu hỏi cũ.** Khi hội thoại dài phải đi qua file ngữ cảnh, lời nhắc trên dòng lệnh lại dán nhầm đoạn đầu lịch sử làm "tin nhắn mới nhất", nên model đọc dở file là trả lời một câu từ chiều. Nay lời nhắc chỉ chép đúng câu vừa hỏi, và lịch sử gửi lại mỗi lượt được gọn hơn.
+- **Việc nền vấp "hết lượt gói" nay tự đợi đúng giờ gói mở lại rồi chạy tiếp,** không tính vào số lần thử, thay vì thử lại liên tục trong vài phút rồi nằm chặn vĩnh viễn. Thẻ việc ghi rõ gói nào hết lượt và mấy giờ chạy lại; kéo việc về Sẵn sàng là chạy ngay.
+### Cải thiện
+- **Cộng sự không còn từ chối việc "ngoài vai" hay bịa đã giao cho agent khác.** Prompt của mọi cộng sự nói rõ họ có toàn bộ công cụ của Javis (Drive, Composio, giao việc nền, nhắc hẹn...), chỉ được nói đã giao việc khi vừa gọi tool thật, và không hẹn "có kết quả em báo lại".
+
+## [0.59.43] - 2026-09-20
+### Sửa lỗi
+- **Ảnh trong file .md giờ hiện ra.** Trước đây Javis tìm mọi ảnh từ gốc brain, nên note nằm trong thư mục con mà chèn ảnh cạnh nó thì chỉ thấy một ô xám. Giờ Javis tìm cạnh chính file note trước, đúng như Obsidian và VS Code, rồi mới tìm ở gốc brain và trong attachments.
+- Áp dụng cho cả ảnh chèn kiểu `![tên](anh.jpg)` lẫn kiểu `![[anh.jpg]]`, ở cả hai khung mở file, và cả trên trang chia sẻ công khai.
+
+## [0.59.42] - 2026-09-18
+### Thêm mới
+- **Tìm kiếm và phân trang ở trang Chia sẻ.** Gõ tên file hoặc tên thư mục là lọc ngay, gõ không dấu vẫn ra file có dấu, gõ nhiều từ thì thu hẹp dần. Danh sách chia thành từng trang 20 link nên dù chia sẻ vài trăm file trang vẫn mở nhanh. Ô tìm chỉ xuất hiện khi danh sách đã đủ dài.
+
+## [0.59.41] - 2026-09-18
+### Sửa lỗi
+- **Nút Chia sẻ đổi sang icon chia sẻ riêng.** Trước đó nó đeo icon mắt xích y hệt nút Chèn liên kết ở thanh định dạng ngay bên dưới, nhìn vào không phân biệt được cái nào ra cái nào. Trang Chia sẻ ở thanh bên cũng đổi, vì nhóm Kết nối đã dùng icon mắt xích đó rồi.
+
+## [0.59.40] - 2026-09-18
+### Sửa lỗi
+- **Nút Chia sẻ giờ có ở mọi khung mở file.** Bản trước chỉ gắn nút vào khung sửa bung giữa màn hình, nên mở file từ cây thư mục bên trái, đường hay dùng nhất, lại không thấy nút đâu. Giờ mở file kiểu nào cũng có nút Chia sẻ trên thanh công cụ, dùng chung một đường link và một nút Thu hồi.
+
+## [0.59.39] - 2026-09-18
+### Thêm mới
+- **Nút Chia sẻ trong khung mở file.** Bấm một cái là có đường link gửi cho ai cũng xem được, không cần đăng nhập, không cần tài khoản Javis. Link mở ra **bản hoàn thiện** chứ không phải mã nguồn: file .html chạy đúng giao diện của nó, file .md hiện đậm nghiêng, danh sách, bảng và ảnh. Hợp để làm một ứng dụng nhỏ rồi gửi cho người khác xem ngay.
+- **Link trỏ tới file thật.** Bạn sửa file thì người xem tải lại trang là thấy bản mới, không phải chia sẻ lại. Bấm Chia sẻ lần nữa trên cùng file vẫn ra đúng link cũ, nên link đã gửi đi không bao giờ bị thay.
+- **Thu hồi bất cứ lúc nào** bằng nút ngay cạnh link. Thu hồi xong là link cũ chết hẳn với tất cả mọi người.
+- **Trang Chia sẻ mới trong nhóm Hệ thống,** liệt kê mọi link đang sống kèm tên file, đường dẫn và ngày tạo. Đây là chỗ bạn nhìn lại toàn bộ và thu hồi cái nào lỡ quên, vì link không có hạn dùng. Ra lệnh bằng lời "mở trang chia sẻ" cũng tới đúng trang này.
+### Bảo mật
+- Trang chia sẻ chạy trong hộp cách ly, nên nội dung file không đọc được phiên đăng nhập Javis của người mở, kể cả khi chính bạn bấm vào link của mình. Đổi lại, ứng dụng nhỏ trong file .html không dùng được bộ nhớ lưu trữ của trình duyệt.
+- Ảnh và tài nguyên kèm theo chỉ lấy được quanh đúng file được chia sẻ, và chỉ lấy được ảnh, css, js, phông, nhạc, phim. Ghi chú khác trong brain không đọc được qua link.
+
+## [0.59.38] - 2026-09-18
+### Sửa lỗi
+- **Chữ trả lời theo kịp giọng nói.** Bong bóng hiện trọn cụm đang phát, kể cả khi trình duyệt chưa biết thời lượng âm thanh.
+- **Cải thiện phát loa trên iPhone.** Sửa tệp âm thanh dùng để mở quyền phát loa, cho phép thử lại khi bị chặn và khởi tạo âm thanh Live ngay khi bấm mic.
+- **Giữ đủ câu khi mic tự mở lại phiên nghe.** Phần đã chốt được giữ lại, đồng thời gộp chữ tạm trùng với câu đã nhận để tránh lặp trong bong bóng.
+
+## [0.59.37] - 2026-09-18
+### Sửa lỗi
+- **Trang Cài đặt linh vật hết trống trơn.** Bản trước vừa thêm màu mới thì trang này chỉ còn cái tiêu đề, bên dưới không có gì, không báo lỗi gì. Lỗi nằm ở một dòng mã gọi nhầm biến nên cả trang dừng giữa chừng lúc đang vẽ. Nay vẽ đủ lại năm hàng chọn: hình dáng, cỡ, màu thân, màu mắt, cỡ mắt.
+- **Đổi logo thì icon trên tab trình duyệt đổi theo ngay.** Trước đây ảnh trong trang đổi liền còn cái icon nhỏ trên tab vẫn giữ hình cũ cho tới khi app lên bản mới. Giờ tải logo lên hoặc bấm khôi phục là nó đổi luôn, kể cả icon dùng khi bạn thêm Javis vào màn hình chính điện thoại.
+
+## [0.59.36] - 2026-09-18
+### Thêm mới
+- **Thêm 8 màu thân cho linh vật:** Cam, Nắng, Chanh, Bạc hà, Thanh thiên, Chàm, Tím, Ruby. Bảng màu giờ có 20 màu, trải khắp vòng màu thay vì dồn vào mấy tông nâu vàng.
+- **Thêm 5 màu mắt:** Nâu, Xanh dương, Ngọc bích, Tím, Vàng, cạnh Đen và Trắng đã có. Linh vật diễn cảm xúc hoàn toàn bằng mắt nên đổi màu mắt là đổi hẳn tính cách.
+### Sửa lỗi
+- **Giao diện tối hết làm nhợt cả bảng màu.** Bạn chọn Hổ phách mà con pet ra màu vàng, chọn màu nào cũng thấy hao hao nhau một sắc pastel. Lý do: tông tối của mỗi màu được đặt tay và đã trôi khỏi màu gốc, riêng Hổ phách trôi hẳn từ cam sang vàng. Nay tông tối tính thẳng từ tông sáng nên giữ đúng màu, lại còn dịu hơn trước một chút. Giao diện sáng không đổi gì.
+
+## [0.59.35] - 2026-09-18
+### Sửa lỗi
+- **Mic trên điện thoại hết cảnh chỉ nghe được một lần.** Nói xong lượt đầu là Javis điếc, tải lại trang cũng không nghe, phải vào xoá quyền mic rồi cấp lại mới nghe thêm được một lượt nữa. Không phải lỗi quyền: Javis mở hai đường thu mic cùng lúc, mà điện thoại chỉ cho một đường thu. Nay lúc nghe chỉ còn một đường, nên nói bao nhiêu lượt cũng được và tải lại trang vẫn nghe bình thường.
+- **Đổi lại, trên điện thoại quả cầu không còn sáng theo giọng lúc bạn đang nói.** Ngắt lời khi Javis đọc thì vẫn chạy y như cũ. Trên máy tính không có gì thay đổi.
+
+## [0.59.34] - 2026-09-18
+### Sửa lỗi
+- **Đăng nhập ChatGPT ở Javis không còn đá văng Codex trên máy.** Mỗi lượt chat Javis lại ghi đè file đăng nhập của Codex, kể cả khi mã trong tay đã hỏng, nên hai bên tranh nhau một mã và bên dùng sau thì mất phiên. Nay Javis đọc file đó trước: Codex vừa làm mới mã thì Javis dùng theo, mã của Javis hỏng thì để nguyên, không ghi gì cả.
+- **Máy đã tự đăng nhập Codex bằng tài khoản khác thì Javis để yên.** Trước đây phiên đó bị xoá lặng lẽ mỗi lần bạn nói chuyện với Javis.
+- **Nút Ngắt kết nối giờ ngắt thật.** Trước nó chỉ xoá phần bên trong Javis, file đăng nhập trên máy vẫn còn nên Codex chạy tiếp bằng tài khoản bạn tưởng đã ngắt. Phiên bạn tự tạo bằng lệnh đăng nhập Codex thì vẫn giữ nguyên.
+
+## [0.59.33] - 2026-09-18
+### Sửa lỗi
+- **Nói bằng mic trên điện thoại hết bị lặp câu.** Nói "Em có nghe thấy anh nói gì không" thì tin gửi đi thành một đoạn dài dằng dặc, câu cứ được chép lại và mỗi lần thêm một chữ. Chrome trên Android trả về cả câu nhiều lần trong một lượt nghe, và Javis nối hết lại thay vì thay thế. Nay chỉ giữ đúng một câu, cả ở bong bóng chữ đang hiện lẫn tin gửi đi.
+
+## [0.59.32] - 2026-09-17
+### Cải thiện
+- **Mở hội thoại dài không còn khựng.** Vào một cuộc chat cũ, Javis chỉ dựng đoạn cuối và tụt thẳng xuống câu trả lời gần nhất. Cuộn lên thì phần cũ tự về dần, từng khúc một, và chỗ bạn đang đọc giữ nguyên chứ không nhảy. Thanh mốc bên phải cũng dài thêm theo.
+- **Trang Kỹ năng có phân trang.** 20 kỹ năng mỗi trang, kèm nút Trước/Sau ở cuối danh sách. Ô tìm và cột nhóm vẫn lọc trên toàn bộ như cũ.
+
+## [0.59.31] - 2026-09-17
+### Sửa lỗi
+- **Linh vật trong ô chọn ở trang Cài đặt hết bị mất một con mắt.** Bản trước vẽ thiếu mắt phải ở mọi khuôn mặt đứng yên: ô chọn hình dáng, ô chọn cỡ mắt, hình nhỏ thay logo trên thanh bên và ảnh đại diện của trợ lý. Con pet ở mép màn hình thì vẫn đủ hai mắt, nên nhìn qua tưởng là cố ý.
+
+## [0.59.30] - 2026-09-17
+### Thêm mới
+- **Linh vật hình ngôi sao.** Một ông sao năm cánh, béo và mũm mĩm, đứng chung hàng với Tròn, Vuông, Tam giác, Mây, Ngũ giác ở trang Linh vật. Trợ lý cũng chọn được hình này làm ảnh đại diện.
+- **Chọn cỡ mắt cho linh vật.** Hàng nút mới ngay dưới Màu mắt: Thường, To, Rất to. Áp cho mọi hình dáng chứ không riêng ngôi sao, và vì nhân vật này diễn cảm xúc hoàn toàn bằng đôi mắt nên kéo to lên là đổi hẳn tính cách.
+
+## [0.59.29] - 2026-09-17
+### Sửa lỗi
+- **Việc chạy nền lúc nói chuyện ở lại đúng khung chat đang nói.** Trước đây mỗi lần giao việc nền là Javis mở thêm một hội thoại riêng cho nó, nên nói chuyện một buổi là thanh Lịch sử đầy những cuộc chỉ có một hai tin. Nay kết quả về thẳng khung bạn đang nói, và việc nền còn đọc được mạch trò chuyện ở đó nên trả lời sát ý hơn.
+- **Hết nhãn "TG" dán nhầm.** Hội thoại sinh ra từ Zalo, từ terminal, từ bot riêng và từ việc nền đều bị đánh dấu là Telegram. Nay mỗi cuộc mang đúng nhãn kênh của nó, nên lọc theo kênh mới ra đúng thứ cần tìm.
+
+## [0.59.28] - 2026-09-17
+### Thêm mới
+- **Javis lọc tạp âm khỏi câu bạn nói.** Mic bật liên tục nên tiếng TV, người khác trong phòng hay tiếng bạn lẩm bẩm cũng bị chép thành chữ và đi thẳng vào khung chat. Nay Javis cắt phần không nói với nó ra khỏi câu rồi mới trả lời, còn lượt nào chỉ toàn tạp âm thì bỏ hẳn: không đọc, không để lại bong bóng, chỉ hiện một dòng báo rồi tự tắt sau vài giây.
+- **Ô "Lọc tạp âm" trong thẻ Chế độ nói chuyện,** mặc định bật. Thấy Javis bỏ nhầm câu của mình nhiều quá thì tắt đi, lúc đó mọi câu đều được trả lời nguyên văn như trước. Chỉ chạy ở chế độ Làn nhanh.
+### Sửa lỗi
+- **Nói liên tục quá 30 giây thì Javis chốt luôn, không chờ nữa.** Trước đây hễ còn tiếng là đồng hồ "im lặng rồi gửi" lại lùi, nên ở phòng có TV nó không bao giờ nổ: chữ dồn thành một lượt dài cả trang và suốt lúc ấy Javis trông như điếc.
+
+## [0.59.27] - 2026-09-17
+### Sửa lỗi
+- **Khởi động cùng Windows: khi Windows đang chặn mục khởi động, nút trên thẻ đổi thành "Bật lại để sửa".** Trước đây thẻ báo "bật nhưng không chạy" mà nút duy nhất lại là Tắt, nên phải tự đoán ra hai cú bấm Tắt rồi Bật; mục của Javis trên máy chủ dự án bị Task Manager tắt từ cuối tháng 7 mà không ai nhận ra.
+### Cải thiện
+- **Mở một quy trình là cột phải về ngay Cài đặt, nơi có nút Chạy quy trình.** Trợ lý vẫn mở ở Lịch sử như trước, hai loại nhớ tab riêng nên không còn đè lên nhau.
+- **Ba mục micro (ngôn ngữ nghe, im lặng rồi gửi, ngắt lời) nằm chung thẻ Chế độ nói chuyện,** nút Lưu chế độ ở cuối thẻ. Mặc định mới: chế độ Làn nhanh, im lặng rồi gửi 1,2 giây.
+- **Ngôn ngữ nghe có thêm "Đa ngôn ngữ · không cố định".** Máy nghe Groq Whisper tự nhận ra tiếng đang nói; máy nghe của trình duyệt chỉ theo được ngôn ngữ của trình duyệt, thẻ nói rõ điều đó.
+
+## [0.59.26] - 2026-09-17
+### Sửa lỗi
+- **File đính kèm trong hội thoại của trợ lý và quy trình hết bị cắt cụt.** Dải đính kèm ngay trên ô nhập bị bóp lại khi khoang giữa thiếu chỗ, nên chip file chỉ lộ nửa trên và trông như nằm khuất sau dải model. Nay nó luôn cao đủ, đoạn hội thoại nhường chỗ thay vì ngược lại.
+### Thêm mới
+- **Nút chép đường dẫn ở mọi hàng trong khung File & link.** Bấm một cái là có đúng đường dẫn file (hoặc địa chỉ link) trong bảng nhớ tạm để dán đi chỗ khác, không phải bôi đen dòng chữ nhỏ vốn hay bị cắt đuôi bằng ba chấm. Có ở cả hàng bạn tự gắn lẫn hàng Javis tự nhặt ra.
+- **Thanh trình sửa file cũng có nút chép đường dẫn,** ngay cạnh nút Lưu.
+### Cải thiện
+- **Nút File & link mang cùng một icon ghim giấy ở cả ba màn** (Đồ thị, Trò chuyện, Cộng sự), thay vì mỗi trang một kiểu cho cùng một thứ.
+
+## [0.59.25] - 2026-09-16
+### Cải thiện
+- **Khung chat hiện câu bạn ĐỊNH NÓI, không phải chữ thô máy nghe.** Ở làn nhanh, bộ não giọng viết lại câu vừa nghe đúng ý bạn (sửa mọi từ tiếng Anh bị chép sai, không chỉ "Javis") rồi mới trả lời. Bong bóng của bạn đổi sang câu đó, bên dưới ghi nhỏ "Máy nghe: ..." để đối chiếu xem Javis hiểu đúng chưa. Tải lại trang vẫn thấy câu đã diễn giải.
+- Ở chế độ chuẩn (bộ não chính), câu được sửa bằng bộ từ hay nghe nhầm cũng hiện lại trong bong bóng như vậy.
+
+## [0.59.24] - 2026-09-16
+### Cải thiện
+- **Nói lẫn tiếng Anh, Javis vẫn hiểu đúng tên.** Khi bạn gọi "Javis" mà máy nghe chép thành "David", "Jarvis" hay "Gia vít", Javis tự sửa lại theo âm và ngữ cảnh trước khi hiểu câu, nên hết cảnh trả lời "David là ai". Tên bạn của bạn ("nhắn cho David") thì để yên.
+- **Ô "Từ hay nghe nhầm" ở thẻ Giọng nói trong Cài đặt.** Gõ tên công cụ, tên dự án, tên người hay dùng, ngăn bằng dấu phẩy. Javis mồi những từ này cho máy nghe Groq để viết đúng chính tả, và sửa theo ngữ cảnh cho cả máy nghe của trình duyệt lẫn tin thoại Telegram, Zalo.
+- Bộ não giọng làn nhanh được dặn rằng câu đến từ máy nghe và phải hiểu theo ý người nói, không bám nghĩa đen của từ nghe sai.
+
+## [0.59.23] - 2026-09-16
+### Sửa lỗi
+- **Làn nhanh rơi về bộ não chính thì Javis nói rõ vì sao, ngay trong khung chat.** Trước đây khi bộ não giọng lỗi (chưa cài, chưa đăng nhập, hết hạn mức, mất mạng), Javis lặng lẽ chuyển câu bạn vừa nói sang bộ não chính: bật mic, nói, rồi chờ hàng chục giây như thể chưa từng có làn nhanh, không một dòng nào cho biết chuyện gì. Nay hiện một câu báo tên bộ não giọng và lỗi thật, kèm chỗ sửa.
+- **Thẻ Giọng nói ở trang Cài đặt ghi lại lỗi gần nhất của làn nhanh** cho tới khi một lượt nói chạy trót lọt, nên mở Cài đặt là biết bộ não giọng đang hỏng hay cài đặt đã trôi về chế độ chuẩn.
+- Nhật ký máy chủ ghi một dòng khi tin từ mic đi bộ não chính vì chế độ giọng nói không phải Làn nhanh, để dò lỗi không phải đoán.
+
+## [0.59.22] - 2026-09-16
+### Sửa lỗi
+- **Bấm vào thông báo của một trợ lý hay quy trình giờ mở đúng trang Cộng sự.** Trước đây nó đổ đoạn chat đó vào khung chat của bộ não chính, và tin bạn gõ tiếp bay thẳng vào phiên của trợ lý mà không có gì báo. Mẩu thư nay nhớ cả hội thoại cụ thể nên mở ra là đúng cuộc đã báo kết quả, không phải cuộc gần nhất.
+- **Tiêu đề thông báo đẩy hết dính dấu sao.** Câu trả lời kiểu "**Nhắc bạn:** họp lúc 3h" từng hiện nguyên cặp `**` giữa màn hình khoá điện thoại.
+- **Cảnh báo hết ngân sách API đeo đúng nhãn "Hệ thống"** trong hòm thư, thay vì nhãn "Trả lời" như thể bạn vừa hỏi gì đó.
+### Cải thiện
+- **Việc định kỳ chạy trót lọt không rung chuông nữa.** Một việc chạy 15 phút một vòng mà vòng nào cũng đẩy thông báo lên điện thoại thì cuối cùng bạn tắt hẳn thông báo, và lúc đó thứ đáng báo (việc hỏng, việc tự tạm dừng) cũng mất theo. Kết quả vẫn về đủ khung chat, Telegram và hòm thư như cũ; chỉ khi việc **hỏng** hoặc **tự tạm dừng** mới kêu. Cùng luật mà việc trên bảng Việc đã theo từ trước.
+
+## [0.59.21] - 2026-09-16
+### Cải thiện
+- **Hội thoại đã ghim nhìn là thấy, giống hệt trợ lý và quy trình.** Hàng đã ghim có vạch màu bên trái và dấu ghim luôn hiện, không phải rê chuột vào mới biết. Ba nút còn lại vẫn chỉ hiện khi rê chuột như cũ.
+### Sửa lỗi
+- **Hội thoại Telegram lỗi không còn trơ lại đúng một tin.** Trước đây lượt nào hỏng thì câu báo lỗi bay thẳng ra Telegram rồi biến mất, để lại trong Lịch sử một hội thoại chỉ có câu bạn hỏi, không tên, không câu trả lời, mở ra chẳng hiểu chuyện gì. Giờ câu lỗi được lưu lại như một tin của trợ lý nên mở ra là đọc được ngay lượt đó hỏng vì sao.
+- **Nhật ký nói rõ vì sao Telegram mở hội thoại mới**: nghỉ quá lâu, brain lệch, hay bản ghi cũ đã bị xoá. Trước đây chỉ thấy một loạt hội thoại ngắn mà không biết chúng bị cắt ra bởi lý do gì.
+
+## [0.59.20] - 2026-09-16
+### Cải thiện
+- **Trợ lý và quy trình đã ghim nhìn là thấy.** Mục ghim nằm dưới nhãn **Đã ghim**, có vạch màu bên trái và dấu ghim ở mép phải hàng. Trước đây dấu ghim nằm trong phần tên bị cắt ngắn nên tên dài một chút là mất tăm, ghim rồi mà trông y như chưa ghim.
+- **Tab Lịch sử chỉ còn MỘT danh sách.** Mỗi lần chạy quy trình đẻ ra đúng một hội thoại, nên hai danh sách cũ là cùng một việc kể hai lần. Nay chỉ còn danh sách hội thoại, và những gì hay nhất của lần chạy đi theo luôn: khuôn mặt các trợ lý đã phối hợp đứng trước tiêu đề, trạng thái **xong** hay **lỗi** là một nhãn nhỏ bên cạnh giờ.
+- **Hội thoại mới và ô tìm nằm ngay đầu cột**, không bị danh sách khác đẩy xuống giữa. Mỗi hàng vẫn ghim, đổi tên, xoá được như cũ.
+- **Danh sách trợ lý và quy trình hiện 20 mục, bấm "Xem thêm 20" để mở tiếp.** Brain có vài chục cộng sự không còn phải cuộn một cột dài dằng dặc; đổi tab, đổi thư mục hay gõ tìm là về lại trang đầu.
+
 ## [0.59.19] - 2026-09-16
 ### Bảo mật
 - **Nâng nền web của Javis lên bản đã vá.** Bản cũ có chỗ cho phép người ngoài gửi vài request nặng để ăn hết RAM rồi làm Javis treo, và trên Windows có chỗ làm lộ mật khẩu máy. Cập nhật bằng cách chạy lại lệnh cài là nó tự tải bản mới; cài thủ công thì chạy thêm `pip install -r requirements.txt`.

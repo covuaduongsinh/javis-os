@@ -309,12 +309,86 @@ def _match_ambient(ambient, query):
 # ============================================================
 # Builtin tools (engine API): file trong vault + use_skill + meta connections
 # ============================================================
-def _safe_path(vault_root, p):
-    root = Path(vault_root).resolve()
-    target = (root / str(p or "")).resolve()
-    if root != target and root not in target.parents:
+def _trong_goc(root, p):
+    """Đường dẫn đã resolve nếu nằm trong `root`, None nếu ra ngoài. Không ném."""
+    try:
+        r = Path(root).resolve()
+        t = (r / str(p or "")).resolve()
+    except (OSError, ValueError):
+        return None
+    return t if (r == t or r in t.parents) else None
+
+
+def _goc_lam_viec(workspace_root):
+    """Chuẩn hoá `workspace_root` thành DANH SÁCH gốc, theo đúng thứ tự ưu tiên.
+
+    Nhận cả một chuỗi lẫn một danh sách, vì 0.63.9 cho MỘT phiên Coding gắn NHIỀU thư mục
+    (`coding_store.thu_muc_cua_phien`) trong khi mọi chỗ gọi cũ chỉ đưa một cái. Rỗng và None
+    đều thành danh sách rỗng, tức hành vi y hệt lúc chưa có tham số này.
+    """
+    if not workspace_root:
+        return []
+    if isinstance(workspace_root, (str, Path)):
+        return [workspace_root]
+    return [g for g in workspace_root if g]
+
+
+def _ten_goc(workspace_root):
+    """Danh sách gốc làm việc viết thành chữ cho câu báo lỗi. Rỗng nếu không có gốc nào."""
+    return ", ".join(str(g) for g in _goc_lam_viec(workspace_root))
+
+
+def _safe_path(vault_root, p, workspace_root=None):
+    """Đường dẫn hợp lệ trong vault, HOẶC trong một thư mục làm việc của phiên Coding.
+
+    `workspace_root` là gốc thứ hai, thêm ở 0.64 để engine KHÔNG có tool file native (sáu
+    engine API và engine Web) đọc ghi được cây mã nguồn. Trước đó hub luôn nhận
+    `vault_root = brain`, nên một phiên Coding chạy bằng engine API không chạm nổi vào repo:
+    `_read` chặn mọi đường dẫn ngoài vault và trả "nằm ngoài bộ não đang làm việc".
+
+    Nhận CẢ DANH SÁCH: một phiên Coding gắn được nhiều thư mục từ 0.63.9, và engine không có
+    tool native thì không "đứng" ở đâu cả, nên nó không bị giới hạn một gốc như engine CLI.
+    Thứ tự trong danh sách là thứ tự ưu tiên; cái đầu là thư mục chính.
+
+    None hoặc rỗng (mặc định) = hành vi y hệt trước, chỉ một gốc là vault. Đây là điều kiện
+    để thay đổi này không đụng một lượt chat thường nào.
+
+    CHỌN GỐC NÀO khi có nhiều gốc: xét theo thứ tự dưới đây. Không được chỉ xét "nằm trong
+    gốc", vì mọi đường dẫn tương đối đều nằm trong MỌI gốc về mặt chữ - `server/auth.py` ghép
+    vào brain vẫn ra một đường dẫn hợp lệ, chỉ là không có file ở đó. Xét thiếu bước này thì
+    mọi lời gọi đọc file repo đều rơi vào brain rồi trả "không có file", đúng cái chặn cứng
+    mà tham số này sinh ra để gỡ.
+
+      1. File CÓ THẬT ở gốc nào đó   -> gốc đó, xét theo thứ tự (vault trước, rồi từng thư
+                                        mục làm việc), nên vault thắng khi nhiều gốc cùng có
+      2. THƯ MỤC CHA có thật ở gốc nào đó -> gốc đó, cùng thứ tự (cảnh GHI file mới)
+      3. Không đâu có                -> vault, để câu báo lỗi nói về brain như cũ
+
+    Bước 2 là thứ làm `javis_write_file` ghi đúng chỗ: ghi `server/moi.py` trong một phiên
+    coding thì brain không có thư mục `server/` còn repo có, nên file rơi vào repo.
+    """
+    tv = _trong_goc(vault_root, p)
+    goc_lv = _goc_lam_viec(workspace_root)
+    if not goc_lv:
+        if tv is not None:
+            return tv
         raise ValueError(f"đường dẫn '{p}' nằm ngoài vault")
-    return target
+
+    ung_vien = [tv] + [_trong_goc(g, p) for g in goc_lv]
+    co_that = [u for u in ung_vien if u is not None]
+    if not co_that:
+        raise ValueError(f"đường dẫn '{p}' nằm ngoài cả bộ não lẫn thư mục làm việc")
+
+    for u in co_that:
+        if u.exists():
+            return u
+    for u in co_that:
+        try:
+            if u.parent.is_dir():
+                return u
+        except OSError:
+            continue
+    return tv if tv is not None else co_that[0]
 
 
 def _vung_nhan_file():
@@ -330,7 +404,7 @@ def _vung_nhan_file():
         return None
 
 
-def _safe_read_path(vault_root, p, cho_phep_staging=False):
+def _safe_read_path(vault_root, p, cho_phep_staging=False, workspace_root=None):
     """Như `_safe_path` nhưng cho ĐỌC, và biết thêm vùng nhận file của khung chat.
 
     Vì sao phải có: dashboard chèn vào câu hỏi khối "[File đính kèm để ĐỌC (đường dẫn): …]"
@@ -348,7 +422,7 @@ def _safe_read_path(vault_root, p, cho_phep_staging=False):
     """
     trong_vault, loi = None, None
     try:
-        trong_vault = _safe_path(vault_root, p)
+        trong_vault = _safe_path(vault_root, p, workspace_root=workspace_root)
         if trong_vault.exists():
             return trong_vault          # vault LUÔN thắng: không để staging che file thật
     except ValueError as e:
@@ -437,7 +511,7 @@ def _list_skills(vault_root):
 
 
 def _builtin_tools(mode, vault_root, include_ambient=False, hidden=None, lang="", staging=False,
-                   bo_qua=None):
+                   bo_qua=None, workspace_root=None, coding_ctx_cua_phien=None):
     """(tools_spec, route) các tool nội bộ cho engine API. Claude/Codex có tool file native
     nên hub HTTP không trả nhóm này (chỉ meta javis_connections).
     include_ambient=True (đường engine Claude): javis_connections kèm cả connector tài khoản
@@ -445,7 +519,13 @@ def _builtin_tools(mode, vault_root, include_ambient=False, hidden=None, lang=""
     hidden: {conn_id: {perm, tools}} tool bị mức quyền lọc khỏi danh sách - kể ra trong
     javis_connections để model biết mà nói đúng lý do thay vì tưởng nguồn thiếu năng lực.
     staging=True: `javis_read_file` đọc được thêm file trong vùng nhận file của khung chat
-    (xem `_safe_read_path`). CHỈ đường chat của CHỦ bật; bot chuyên trách để nguyên False."""
+    (xem `_safe_read_path`). CHỈ đường chat của CHỦ bật; bot chuyên trách để nguyên False.
+    workspace_root: thư mục làm việc của phiên Coding (0.64). Có giá trị thì tool FILE nhận
+    thêm gốc đó, để engine không có tool file native chạm được vào cây mã nguồn. MCP, cron và
+    nhắc hẹn KHÔNG đổi gốc - chúng thuộc về brain, xem `coding_ctx`.
+    coding_ctx_cua_phien: `CodingToolContext` của phiên. Có nó VÀ có workspace_root thì hub
+    cấp thêm `javis_run_command`. Thiếu một trong hai thì tool đó không tồn tại - phiên chat
+    thường không được thấy tool chạy lệnh."""
     tools, route = [], {}
 
     def add(name, description, props, required, call, effect="read"):
@@ -476,11 +556,18 @@ def _builtin_tools(mode, vault_root, include_ambient=False, hidden=None, lang=""
     async def _read(args):
         rel = (args or {}).get("path")
         try:
-            p = _safe_read_path(vault_root, rel, cho_phep_staging=staging)
+            p = _safe_read_path(vault_root, rel, cho_phep_staging=staging,
+                                workspace_root=workspace_root)
         except ValueError:
             # Nói THẲNG đây là ranh giới brain, kèm việc-cần-làm. Bản cũ để ValueError rơi ra
             # nguyên văn "nằm ngoài vault", model đọc xong tự dựng một lời khuyên sai (bảo
             # người dùng tự chép file vào thư mục Brain rồi mới đọc được).
+            if workspace_root:
+                return (f"ERROR: '{rel}' nằm ngoài MỌI nơi tool này được phép đọc, nên "
+                        f"không đọc được. Những nơi đó là: bộ não đang làm việc, và thư mục "
+                        f"làm việc của phiên này ({_ten_goc(workspace_root)}). Dùng đường dẫn "
+                        f"tương đối so với một trong số đó, hoặc file vừa đính kèm vào khung "
+                        f"chat.")
             return (f"ERROR: '{rel}' nằm ngoài bộ não đang làm việc nên tool này không đọc "
                     f"được. Javis khoá tool file trong brain để một lượt chat không đọc lung "
                     f"tung trên máy. Đọc được: đường dẫn tương đối trong brain, và file người "
@@ -491,7 +578,8 @@ def _builtin_tools(mode, vault_root, include_ambient=False, hidden=None, lang=""
         return text[:100_000] + (f"\n… [cắt, file dài {len(text):,} ký tự]" if len(text) > 100_000 else "")
 
     async def _ls(args):
-        p = _safe_path(vault_root, (args or {}).get("path") or ".")
+        p = _safe_path(vault_root, (args or {}).get("path") or ".",
+                       workspace_root=workspace_root)
         if not p.is_dir():
             return f"ERROR: không có thư mục '{(args or {}).get('path')}'"
         rows = []
@@ -513,7 +601,19 @@ def _builtin_tools(mode, vault_root, include_ambient=False, hidden=None, lang=""
                     "nhân. Muốn ghi thật: mở trang Việc, nâng mức của việc này lên 'Ghi nháp' "
                     "(auto) rồi chạy lại. Ngay bây giờ: ĐỪNG thử ghi lại, hãy đưa TRỌN nội dung "
                     "file vào câu trả lời để người dùng tự lưu.")
-        p = _safe_path(vault_root, (args or {}).get("path"))
+        # Trả câu NÓI ĐƯỢC thay vì để ValueError bay ra, y như `_read` đã làm. Engine Web
+        # chạy vòng tool bằng chữ: một exception bay ra giữa lô tool là chết cả lượt, còn một
+        # câu lỗi thì model đọc rồi tự sửa đường dẫn ở vòng sau.
+        try:
+            p = _safe_path(vault_root, (args or {}).get("path"), workspace_root=workspace_root)
+        except ValueError:
+            if workspace_root:
+                return (f"ERROR: '{(args or {}).get('path')}' nằm ngoài MỌI nơi được phép "
+                        f"ghi: bộ não đang làm việc, và thư mục làm việc của phiên này "
+                        f"({_ten_goc(workspace_root)}). Dùng đường dẫn tương đối so với một "
+                        f"trong số đó.")
+            return (f"ERROR: '{(args or {}).get('path')}' nằm ngoài bộ não đang làm việc nên "
+                    f"tool này không ghi được. Dùng đường dẫn tương đối trong brain.")
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(str((args or {}).get("content") or ""), encoding="utf-8")
         return f"Đã ghi {p.name} ({len(str((args or {}).get('content') or ''))} ký tự)"
@@ -548,16 +648,48 @@ def _builtin_tools(mode, vault_root, include_ambient=False, hidden=None, lang=""
     # Mô tả tool = router thu nhỏ: liệt kê slug + mô tả ngắn để engine biết KHI NÀO gọi skill nào.
     # Trần lấy từ skill_router (CHUNG với system prompt) - trước đây hub tự cắt 60, system prompt
     # cắt 100 - người viết skill không biết mình bị chấm theo thước nào.
+    # Xếp theo mức hay dùng TRƯỚC khi cắt, rồi cắt theo cả số mục lẫn ngân sách ký tự. Cắt
+    # theo thứ tự thư mục (tức bảng chữ cái) như bản trước là để skill tên vần cuối biến mất
+    # khỏi đây trong im lặng - cùng lỗi với `main._skill_router_block`, và phải chữa ở CẢ HAI
+    # chỗ vì hai nơi này là hai bề mặt khác nhau model nhìn thấy.
     metas = skill_router.list_enabled_meta(vault_root, lang)
-    _cap = skill_router.SKILL_LIST_MAX
+    _hien, _con_lai = skill_router.cat_theo_ngan_sach(
+        skill_router.xep_theo_uu_tien(metas, vault_root))
     listing = "; ".join(f"{s['slug']}: {(s['description'] or '')[:skill_router.SKILL_DESC_MAX]}"
-                        for s in metas[:_cap])
-    if len(metas) > _cap:
-        listing += f"; …(+{len(metas) - _cap} skill nữa)"
+                        for s in _hien)
+    if _con_lai > 0:
+        listing += (f"; …(+{_con_lai} skill nữa không liệt kê ở đây, vẫn nạp được bằng "
+                    f"name=<slug> nếu biết tên - xem Javis/index.md)")
     add("javis_use_skill",
         "Nạp nội dung 1 skill (hướng dẫn chuyên sâu) rồi LÀM THEO. Truyền name=<slug>. "
         "Skill khả dụng (slug: mô tả): " + (listing or "(chưa có)"),
         {"name": {"type": "string"}}, ["name"], _skill)
+
+    # `javis_run_command` chỉ hiện khi phiên CÓ thư mục làm việc. Phiên chat thường không thấy
+    # nó, nên không có chuyện một câu hỏi bình thường lại gọi được lệnh máy. Mức quyền vẫn do
+    # chính `run_command` cưỡng chế lần nữa theo chip của phiên (hai lớp, không thay nhau).
+    if workspace_root and coding_ctx_cua_phien is not None:
+        async def _lenh(args):
+            args = args or {}
+            try:
+                import run_command
+            except Exception as e:                       # pragma: no cover - môi trường lạ
+                return f"ERROR: không nạp được run_command: {type(e).__name__}: {e}"
+            kq = run_command.chay(
+                str(args.get("command") or ""), coding_ctx_cua_phien,
+                cwd=str(args.get("cwd") or "."), timeout_s=args.get("timeout_s"),
+            )
+            return run_command.ket_qua_cho_model(kq)
+
+        add("javis_run_command",
+            "Chạy MỘT lệnh trong thư mục làm việc của phiên (chạy test, lint, git chỉ đọc). "
+            "KHÔNG qua shell: '&&', ';', '|', '$(...)' đều không có tác dụng, tách thành "
+            "nhiều lời gọi. Trả về mã thoát rồi tới output đã cắt bớt.",
+            {"command": {"type": "string"},
+             "cwd": {"type": "string", "description": "thư mục con, mặc định gốc thư mục làm việc"},
+             "timeout_s": {"type": "number"}},
+            ["command"], _lenh, effect="full")
+
     return tools, route
 
 
@@ -599,6 +731,10 @@ CORE_TOOL_FNS = frozenset({
     "javis_read_file",
     "javis_list_dir",
     "javis_write_file",
+    # Chỉ tồn tại trong phiên có thư mục làm việc, và ở đó thì gần như lượt nào cũng cần.
+    # Schema nhỏ và cố định, nên đủ tiêu chí hạt nhân. Bắt model đi tìm nó trước khi dùng là
+    # đốt thêm một vòng web, đúng cái hệ số 2 của tầng lazy mà engine Web phải tránh.
+    "javis_run_command",
 })
 
 # Mô tả nhóm tool nội bộ cho thực đơn lazy. Builtin/plugin không có connector trong
@@ -867,7 +1003,8 @@ def _store_mtime():
 
 
 async def discover_all(mode="full", vault_root=None, include_plugins=True, include_ambient=False,
-                       force_refresh=False, force_lazy=False, staging=False):
+                       force_refresh=False, force_lazy=False, staging=False, workspace_root=None,
+                       coding_ctx_cua_phien=None):
     """(tools_spec, route) đầy đủ cho 1 mode. route entries ĐÃ bọc quyền + audit.
     include_plugins=False: bỏ nhóm tool plugin - dùng khi engine SDK đã đấu plugin
     IN-PROCESS (header X-Javis-No-Plugins) để model không thấy tool trùng chức năng.
@@ -876,7 +1013,10 @@ async def discover_all(mode="full", vault_root=None, include_plugins=True, inclu
     engine, KHÔNG qua hub, hub chỉ mách chỗ cho model. Engine API (in-process) để False (không có
     tool native để mà chỉ tới).
     staging=True: cho `javis_read_file` đọc thêm vùng nhận file của khung chat - CHỈ đường chat
-    của chủ truyền vào (xem `_safe_read_path`)."""
+    của chủ truyền vào (xem `_safe_read_path`).
+    workspace_root: thư mục làm việc của phiên Coding - tool FILE nhận thêm gốc đó (0.64).
+        Nhận cả DANH SÁCH: một phiên gắn được nhiều thư mục từ 0.63.9.
+    Nằm TRONG khoá cache vì hai phiên coding khác repo phải thấy hai danh sách route khác nhau."""
     mode = (mode or "full").strip().lower()
     # Ngôn ngữ đọc từ CẤU HÌNH, không truyền từ lượt chat: danh sách tool được cache dùng chung
     # cho mọi lượt, nên nó không thể mang ngôn ngữ dò được của riêng một câu. Đổi lại, ngôn ngữ
@@ -887,15 +1027,23 @@ async def discover_all(mode="full", vault_root=None, include_plugins=True, inclu
         lang = localefmt.ngon_ngu_tra_loi()
     except Exception:
         lang = ""
+    # Mức quyền của phiên nằm TRONG khoá: route của `javis_run_command` ôm sẵn ctx của phiên
+    # dựng ra nó, nên hai phiên cùng repo mà khác chip quyền dùng chung cache là phiên
+    # `suggest` chạy được lệnh bằng quyền của phiên `full`.
+    _quyen_ctx = getattr(coding_ctx_cua_phien, "permission_mode", "") or ""
     key = (mode, str(vault_root or ""), bool(include_plugins), bool(include_ambient),
-           bool(force_lazy), lang, bool(staging))
+           bool(force_lazy), lang, bool(staging), _ten_goc(workspace_root), _quyen_ctx)
     ent = _cache.get(key)
     mt = _store_mtime()
     if (not force_refresh and ent and time.time() - ent["ts"] < ent.get("ttl", _CACHE_TTL)
             and ent["mtime"] == mt):
         return ent["tools"], ent["route"]
 
-    conns = mcp_store.resolved(enabled_only=True)
+    # Phần đồng bộ của lượt dò (giải mã kho kết nối, đọc mọi SKILL.md, nạp plugin) chạy ở
+    # LUỒNG PHỤ. Mỗi lượt agy/codex là một tiến trình mới gọi lại hub, nên cache trượt khá
+    # thường xuyên, và mỗi lần trượt trên loop là mọi request khác của dashboard phải chờ
+    # (chủ repo 23/09: đổi trợ lý giữa lúc Gemini đang chạy thì màn hình đứng yên).
+    conns = await asyncio.to_thread(mcp_store.resolved, enabled_only=True)
     bo_qua = set()
     raw_tools, raw_route = await mcp_client.discover_resolved(conns, bo_qua=bo_qua)
 
@@ -931,7 +1079,9 @@ async def discover_all(mode="full", vault_root=None, include_plugins=True, inclu
             "health": "healthy",
         }
 
-    b_tools, b_route = _builtin_tools(mode, vault_root, include_ambient, hidden, lang, staging, bo_qua)
+    b_tools, b_route = await asyncio.to_thread(
+        _builtin_tools, mode, vault_root, include_ambient, hidden, lang, staging,
+        bo_qua, workspace_root=workspace_root, coding_ctx_cua_phien=coding_ctx_cua_phien)
     tools_spec += b_tools
     route.update(b_route)
 
@@ -940,7 +1090,7 @@ async def discover_all(mode="full", vault_root=None, include_plugins=True, inclu
     try:
         import plugins_host
         if include_plugins:
-            p_tools, p_route = plugins_host.plugin_tools(mode, vault_root)
+            p_tools, p_route = await asyncio.to_thread(plugins_host.plugin_tools, mode, vault_root)
             for t in p_tools:
                 fn = t["fn"]
                 if fn in route:
@@ -1001,7 +1151,140 @@ def _rpc_error(mid, code, message):
     return {"jsonrpc": "2.0", "id": mid, "error": {"code": code, "message": message}}
 
 
-async def _handle_one(msg, mode, include_plugins=True, include_ambient=False, vault_root=None):
+# ============================================================
+# Brain (vault) của một lượt gọi hub
+# ============================================================
+# Sự cố 2026-09-21: hub chỉ biết brain qua header `X-Javis-Vault`, mà chỗ DUY NHẤT ghi header
+# đó là khi CHÍNH Javis khởi động tiến trình engine (`codex_vault_override` nhét vào argv `-c`,
+# Claude/Antigravity/Grok ghi file cấu hình riêng từng lượt). Profile dùng chung
+# `~/.codex/<tên>.config.toml` thì CỐ Ý không mang header, vì nhét vào file dùng chung sẽ race
+# khi hai brain chạy đồng thời. Hệ quả không ai lường: mọi phiên Codex NGƯỜI DÙNG tự mở đều tới
+# hub với vault rỗng, và `javis_task`/`javis_schedule`/`javis_workflow` fail-closed với câu
+# "chưa biết đang làm việc trên brain nào" - đúng, nhưng vô phương chẩn đoán từ phía client.
+#
+# Luật fail-closed sinh ra để chặn một chuyện CỤ THỂ: chạy nhầm sang brain của người khác. Nó
+# không đòi phải câm. Nên chỗ này suy ra brain đang mở, và đổi lại thì NÓI RA: mọi kết quả tool
+# đi theo đường suy-ra đều kèm một dòng ghi rõ đang chạy brain nào. Chạy nhầm brain mà người
+# dùng nhìn thấy ngay ở câu trả lời thì không còn là chạy nhầm im lặng nữa.
+_BRAIN_CACHE = {"ts": 0.0, "root": "", "nguon": ""}
+_BRAIN_TTL = 10.0     # đủ ngắn để đổi brain ở dashboard có hiệu lực gần như tức thì
+
+
+def _brains_dir() -> Path:
+    """Thư mục CHA chứa mọi brain (mỗi folder con = 1 brain).
+
+    Suy y hệt `main.BRAINS_DIR` nhưng KHÔNG import main: main import mcp_hub, nên chiều ngược
+    lại là vòng tròn. Đọc env ở MỖI lần gọi (không cache vào hằng số module) để test đổi
+    BRAINS_DIR giữa chừng vẫn đúng.
+    """
+    return Path(os.getenv("BRAINS_DIR", str(Path(__file__).parent.parent / "brains")))
+
+
+def _brain_duy_nhat() -> str:
+    """Đường dẫn brain DUY NHẤT trên máy, hoặc "" nếu có 0 hay nhiều hơn 1.
+
+    Đây là ca không thể nhầm: không có brain nào khác để mà nhầm sang. Dùng cho máy vừa cài,
+    chưa chat lượt nào nên chưa suy được brain đang mở."""
+    try:
+        ds = [d for d in sorted(_brains_dir().iterdir())
+              if d.is_dir() and not d.name.startswith(".")]
+    except OSError:
+        return ""
+    if len(ds) != 1:
+        return ""
+    try:
+        return str(ds[0].resolve())
+    except OSError:
+        return str(ds[0])
+
+
+def quen_brain_dang_mo() -> None:
+    """Xoá cache brain đang mở. Gọi sau khi đổi brain nếu cần hiệu lực ngay (test dùng)."""
+    _BRAIN_CACHE.update({"ts": 0.0, "root": "", "nguon": ""})
+
+
+def _brain_dang_mo() -> tuple:
+    """(đường_dẫn, nguồn) brain suy ra được. ("", "") nghĩa là không suy được."""
+    now = time.time()
+    if now - _BRAIN_CACHE["ts"] < _BRAIN_TTL:
+        return _BRAIN_CACHE["root"], _BRAIN_CACHE["nguon"]
+    root, nguon = "", ""
+    try:
+        import sessions
+        ung = sessions.get_store().brain_gan_nhat()
+        if ung:
+            p = Path(ung).expanduser()
+            if p.is_dir():
+                root, nguon = str(p.resolve()), "phien"
+    except Exception as e:
+        print(f"[hub brain] {type(e).__name__}: {e}", file=sys.stderr)
+    if not root:
+        mot = _brain_duy_nhat()
+        if mot:
+            root, nguon = mot, "duy-nhat"
+    _BRAIN_CACHE.update({"ts": now, "root": root, "nguon": nguon})
+    return root, nguon
+
+
+def resolve_vault(raw_vault):
+    """(vault_root, nguồn, header_hỏng) cho một lượt gọi hub.
+
+    nguồn: "header" (client gửi đúng) | "phien" (brain đang mở) | "duy-nhat" (máy chỉ có một
+    brain) | "" (chịu, không suy được). `header_hỏng` khác rỗng nghĩa là client CÓ gửi header
+    nhưng nó không trỏ tới thư mục có thật - phải nói ra, vì im lặng bỏ qua một header sai
+    chính là kiểu hỏng khó truy nhất (client tin là mình đã gửi rồi).
+    """
+    raw = (raw_vault or "").strip()
+    header_hong = ""
+    if raw:
+        try:
+            p = Path(raw).expanduser().resolve()
+            if p.is_dir():
+                return str(p), "header", ""
+        except Exception:
+            pass
+        header_hong = raw
+    root, nguon = _brain_dang_mo()
+    return (root or None), (nguon if root else ""), header_hong
+
+
+_NGUON_CHU = {"phien": "brain đang mở (cuộc trò chuyện gần nhất)",
+              "duy-nhat": "brain duy nhất trên máy này"}
+
+
+def _ghi_chu_brain(nguon, vault_root, header_hong):
+    """Dòng gắn vào kết quả tool để người dùng luôn biết lượt đó chạy trên brain nào."""
+    if nguon not in _NGUON_CHU:
+        return ""
+    ra = (f"(Javis đang làm việc trên brain \"{Path(vault_root).name}\" - {vault_root}. "
+          f"Lượt gọi này tới hub không kèm header X-Javis-Vault nên hub lấy "
+          f"{_NGUON_CHU[nguon]}. Muốn brain khác thì đổi brain trên dashboard, hoặc thêm "
+          f"header X-Javis-Vault vào cấu hình MCP của client.)")
+    if header_hong:
+        ra = (f"(Header X-Javis-Vault có gửi nhưng trỏ vào \"{header_hong}\" - đường dẫn này "
+              f"không có thật trên máy chủ nên hub không dùng được.) ") + ra
+    return ra
+
+
+def _chan_doan_thieu_brain(header_hong):
+    """Phần đuôi gắn vào lỗi khi hub không suy ra nổi brain nào. Phải nêu ĐÍCH DANH thứ còn
+    thiếu và ai gây ra nó, vì đứng từ phía client thì lỗi gốc nói y như một lỗi cấu hình máy."""
+    dau = ""
+    if header_hong:
+        dau = (f"Header X-Javis-Vault có gửi nhưng trỏ vào \"{header_hong}\", đường dẫn này "
+               f"không có thật trên máy chủ. ")
+    return ("\n\n(CHẨN ĐOÁN: " + dau + "lượt gọi này tới hub không mang brain nào, và Javis "
+            "cũng chưa suy ra được brain đang mở (chưa có cuộc trò chuyện nào, mà thư mục "
+            f"{_brains_dir()} đang có nhiều hơn một brain nên hub không đoán bừa). Thiếu header "
+            "là chuyện của cấu hình MCP phía client: Javis chỉ tự gắn X-Javis-Vault khi CHÍNH "
+            "nó khởi động engine, còn phiên Codex do người dùng tự mở thì dùng profile chung "
+            "vốn không mang header. Cách chữa: chat một lượt ở dashboard để Javis biết brain "
+            "đang mở, hoặc thêm \"X-Javis-Vault\" = \"<đường dẫn brain>\" vào http_headers của "
+            "server javis trong cấu hình MCP.)")
+
+
+async def _handle_one(msg, mode, include_plugins=True, include_ambient=False, vault_root=None,
+                      vault_nguon="", vault_header_hong=""):
     mid = msg.get("id")
     method = msg.get("method") or ""
     params = msg.get("params") or {}
@@ -1035,10 +1318,17 @@ async def _handle_one(msg, mode, include_plugins=True, include_ambient=False, va
         _, route = await discover_all(mode, vault_root=vault_root, include_plugins=include_plugins,
                                       include_ambient=include_ambient)
         name = params.get("name") or ""
-        result = await mcp_client.call_route(route, name, params.get("arguments") or {})
+        result = str(await mcp_client.call_route(route, name, params.get("arguments") or {}))
+        ghi_chu = _ghi_chu_brain(vault_nguon, vault_root, vault_header_hong)
+        if ghi_chu:
+            result += "\n\n" + ghi_chu
+        elif not vault_root and result.startswith("ERROR:"):
+            # Không suy ra nổi brain: chỉ gắn chẩn đoán vào LỖI, để tool không cần brain
+            # (POS, Gmail...) không phải gánh một đoạn văn không liên quan.
+            result += _chan_doan_thieu_brain(vault_header_hong)
         return {"jsonrpc": "2.0", "id": mid, "result": {
-            "content": [{"type": "text", "text": str(result)}],
-            "isError": str(result).startswith("ERROR:"),
+            "content": [{"type": "text", "text": result}],
+            "isError": result.startswith("ERROR:"),
         }}
     return _rpc_error(mid, -32601, f"method không hỗ trợ: {method}")
 
@@ -1058,28 +1348,38 @@ async def handle_http(request):
     include_ambient = (request.headers.get("x-javis-engine") or "").strip().lower() == "claude"
     # Codex chạy MCP qua HTTP hub (khác Claude SDK đấu plugin in-process), nên nếu không mang
     # brain hiện tại thì plugin javis_schedule có tool nhưng không biết phải đọc kho cron nào.
-    # Chỉ nhận đường dẫn thư mục có thật; Bearer hub_token vẫn là lớp auth bắt buộc phía trên.
-    vault_root = None
-    raw_vault = (request.headers.get("x-javis-vault") or "").strip()
-    if raw_vault:
-        try:
-            candidate = Path(raw_vault).expanduser().resolve()
-            if candidate.is_dir():
-                vault_root = str(candidate)
-        except Exception:
-            pass
+    # Header chỉ nhận đường dẫn thư mục có thật; thiếu header thì `resolve_vault` suy ra brain
+    # đang mở rồi NÓI RA ở kết quả tool (xem khối chú thích ở `_brain_dang_mo`). Bearer
+    # hub_token vẫn là lớp auth bắt buộc phía trên.
+    return await tra_loi_jsonrpc(request, mode, include_plugins=include_plugins,
+                                 include_ambient=include_ambient,
+                                 raw_vault=request.headers.get("x-javis-vault"))
+
+
+async def tra_loi_jsonrpc(request, mode, include_plugins=True, include_ambient=False,
+                          raw_vault=None):
+    """Đọc thân JSON-RPC của `request`, chạy qua hub, trả Response. KHÔNG xác thực gì cả.
+
+    Tách khỏi `handle_http` để một cửa khác (ChatGPT qua OAuth, xem chatgpt_connector.py) đi
+    ĐÚNG đường này - cùng danh sách tool, cùng mức quyền ép ở lớp cứng, cùng chú thích brain -
+    và chỉ khác lớp xác thực phía trước. Hai bản chép của cùng một vòng xử lý là hai chỗ để
+    lệch nhau.
+    """
+    vault_root, vault_nguon, vault_header_hong = resolve_vault(raw_vault)
     try:
         body = await request.json()
     except Exception:
         return JSONResponse(_rpc_error(None, -32700, "parse error"), status_code=400)
     try:
         if isinstance(body, list):
-            out = [r for r in [await _handle_one(m, mode, include_plugins, include_ambient, vault_root)
+            out = [r for r in [await _handle_one(m, mode, include_plugins, include_ambient,
+                                                 vault_root, vault_nguon, vault_header_hong)
                                for m in body] if r is not None]
             if not out:
                 return Response(status_code=202)
             return JSONResponse(out)
-        res = await _handle_one(body, mode, include_plugins, include_ambient, vault_root)
+        res = await _handle_one(body, mode, include_plugins, include_ambient, vault_root,
+                                vault_nguon, vault_header_hong)
         if res is None:
             return Response(status_code=202)
         return JSONResponse(res)

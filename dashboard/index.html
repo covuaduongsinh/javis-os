@@ -25,15 +25,15 @@
        Chrome/Edge DESKTOP coi trang là cài được (icon "any" trên PNG bị coi là không hợp lệ
        nên trước đây chỉ mobile chạy dạng app, desktop không bao giờ có nút cài). Nút
        "Mở như app" trên thanh trạng thái + icon cài trong thanh địa chỉ ăn theo file này. -->
-  <link rel="manifest" href="/static/manifest.json?v=2">
+  <link rel="manifest" href="/static/manifest.json?v=3">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
   <!-- Biến --ic-* cho icon dùng trong content: của CSS. Phải đứng TRƯỚC style.css
        vì style.css tham chiếu các biến này. -->
   <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=1">
-  <link rel="stylesheet" href="/static/style.css?v=85">
-  <link rel="stylesheet" href="/static/console.css?v=53">
+  <link rel="stylesheet" href="/static/style.css?v=92">
+  <link rel="stylesheet" href="/static/console.css?v=69">
   <!-- Áp tông đã lưu TRƯỚC khi vẽ để không nháy tối rồi mới đổi sang sáng.
        Giá trị cũ "dim" (tông tối-nhạt, gỡ ở 0.9.250) quy về tối; theme.js sẽ ghi đè lại. -->
   <script>(function(){try{if(localStorage.getItem('javis.theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
@@ -291,6 +291,9 @@
             <span class="ne-title" id="neTitle">note.md</span>
             <span class="ne-actions" id="neActions"></span>
           </div>
+          <!-- Thanh link chia se: an cho toi khi bam nut Chia se tren thanh cong cu.
+               Lop .jvfe-share dung chung CSS voi trinh sua modal (file-editor.js). -->
+          <div class="ne-share jvfe-share" id="neShare" hidden></div>
           <div class="ne-body" id="neBody"></div>
         </div>
       </div>
@@ -393,32 +396,39 @@
                  nó - luật của trang này: một thẻ, một nút Lưu, luôn ở góc dưới phải. -->
             <div id="vpV2Host"></div>
 
-            <!-- MICRO (Voice V1): ba mục dưới đây ghi thẳng localStorage của máy đang dùng
-                 nên KHÔNG có nút Lưu, và câu cuối thẻ nói rõ điều đó - thiếu câu ấy thì người
-                 dùng đi tìm nút Lưu không có. -->
-            <div class="qs-block">
-              <div class="popover-label" data-i18n="qs.mic">MICRO</div>
-              <div class="qs-field">
-                <label class="qs-lbl" for="recLangSel" data-i18n="qs.rec_lang">Ngôn ngữ nghe</label>
-                <select class="js-input" id="recLangSel" name="recognitionLang">
-                  <option value="vi-VN" data-i18n="qs.rec_vi_opt">Tiếng Việt · vi-VN</option>
-                  <option value="en-US" data-i18n="qs.rec_en_opt">Tiếng Anh · en-US</option>
-                </select>
+            <!-- MICRO (Voice V1): ba mục ghi thẳng localStorage của máy đang dùng. Từ 0.59.27
+                 chúng nằm CÙNG THẺ với "Chế độ nói chuyện" (chủ dự án chốt 17/09): console.js
+                 renderVoiceV2Card() DỜI #qsMicFields vào thẻ đó, ngay trên nút Lưu chế độ, rồi
+                 ẩn cái nhà này. Là node tĩnh chứ không vẽ bằng JS vì app.js gắn tay bắt cho ba
+                 ô này đúng một lần lúc tải trang. Nhà mang lớp .qs-block để lỡ thẻ kia không
+                 vẽ được (máy chủ cũ) thì ba mục vẫn đứng trong một thẻ tử tế. -->
+            <div class="qs-block" id="qsMicHome">
+              <div id="qsMicFields">
+                <div class="qs-sub" data-i18n="qs.mic">MICRO</div>
+                <div class="qs-field">
+                  <label class="qs-lbl" for="recLangSel" data-i18n="qs.rec_lang">Ngôn ngữ nghe</label>
+                  <select class="js-input" id="recLangSel" name="recognitionLang">
+                    <option value="vi-VN" data-i18n="qs.rec_vi_opt">Tiếng Việt · vi-VN</option>
+                    <option value="en-US" data-i18n="qs.rec_en_opt">Tiếng Anh · en-US</option>
+                    <option value="auto" data-i18n="qs.rec_auto_opt">Đa ngôn ngữ · không cố định</option>
+                  </select>
+                </div>
+                <div class="qs-hint" data-i18n="qs.rec_auto_hint">Đa ngôn ngữ: máy nghe Groq Whisper tự nhận ra tiếng đang nói; máy nghe của trình duyệt chỉ theo được ngôn ngữ của trình duyệt.</div>
+                <div class="qs-field">
+                  <label class="qs-lbl" for="endpointSel" data-i18n="qs.endpoint">Im lặng rồi gửi</label>
+                  <select class="js-input" id="endpointSel" name="endpoint">
+                    <option value="500" data-i18n="qs.endpoint_fast_opt">Nhanh · 0,5 giây</option>
+                    <option value="800" data-i18n="qs.endpoint_mid_opt">Vừa · 0,8 giây</option>
+                    <option value="1200" data-i18n="qs.endpoint_slow_opt">Chậm · 1,2 giây (mặc định)</option>
+                  </select>
+                </div>
+                <div class="qs-hint" data-i18n="qs.endpoint_hint">Câu kết bằng "và", "nhưng", dấu phẩy thì Javis tự chờ lâu hơn. Nói "khoan" hay "đợi chút" là Javis im chờ bạn.</div>
+                <label class="qs-field">
+                  <span class="qs-lbl" data-i18n="qs.barge">Ngắt lời Javis bằng giọng</span>
+                  <span class="toggle"><input type="checkbox" id="qsBarge" checked><span></span></span>
+                </label>
+                <div class="gcard-meta" data-i18n="qs.mic_local">Ba mục micro áp dụng ngay trên máy đang dùng, không cần bấm Lưu; nút Lưu chế độ chỉ lưu phần chế độ và bộ não giọng.</div>
               </div>
-              <div class="qs-field">
-                <label class="qs-lbl" for="endpointSel" data-i18n="qs.endpoint">Im lặng rồi gửi</label>
-                <select class="js-input" id="endpointSel" name="endpoint">
-                  <option value="500" data-i18n="qs.endpoint_fast_opt">Nhanh · 0,5 giây</option>
-                  <option value="800" data-i18n="qs.endpoint_mid_opt">Vừa · 0,8 giây (mặc định)</option>
-                  <option value="1200" data-i18n="qs.endpoint_slow_opt">Chậm · 1,2 giây</option>
-                </select>
-              </div>
-              <div class="qs-hint" data-i18n="qs.endpoint_hint">Câu kết bằng "và", "nhưng", dấu phẩy thì Javis tự chờ lâu hơn. Nói "khoan" hay "đợi chút" là Javis im chờ bạn.</div>
-              <label class="qs-field">
-                <span class="qs-lbl" data-i18n="qs.barge">Ngắt lời Javis bằng giọng</span>
-                <span class="toggle"><input type="checkbox" id="qsBarge" checked><span></span></span>
-              </label>
-              <div class="gcard-meta" data-i18n="qs.mic_local">Ba mục này áp dụng ngay trên máy đang dùng, không cần bấm Lưu.</div>
             </div>
 
             <!-- THƯƠNG HIỆU. Hai nút trước đây là hai thanh tràn ngang (một tím đặc, một
@@ -487,14 +497,8 @@
         <span class="mb-caret">▾</span>
       </button>
       <div class="mb-pop" id="mbPop" hidden></div>
-      <!-- 0.49.3: dải này BỎ hai đèn "HỆ THỐNG" (Claude Code CLI / Voice) - chúng gần như
-           luôn xanh nên không nói thêm được gì, mà trạng thái thật đã có chỗ tử tế hơn:
-           banner đỏ trên navbar khi mất model, trang Kết nối cho MCP. Chỗ trống dành cho
-           thứ THAY ĐỔI theo từng lượt: BA tool Javis vừa gọi, mới nhất đứng đầu. -->
-      <div class="sysbar" id="sysBar">
-        <span class="sysbar-label" data-i18n="mb.recent">VỪA GỌI</span>
-        <div id="mcpList" class="mcp-list"><div class="mcp-item dim" data-i18n="mb.no_tools">Chưa gọi tool nào</div></div>
-      </div>
+      <!-- 0.64.15: dải ba tool gọi gần nhất (chữ xanh lá) đã bỏ. Từng bước tool giờ hiện ngay trong
+           khung chat (khối bước + chip đang chạy), nên dải này chỉ lặp lại thứ đã thấy. -->
     </div>
 
     <!-- ===== BOTTOM: voice bar ===== -->
@@ -826,7 +830,7 @@
        bắt được cả trường hợp một file phía dưới hỏng vì đang chạy bản cũ. -->
   <script src="/static/freshness.js"></script>
   <script src="/static/i18n/index.js?v=2"></script>
-  <script src="/static/vendor/lucide-icons.js?v=4"></script>
+  <script src="/static/vendor/lucide-icons.js?v=6"></script>
   <script src="/static/icons.js?v=2"></script>
 
   <!-- theme.js phải nạp TRƯỚC mọi file khác: graph.js / app.js đăng ký
@@ -836,49 +840,65 @@
   <!-- Voice V1: đạo diễn hội thoại (thuần) phải nạp TRƯỚC voice.js và app.js. -->
   <script src="/static/voice-turn.js?v=1"></script>
   <script src="/static/voice-chunker.js?v=1"></script>
-  <script src="/static/voice.js?v=22"></script>
-  <script src="/static/graph.js?v=16"></script>
-  <script src="/static/chat-render.js?v=12"></script>
+  <script src="/static/voice.js?v=23"></script>
+  <script src="/static/graph.js?v=17"></script>
+  <script src="/static/chat-render.js?v=14"></script>
   <script src="/static/code-hl.js?v=1"></script>
   <script src="/static/dataview.js?v=1"></script>
+  <!-- window.JavisCopy: chép một chuỗi vào bảng nhớ tạm, có đường lui cho http trần. Đứng
+       sớm vì nhiều màn dùng chung (ngăn kéo File & link, thanh trình sửa file). -->
+  <script src="/static/copy-path.js?v=1"></script>
   <script src="/static/task-suggest.js?v=1"></script>
   <!-- Bảng lệnh của trình soạn .md (nút thanh công cụ + phím tắt + menu "/"). PHẢI đứng
        trước console.js: _neBuildToolbar đọc window.JavisEditorCmds để vẽ nút. -->
   <script src="/static/editor-cmds.js?v=1"></script>
-  <script src="/static/file-editor.js?v=8"></script>
+  <script src="/static/file-editor.js?v=11"></script>
   <script src="/static/chat-ask.js?v=1"></script>
   <script src="/static/limit-resume.js?v=1"></script>
   <script src="/static/chat-slash.js?v=3"></script>
   <script src="/static/chat-acts.js?v=2"></script>
   <script src="/static/chat-marks.js?v=3"></script>
+  <!-- Khối tiến trình từng bước trong khung chat: phải đứng TRƯỚC app.js vì app.js gọi
+       window.JavisSteps ngay khi khung tool_call đầu tiên về. -->
+  <script src="/static/chat-steps.js?v=1"></script>
   <!-- Voice V1: khối ngữ cảnh giao diện + bộ nhận lệnh ui_action, nạp TRƯỚC app.js. -->
   <script src="/static/ui-context.js?v=1"></script>
   <script src="/static/ui-actions.js?v=1"></script>
   <!-- Voice V2: nghe nói thẳng (Live), app.js gọi lười khi bấm mic ở chế độ Live. -->
-  <script src="/static/voice-live.js?v=1"></script>
-  <script src="/static/app.js?v=108"></script>
+  <script src="/static/voice-live.js?v=2"></script>
+  <script src="/static/app.js?v=111"></script>
   <!-- Sau app.js: dải việc nền đọc window.JavisSessions (app.js dựng) để biết phiên + brain. -->
   <script src="/static/background-strip.js?v=2"></script>
-  <script src="/static/model-picker.js?v=7"></script>
+  <!-- Thân bảng chọn model dùng chung: phải đứng TRƯỚC model-picker.js (thanh chat) và
+       studio.js (ô Model của trợ lý) vì cả hai gọi window.JavisModelList lúc vẽ. -->
+  <script src="/static/model-list.js?v=1"></script>
+  <script src="/static/model-picker.js?v=8"></script>
   <script src="/static/branding.js?v=7"></script>
   <script src="/static/quick-settings.js?v=10"></script>
   <script src="/static/chat-zoom.js?v=6"></script>
   <script src="/static/brains-ui.js?v=7"></script>
-  <script src="/static/sessions-ui.js?v=17"></script>
-  <script src="/static/studio.js?v=37"></script>
+  <script src="/static/sessions-ui.js?v=19"></script>
+  <script src="/static/studio.js?v=42"></script>
   <!-- Trang Cộng sự: nạp SAU studio.js (mượn trình sửa agent/workflow của Studio) và TRƯỚC
        console.js (renderWorkspace ủy quyền cho window.JavisWorkspace). -->
-  <script src="/static/workspace.js?v=9"></script>
+  <script src="/static/workspace.js?v=14"></script>
   <script src="/static/packs.js?v=1"></script>
-  <script src="/static/chatbots.js?v=10"></script>
+  <script src="/static/chatbots.js?v=17"></script>
+  <!-- Trang Hội thoại (hộp thư khách): nạp TRƯỚC console.js để renderConversations uỷ quyền được. -->
+  <script src="/static/conversations.js?v=6"></script>
   <!-- Dashboard Token (trang Mức dùng nâng cấp): nạp TRƯỚC console.js để renderUsage ủy quyền được. -->
   <script src="/static/usage.js?v=1"></script>
   <!-- Trang Code (terminal): nạp TRƯỚC console.js để renderCode ủy quyền được. File này CHỈ có
        phần khung - xterm.js (285KB) nạp lười ở lần đầu mở tab, không nằm trong đường khởi động. -->
   <script src="/static/code-term.js?v=2"></script>
+  <!-- Hộp chọn thư mục dùng chung (JavisFolderPicker). Nạp TRƯỚC file nào gọi nó. -->
+  <script src="/static/folder-picker.js?v=2"></script>
+  <!-- Trang Coding (nhóm Code): mượn khung chat của app, nên nạp TRƯỚC console.js y như
+       workspace.js để renderCoding uỷ quyền được. -->
+  <script src="/static/coding.js?v=6"></script>
   <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->
-  <script src="/static/console.js?v=137"></script>
-  <script src="/static/mobile-chat.js?v=8"></script>
+  <script src="/static/console.js?v=151"></script>
+  <script src="/static/mobile-chat.js?v=9"></script>
   <script src="/static/brain-view.js?v=1"></script>
   <script src="/static/push.js?v=2"></script>
   <script src="/static/install-nudge.js?v=1"></script>

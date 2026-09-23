@@ -156,7 +156,7 @@ Open Javis and the setup wizard walks you through:
 
 > 📚 **Detailed docs:** see the **[docs/](docs/README.md)** folder - a guide per feature (where to open it, what to press, how to use it). Most pages are in Vietnamese; [docs/en/](docs/en/README.md) has the translated ones. The table below is a quick map.
 
-The left navigation rail groups **21 pages** into **6 groups** (click a group name to open it):
+The left navigation rail groups **22 pages** into **6 groups** (click a group name to open it):
 
 | Group | Item | What it does | Guide |
 |---|---|---|---|
@@ -170,6 +170,7 @@ The left navigation rail groups **21 pages** into **6 groups** (click a group na
 | | **Workflows** | Build and run automation chains (agent → agent) with verification steps. | [Agents & workflows](docs/07-agents-va-workflows.md) |
 | | **Plugins** | Add native tools/hooks for every engine with one Python folder. | [Plugins](docs/20-plugins.md) |
 | | **Chatbot** | Put an agent in front of customers on its own Telegram/Zalo bot and its own brain. | [Chatbot](docs/25-chatbot.md) |
+| | **Conversations** | One inbox for every chat customers have with your bots and personal Zalo; read back, take over when a human is needed. | [Customer conversations](docs/en/28-customer-conversations.md) |
 | **Work** | **Work** | A background task queue the AI specs and runs itself; you only handle exceptions. | [Work (Kanban)](docs/21-viec-kanban.md) |
 | | **Recurring** | Several background loops plus reminders on a clock time or a cron expression. | [Recurring jobs & reminders](docs/08-viec-dinh-ky.md) |
 | **Connections** | **Connections** | The external-service store, several accounts per service, three permission levels. | [Connections & data](docs/09-mcp-va-so-lieu.md) |
@@ -196,7 +197,9 @@ The left navigation rail groups **21 pages** into **6 groups** (click a group na
 
 ## ⚙️ Configuration (`.env`)
 
-Every line can be left empty and it still runs. Copy `env.example` → `.env` (the sample file deliberately has no leading dot, so Hostinger's Docker Manager does not import it into the Environment box).
+Every line can be left empty and it still runs. Copy `env.example` → `.env` and add what you need.
+
+The template deliberately holds **only `NAME=value` lines, no comments at all**: deploy platforms (Hostinger's Docker Manager among them) scan config files in the repo and turn every line containing `=` into a variable, so one comment line becomes a variable named `#` and the whole Environment box turns red. **Full list with an explanation per variable: [docs/en/16-env-configuration.md](docs/en/16-env-configuration.md).**
 
 | Variable | Meaning | Default |
 |---|---|---|

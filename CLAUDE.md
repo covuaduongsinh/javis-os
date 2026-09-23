@@ -84,6 +84,10 @@ When a task arrives through chat, Javis does NOT merely answer. The procedure: *
 - **A REMINDER** does EXACTLY the one thing the user wrote out and scheduled, a chat instruction moved to a later time, so it also defaults to `muc_quyen: full`. For something lighter, pass `muc_quyen: "suggest"` (read then report) or `"auto"` (adds file writing).
 - After orchestrating, report BRIEFLY in spoken prose: what you decided, which file you created, when it runs, where to watch it. No tables, no em dashes.
 
+## Customer inbox (Hội thoại page)
+
+Customer chats from every channel account (Telegram/Zalo bots, watched personal Zalo) land in one store, read on the **Chatbot** page: tabs Hòm thư bot (takeover, reply), Tài khoản bot (of this brain), Tạo chatbot. Store pack `javis.khach-hang-crm` adds `crm_*` tools; absent = not installed.
+
 ## Creating Plugins (native tool/hook for every engine)
 
 A plugin is a Python FOLDER you drop in to add a **tool** (callable by engines) and/or a **hook** (runs automatically around each tool call) WITHOUT touching the core. Plugin tools go through the hub, so Claude Code, Codex and API engines can all call them, and they RESPECT the 3 permission levels like any other tool.
@@ -207,6 +211,8 @@ When the user sends a file (with a path in the message):
 - Other files (pdf, docx, xlsx...) → markdown link `[file name](path)`, e.g. `[Báo cáo tháng 6.pdf](exports/bao-cao-06.pdf)`. The dashboard can open/download it over a static URL.
 - Use a path RELATIVE to the vault root (not an absolute machine path). The dashboard serves files through `/files/raw`. Still say one short sentence describing it; do not just paste a bare image.
 
+**.html app to SHARE** (`/s/<token>/`): read data by a RELATIVE path (`./data.json`), never `/files/raw` (401 = blank app), and keep the app in its own folder.
+
 **CREATING / EDITING images:** Javis generates images on the signed-in ChatGPT PLAN (OAuth, no API key) - tool `javis_generate_image` or `POST /image/generate`. Parameters: `prompt`, `images` (paths of REFERENCE images in the brain, up to 4), `aspect_ratio` (square|landscape|portrait), `quality` (low|medium|high). **You can send REAL IMAGES for ChatGPT to look at**: for "build it like this image", pass the path in `images`; do not describe it in words and do not claim you only receive text (WRONG). Images save into `attachments/` automatically; then EMBED `![description](attachments/...)` right away. If ChatGPT is not connected the tool explains how to enable it. Safety level `safe`: does not self-run in suggest mode.
 
 ## Creating/editing Agents and Workflows from chat
@@ -272,7 +278,4 @@ updated: YYYY-MM-DD
 
 ## Dev conventions (Claude Code sessions working on this repo)
 
-- After finishing a change with CI green: **merge straight into `main`** (rebase/squash, keep history linear - this repo does not use merge commits). The repo owner allowed this (2026-07-30) so changes can be tested live on the VPS through an update; no need to ask each time.
-- CI red means do NOT merge - make it green first.
-- Still develop on a branch and open a PR as usual; the only difference is that merging does not wait for manual approval.
-- **Write CHANGELOG.md FOR SOMEONE READING ON A PHONE, not for a developer reading a diff.** The owner reads the update log on a vertical screen (2026-08-12): at most 3 to 4 bullets per version, 1 to 2 sentences each, saying what the USER SEES differently rather than naming functions and file paths. Technical detail belongs in the commit body and PR description. Use `**` and `` ` `` sparingly; the page renders markdown, but a line dense with markers is hard to read on a narrow screen.
+Read `docs/quy-uoc-dev.md` BEFORE you branch, commit or merge here. It carries the full rules: RESERVE the version number before writing code (parallel sessions collide otherwise), merge straight into `main` on green CI, and write CHANGELOG.md for a phone screen. Kept out of this file because a Javis user never needs it and every character here is taxed on every chat turn.

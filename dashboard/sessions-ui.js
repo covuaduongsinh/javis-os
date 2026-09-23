@@ -49,6 +49,12 @@
   // trang đều gọi mount() lúc dựng, nên chỗ gắn luôn là trang đang xem.
   var kenhLoc = "";        // "" = cột lịch sử thường; "agent:x"/"workflow:y" = lọc đúng kênh
   var hamTaoMoi = null;    // nút "Hội thoại mới" ở chế độ lọc: trang Cộng sự tự lo (đúng kênh)
+  // Hàm TRANG TRÍ một hàng hội thoại, do nơi gắn cột cấp (trang Cộng sự). Trả
+  // {dau, meta}: `dau` là HTML đứng trước tiêu đề (trang Cộng sự bày avatar những trợ lý đã
+  // phối hợp trong lần chạy đó), `meta` là một nhãn nhỏ trong hàng meta (xong / lỗi / chờ
+  // duyệt). Cột này KHÔNG tự đi hỏi dữ liệu ấy: nó không biết gì về quy trình, và nhét một
+  // request của trang khác vào đây là buộc hai thứ vào nhau mà chẳng bên nào cần.
+  var hamTrangTri = null;
   // Cột trái có HAI tab: hội thoại và cây thư mục brain. Nhớ tab đã chọn qua localStorage -
   // ai dùng cây làm chính thì mỗi lần mở chat lại phải bấm sang là phiền vô ích.
   var TAB_KEY = "javis.chatside.tab";
@@ -273,7 +279,8 @@
   var pdLuuTimer = null;
   var pdOnboard = false;           // banner chào chỉ hiện ngay sau khi tạo project
   var pdFormFile = false, pdFileMode = "search", pdFormLink = false;
-  var pdCheDo = "project";         // "project" = khung của project | "cuoc" = của cuộc trò chuyện
+  // "project" = khung của project | "cuoc" = của cuộc trò chuyện | "agent" = của MỘT trợ lý
+  var pdCheDo = "project";
   var phienProj = { sid: "", pid: "" };     // cache "phiên đang mở thuộc project nào"
 
   function pdT(k, bien) { return (window.t ? window.t(k, bien) : k); }
@@ -322,9 +329,12 @@
     // Nút xem file/link của CUỘC TRÒ CHUYỆN. Luôn có mặt khi cuộc đã được lưu, không phụ
     // thuộc project: chat dài đẻ ra tài liệu là chuyện xảy ra ở mọi cuộc, kể cả cuộc chưa
     // xếp vào nhóm nào.
+    // Icon GHIM GIẤY, cùng icon với nút "File & link" của trang Cộng sự (workspace.js #wsFiles).
+    // Ba màn (Đồ thị, Trò chuyện, Cộng sự) mở ra CÙNG MỘT ngăn kéo, nên mang ba icon khác nhau
+    // thì người dùng phải học lại nút ấy ở mỗi trang (chủ dự án yêu cầu 16/09).
     var html = currentId()
       ? '<button class="cts-btn" type="button" title="' + esc(pdT("cts.open")) + '">' +
-          ic("files") + "</button>"
+          ic("paperclip") + "</button>"
       : "";
     if (p) {
       var meta = "";
@@ -366,6 +376,7 @@
             '<button class="pd-hbtn pd-ren" type="button"></button>' +
             '<button class="pd-hbtn pd-x" type="button"></button>' +
           '</div>' +
+          '<div class="pd-scope" hidden></div>' +
           '<div class="pd-tabs"></div>' +
           '<div class="pd-body"></div>' +
         '</div>' +
@@ -446,31 +457,53 @@
   var cuocTS = null;      // {files, links, dangTai, loi} của cuộc đang xem
 
   function pdLaCuoc() { return pdCheDo === "cuoc"; }
-  function pdDuLieu() { return pdLaCuoc() ? cuocTS : projChiTiet; }
+  function pdLaAgent() { return pdCheDo === "agent"; }
+  function pdDuLieu() { return pdLaCuoc() ? cuocTS : pdLaAgent() ? agentTS : projChiTiet; }
 
-  /** Gốc URL của thứ đang mở. Hai chế độ có hai bộ route giống hệt nhau về hình dạng
+  /** Gốc URL của thứ đang mở. Ba chế độ có ba bộ route giống hệt nhau về hình dạng
    *  (.../files, .../files/<id>/pin, .../links...), nên mọi hàm thêm/gỡ/ghim bên dưới chỉ
    *  cần đổi đúng cái gốc này thay vì phải rẽ nhánh ở từng chỗ. */
   function pdApi() {
+    if (pdLaAgent()) return "/agents/" + encodeURIComponent((agentTS || {}).slug || "") + "/assets";
     return pdLaCuoc()
       ? "/sessions/" + encodeURIComponent(currentId() || "") + "/assets"
       : "/projects/" + encodeURIComponent((projChiTiet || {}).id || "");
   }
 
+  /** Trường ĐI KÈM mọi lời gọi ghi của chế độ đang mở.
+   *
+   *  Trợ lý là một FILE trong brain, nên server không tự tra ra nó thuộc brain nào như với
+   *  project và hội thoại (hai thứ đó nằm trong DB). Thiếu `brain` là mọi thao tác rơi vào
+   *  brain mặc định - im lặng và sai. */
+  function pdKem() { return pdLaAgent() ? { brain: brain() } : {}; }
+
+  function pdPost(duoi, fields) {
+    var body = pdKem();
+    Object.keys(fields || {}).forEach(function (k) { body[k] = fields[k]; });
+    return post(pdApi() + duoi, body);
+  }
+
+  /** Khoá từ điển theo chế độ: ba chế độ dùng CHUNG một ngăn kéo nhưng nói về ba thứ khác
+   *  nhau ("gỡ khỏi project" / "khỏi cuộc này" / "khỏi trợ lý"). Mọi khoá gọi qua đây phải
+   *  có đủ ở cả ba tiền tố, không thì chữ trên màn hình là chính cái mã khoá. */
+  function pdK(ten) { return (pdLaCuoc() ? "cts." : pdLaAgent() ? "ags." : "proj.") + ten; }
+
   async function napLaiChiTiet() {
     if (pdLaCuoc()) await napCuocTS();
+    else if (pdLaAgent()) await napAgentTS((agentTS || {}).slug || "", (agentTS || {}).name || "");
     else await napProjChiTiet((projChiTiet || {}).id || "");
   }
 
   /** Số file/link của project hiện trên chip, nên chỉ project mới cần nạp lại danh sách. */
-  function napLaiChip() { if (!pdLaCuoc()) loadProjects(); }
+  function napLaiChip() { if (pdCheDo === "project") loadProjects(); }
 
   function tabsHienTai() {
-    var f = pdLaCuoc() ? (cuocTS && cuocTS.files) : (projChiTiet && projChiTiet.files);
-    var l = pdLaCuoc() ? (cuocTS && cuocTS.links) : (projChiTiet && projChiTiet.links);
-    var tabFile = { k: "files", ico: "file-text", nhan: pdT("proj.tab_files"), n: (f || []).length };
-    var tabLink = { k: "links", ico: "link", nhan: pdT("proj.tab_links"), n: (l || []).length };
-    if (pdLaCuoc()) return [tabFile, tabLink];
+    var p = pdDuLieu() || {};
+    var tabFile = { k: "files", ico: "file-text", nhan: pdT("proj.tab_files"), n: (p.files || []).length };
+    var tabLink = { k: "links", ico: "link", nhan: pdT("proj.tab_links"), n: (p.links || []).length };
+    // Hướng dẫn chỉ có ở project. Trợ lý đã có system prompt riêng trong trình sửa của nó,
+    // bày thêm một ô hướng dẫn ở đây là hai chỗ nói cùng một việc.
+    if (pdLaCuoc() || pdLaAgent()) return [tabFile, tabLink];
     return [{ k: "instr", ico: "scroll-text", nhan: pdT("proj.tab_instr"), n: 0 }, tabFile, tabLink];
   }
 
@@ -488,10 +521,11 @@
     });
   }
 
-  async function openCuocDrawer() {
+  async function openCuocDrawer(giuCongSu) {
     var sid = currentId();
     if (!sid) return;
     pdDung();
+    if (!giuCongSu) pdCongSu = null;
     pdCheDo = "cuoc";
     pdOnboard = false;
     // Reset y như openProjDrawer: form tìm/tải còn mở từ lần trước là mở khung ra đã thấy
@@ -520,11 +554,131 @@
     return '<div class="pd-note">' + ic("info") + "<span>" + esc(pdT("cts.note")) + "</span></div>";
   }
 
+  // ── Chế độ TRỢ LÝ: file & link gắn vào một cộng sự ──────────────────────────
+  // Cùng vỏ ngăn kéo, cùng luật ghim, chỉ khác chỗ chứa: tài liệu của trợ lý nằm trong
+  // frontmatter của chính file trợ lý (server/agent_assets.py), nên nó đi theo trợ lý khi
+  // xuất ra hay copy brain. Phạm vi cũng khác project và cuộc: mọi lần trợ lý này làm việc
+  // đều thấy, kể cả khi nó chạy như một bước quy trình.
+  var agentTS = null;      // {slug, name, files, links, dangTai, loi} của trợ lý đang xem
+
+  async function openAgentDrawer(slug, ten, giuCongSu) {
+    if (!slug) return;
+    pdDung();
+    if (!giuCongSu) pdCongSu = null;
+    pdCheDo = "agent";
+    pdOnboard = false;
+    pdFormFile = false; pdFormLink = false; pdFileMode = "search";
+    // Trợ lý không có tab Hướng dẫn, mà projTab có thể còn đứng ở "instr" từ lần mở project
+    // trước. veThanhTab() tự nắn lại, nhưng nắn SAU khi veDrawer đã vẽ thân theo tab cũ.
+    projTab = "files";
+    pdEl.classList.add("on");
+    document.body.classList.add("pd-open");
+    agentTS = { slug: slug, name: ten || slug, files: [], links: [], dangTai: true };
+    veDrawer();
+    await napAgentTS(slug, ten);
+    veDrawer();
+  }
+
+  async function napAgentTS(slug, ten) {
+    if (!slug) { agentTS = { slug: "", name: ten || "", files: [], links: [], loi: true }; return; }
+    var co = { slug: slug, name: ten || (agentTS && agentTS.name) || slug };
+    try {
+      var d = await (await fetch("/agents/" + encodeURIComponent(slug) + "/assets?brain=" +
+                                 encodeURIComponent(brain()))).json();
+      agentTS = (d && d.ok)
+        ? { slug: slug, name: d.name || co.name, files: d.files || [], links: d.links || [] }
+        : { slug: slug, name: co.name, files: [], links: [], loi: true };
+    } catch (e) { agentTS = { slug: slug, name: co.name, files: [], links: [], loi: true }; }
+  }
+
+  /** Câu cuối mỗi ngăn: nói rõ thứ đang xem thuộc về ĐÂU. Project không cần - tên project
+   *  đã nằm ngay trên đầu khung - nhưng cuộc và trợ lý thì cần, vì cả hai trông giống hệt
+   *  nhau và gắn nhầm chỗ là tài liệu biến mất khỏi nơi người dùng tưởng nó có. */
+  function ghiChuCuoi() {
+    // Mở từ trang Cộng sự thì công tắc phạm vi trên đầu đã nói rõ thuộc về đâu; nhắc lại ở
+    // cuối là hai câu nói cùng một việc.
+    if (pdCongSu) return "";
+    return pdLaCuoc() ? ghiChuCuoc() : pdLaAgent() ? ghiChuAgent() : "";
+  }
+
+  function ghiChuAgent() {
+    return '<div class="pd-note">' + ic("info") + "<span>" + esc(pdT("ags.note")) + "</span></div>";
+  }
+
+  // ── Trang Cộng sự: MỘT ngăn kéo tài liệu, công tắc phạm vi ở đầu ─────────────────
+  // Trước 0.64.19 trang Cộng sự có HAI lối vào trông giống hệt nhau: nút "File & link" trên
+  // thanh đầu (tài liệu của CUỘC đang mở) và nút "Tài liệu" trong Cài đặt (tài liệu của TRỢ
+  // LÝ). Cùng một khung, cùng hai tab File/Link, chỉ khác một câu ghi chú nhỏ ở cuối - chủ
+  // repo báo 23/09 là dùng nhầm lẫn, gắn một chỗ rồi đi tìm ở chỗ kia. Nay cả hai nút mở
+  // cùng một ngăn, trên đầu là công tắc hai phạm vi kèm số lượng, bấm là chuyển.
+  var pdCongSu = null;     // {slug, name} khi ngăn kéo mở từ trang Cộng sự; null = không bày công tắc
+  var KHOA_PHAM_VI = "javis_pd_pham_vi";
+
+  function phamViDaNho() {
+    try { return localStorage.getItem(KHOA_PHAM_VI) === "cuoc" ? "cuoc" : "agent"; } catch (e) { return "agent"; }
+  }
+
+  /** Mở tài liệu cho một trợ lý ở trang Cộng sự. `phamVi`: "agent" | "cuoc" | bỏ trống =
+   *  phạm vi lần trước người dùng chọn (mặc định: của trợ lý, vì đó là chỗ tài liệu SỐNG LÂU,
+   *  còn tài liệu của một cuộc mất tăm khi mở cuộc mới). */
+  async function openTaiLieuCongSu(slug, ten, phamVi) {
+    if (!slug) return;
+    pdCongSu = { slug: slug, name: ten || slug };
+    var pv = phamVi || phamViDaNho();
+    if (pv === "cuoc" && !currentId()) pv = "agent";   // chưa có cuộc thì chưa có chỗ gắn
+    // Nạp phạm vi KIA song song để công tắc hiện đúng số ngay từ đầu.
+    if (pv === "agent") {
+      if (currentId()) napCuocTS().then(function () { if (pdCongSu) veThanhPhamVi(); });
+      else cuocTS = null;
+      await openAgentDrawer(slug, ten, true);
+    } else {
+      napAgentTS(slug, ten).then(function () { if (pdCongSu) veThanhPhamVi(); });
+      await openCuocDrawer(true);
+    }
+  }
+
+  function doiPhamVi(pv) {
+    if (!pdCongSu || (pv === "cuoc" ? pdLaCuoc() : pdLaAgent())) return;
+    if (pv === "cuoc" && !currentId()) return;
+    try { localStorage.setItem(KHOA_PHAM_VI, pv); } catch (e) {}
+    if (pv === "agent") openAgentDrawer(pdCongSu.slug, pdCongSu.name, true);
+    else openCuocDrawer(true);
+  }
+
+  function soTaiLieu(d) { return d && !d.dangTai && !d.loi ? (d.files || []).length + (d.links || []).length : null; }
+
+  function veThanhPhamVi() {
+    if (!pdEl) return;
+    var host = pdEl.querySelector(".pd-scope");
+    if (!host) return;
+    if (!pdCongSu || !(pdLaAgent() || pdLaCuoc())) { host.hidden = true; host.innerHTML = ""; return; }
+    host.hidden = false;
+    var coCuoc = !!currentId();
+    var nut = function (pv, ico, nhan, phu, n, tat) {
+      var on = pv === "agent" ? pdLaAgent() : pdLaCuoc();
+      return '<button type="button" class="pd-sc' + (on ? " on" : "") + '" data-pv="' + pv + '"' +
+        (tat ? ' disabled title="' + esc(pdT("pds.chat_none")) + '"' : "") + ' aria-pressed="' + on + '">' +
+        '<span class="pd-sc-ico">' + ic(ico) + "</span>" +
+        '<span class="pd-sc-txt"><b>' + esc(nhan) + (n != null ? ' <span class="pd-sc-n">' + n + "</span>" : "") +
+        "</b><small>" + esc(phu) + "</small></span></button>";
+    };
+    host.innerHTML =
+      '<div class="pd-sc-row" role="group">' +
+        nut("agent", "bot", pdT("pds.agent"), pdT("pds.agent_sub"), soTaiLieu(agentTS && agentTS.slug === pdCongSu.slug ? agentTS : null), false) +
+        nut("cuoc", "message-circle", pdT("pds.chat"), coCuoc ? pdT("pds.chat_sub") : pdT("pds.chat_none_short"), coCuoc ? soTaiLieu(cuocTS) : null, !coCuoc) +
+      "</div>" +
+      '<div class="pd-sc-hint">' + esc(pdT(pdLaAgent() ? "pds.hint_agent" : "pds.hint_chat")) + "</div>";
+    host.querySelectorAll(".pd-sc").forEach(function (b) {
+      b.onclick = function () { doiPhamVi(b.dataset.pv); };
+    });
+  }
+
   async function openProjDrawer(pid) {
     var id = pid || (projChiTiet && projChiTiet.id) || "";
     if (!id) return;
     pdDung();
     pdCheDo = "project";
+    pdCongSu = null;      // project không có công tắc phạm vi của trang Cộng sự
     pdFormFile = false; pdFormLink = false; pdFileMode = "search";
     pdEl.classList.add("on");
     document.body.classList.add("pd-open");
@@ -541,6 +695,7 @@
     if (pdEl) pdEl.classList.remove("on");
     document.body.classList.remove("pd-open");
     pdOnboard = false;
+    pdCongSu = null;
   }
 
   async function napProjChiTiet(id) {
@@ -565,19 +720,25 @@
     var laCuoc = pdLaCuoc();
     var p = pdDuLieu();
     if (!p) return;
-    // Cả hai chế độ đều nhận file thả vào (cuộc trò chuyện giờ cũng có chỗ chứa tài liệu),
-    // nên cờ này luôn bật để app.js biết đây là vùng tự lo, đừng đẩy file sang khung chat.
+    // Cả ba chế độ đều nhận file thả vào (cuộc trò chuyện và trợ lý giờ cũng có chỗ chứa tài
+    // liệu), nên cờ này luôn bật để app.js biết đây là vùng tự lo, đừng đẩy file sang khung chat.
     pdEl.querySelector(".pd-panel").setAttribute("data-localdrop", "1");
-    pdEl.querySelector(".pd-ico").innerHTML = laCuoc ? ic("files") : projIcon(projById(p.id) || p);
-    pdEl.querySelector(".pd-name").textContent = laCuoc ? pdT("cts.title") : (p.name || "");
-    // Đổi tên chỉ có nghĩa với project. Cuộc trò chuyện đổi tên ở cột trái, bày lại ở đây là
-    // hai chỗ làm cùng một việc.
-    pdEl.querySelector(".pd-ren").style.display = laCuoc ? "none" : "";
+    pdEl.querySelector(".pd-ico").innerHTML =
+      laCuoc ? ic("files") : pdLaAgent() ? ic("bot") : projIcon(projById(p.id) || p);
+    // Mở từ trang Cộng sự thì đầu khung luôn là TÊN TRỢ LÝ; còn "của trợ lý hay của cuộc này"
+    // nói bằng công tắc ngay bên dưới, không bằng tiêu đề đổi qua đổi lại.
+    if (pdCongSu) pdEl.querySelector(".pd-ico").innerHTML = ic("bot");
+    pdEl.querySelector(".pd-name").textContent = pdCongSu ? pdCongSu.name
+      : laCuoc ? pdT("cts.title") : (p.name || "");
+    veThanhPhamVi();
+    // Đổi tên chỉ có nghĩa với project. Cuộc trò chuyện đổi tên ở cột trái, trợ lý đổi tên
+    // trong trình sửa của nó; bày lại ở đây là hai chỗ làm cùng một việc.
+    pdEl.querySelector(".pd-ren").style.display = (laCuoc || pdLaAgent()) ? "none" : "";
     veThanhTab();
     veNutGhimPhien();
     var body = pdEl.querySelector(".pd-body");
     if (p.dangTai) { body.innerHTML = '<div class="pd-empty">' + esc(pdT("proj.loading")) + "…</div>"; return; }
-    if (p.loi) { body.innerHTML = '<div class="pd-empty">' + esc(pdT(laCuoc ? "cts.err_load" : "proj.err_load")) + "</div>"; return; }
+    if (p.loi) { body.innerHTML = '<div class="pd-empty">' + esc(pdT(pdK("err_load"))) + "</div>"; return; }
     body.innerHTML =
       (pdOnboard
         ? '<div class="pd-onboard">' + ic("sparkles") + "<span>" + esc(pdT("proj.onboard")) + "</span>" +
@@ -598,6 +759,9 @@
     var b = pdEl.querySelector(".pd-pin");
     var sid = currentId();
     var s = null;
+    // Chế độ trợ lý nói về một cộng sự, không về cuộc đang mở - ghim hội thoại ở đây là một
+    // nút làm chuyện của màn hình khác.
+    if (pdLaAgent()) { b.style.display = "none"; return; }
     if (sid && cached && cached.items) {
       for (var i = 0; i < cached.items.length; i++) if (cached.items[i].id === sid) s = cached.items[i];
     }
@@ -687,6 +851,18 @@
     return "file";
   }
 
+  /** Nút CHÉP ĐƯỜNG DẪN của một hàng. Có ở MỌI hàng, kể cả hàng tự dò và hàng file đã mất:
+   *  chủ dự án hay cần đúng chuỗi đường dẫn để dán sang chỗ khác làm tiếp, và với file đã đổi
+   *  chỗ thì đường dẫn CŨ chính là thứ cần chép đi tra. Đường dẫn nằm sẵn ở dòng mô tả nhưng
+   *  dòng đó cắt đuôi bằng ba chấm, nên bôi đen bằng chuột là chép thiếu.
+   *  `o.sao` là chuỗi sẽ chép (đường dẫn file, hoặc URL với hàng link). */
+  function nutSao(o) {
+    if (!o.sao) return "";
+    var title = o.saoTitle || pdT("common.copy_path");
+    return '<button class="pd-row-act pd-sao" type="button" data-sao="' + esc(o.sao) + '" title="' +
+      esc(title + ": " + o.sao) + '">' + ic("copy") + "</button>";
+  }
+
   function hangMuc(o) {
     // Hàng TỰ DÒ (chỉ có ở chế độ cuộc): Javis suy ra từ tin nhắn chứ không phải một bản ghi,
     // nên không có id để gỡ hay ghim. Vẫn mở ra đọc được - đó mới là việc chính của nó.
@@ -700,6 +876,7 @@
           '<span class="pd-row-name">' + (o.tenHtml || esc(o.ten)) + "</span>" +
           '<span class="pd-row-sub">' + (o.subHtml || esc(o.sub || "")) + "</span>" +
         (o.moDuoc ? "</button>" : "</span>") +
+        nutSao(o) +
       "</div>";
     }
     return '<div class="pd-row' + (o.mat ? " mat" : "") + '" data-id="' + esc(o.id) + '">' +
@@ -715,9 +892,10 @@
           '<span class="pd-row-name">' + esc(o.ten) + "</span>" +
           '<span class="pd-row-sub">' + (o.subHtml || esc(o.sub || "")) + "</span>" +
         (o.moDuoc ? "</button>" : "</span>") +
+        nutSao(o) +
         '<button class="pd-row-act pd-ghim' + (o.pinned ? " on" : "") + '" type="button" title="' +
           esc(o.pinned ? pdT("proj.pin_off") : o.ghimTitle) + '">' + ic("pin") + "</button>" +
-        '<button class="pd-row-act pd-go" type="button" title="' + esc(pdT("proj.remove")) + '">' +
+        '<button class="pd-row-act pd-go" type="button" title="' + esc(pdT(pdK("remove"))) + '">' +
           ic("x") + "</button>" +
         // Xoá HẲN chỉ có ở file. Link thì gỡ khỏi project đã là xoá, không có bản thứ hai
         // nào ở đâu để mà xoá tiếp.
@@ -757,17 +935,21 @@
       var con = !laCuoc || f.exists !== false;
       return hangMuc({ id: f.id, ten: f.label || f.name || f.path,
                        sub: con ? (laCuoc ? (f.brain_path || f.path) : f.path) : pdT("cts.file_gone"),
+                       // Chép đường dẫn TRONG BRAIN (brain_path), không phải đường dẫn tuyệt
+                       // đối trên máy chủ: đó mới là chuỗi mọi nơi khác của Javis nhận vào
+                       // (chat, wikilink, tool đọc file).
+                       sao: f.brain_path || f.path,
                        icon: f.image ? "image" : icoFile(f.name || f.path), pinned: !!f.pinned,
                        ghimTitle: pdT("proj.pin_on"), moDuoc: con, xoaDuoc: con, mat: !con });
     };
     var veTuDong = function (f) {
       return hangMuc({ tuDong: true, duong: f.path, ten: f.label || f.name,
                        sub: f.exists ? f.brain_path : pdT("cts.file_gone"),
+                       sao: f.brain_path || f.path,
                        icon: f.image ? "image" : icoFile(f.name),
                        moDuoc: !!f.exists, mat: !f.exists });
     };
-    if (!fs.length) return '<div class="pd-empty">' +
-      esc(pdT(laCuoc ? "cts.files_empty" : "proj.files_empty")) + "</div>";
+    if (!fs.length) return '<div class="pd-empty">' + esc(pdT(pdK("files_empty"))) + "</div>";
     var ds = "";
     if (ghim.length) ds += nhomHtml(pdT("proj.pinned_group")) + ghim.map(ve).join("");
     if (thuong.length) ds += (ghim.length || laCuoc
@@ -795,10 +977,9 @@
       '<button class="pd-add" type="button">' + ic("plus") + " " + esc(pdT("proj.add_file")) + "</button>" +
       (pdFormFile ? formFile() : "") +
       (coGhimDuoc(p)
-        ? '<div class="pd-note">' + ic("info") + "<span>" +
-            esc(pdT(pdLaCuoc() ? "cts.pin_note" : "proj.pin_note")) + "</span></div>"
+        ? '<div class="pd-note">' + ic("info") + "<span>" + esc(pdT(pdK("pin_note"))) + "</span></div>"
         : "") +
-      (pdLaCuoc() ? ghiChuCuoc() : "") +
+      ghiChuCuoi() +
       "</div>";
   }
 
@@ -817,9 +998,10 @@
 
   function veSoTab() {
     var p = pdDuLieu() || {};
-    // Chế độ cuộc không có tab Hướng dẫn, nên bảng đếm phải lệch đi một ô cho khớp thứ tự tab.
-    var dem = pdLaCuoc() ? [(p.files || []).length, (p.links || []).length]
-                         : ["", (p.files || []).length, (p.links || []).length];
+    // Chỉ project có tab Hướng dẫn đứng đầu, nên bảng đếm phải lệch đi một ô cho khớp thứ
+    // tự tab (xem tabsHienTai).
+    var dem = (pdLaCuoc() || pdLaAgent()) ? [(p.files || []).length, (p.links || []).length]
+                                          : ["", (p.files || []).length, (p.links || []).length];
     pdEl.querySelectorAll(".pd-tab").forEach(function (b, i) {
       var n = b.querySelector(".pd-tab-n");
       if (!dem[i]) { if (n) n.remove(); return; }
@@ -832,6 +1014,13 @@
   function noiHang(pane, laFile) {
     var p = pdDuLieu() || {};
     pane.querySelectorAll(".pd-row").forEach(function (row) {
+      // Nút chép nối TRƯỚC nhánh rẽ bên dưới: hàng tự dò cũng có nút này, mà nhánh đó thoát
+      // sớm nên nối sau là hàng tự dò có nút bấm không ăn.
+      var sao = row.querySelector(".pd-sao");
+      if (sao) sao.onclick = function (ev) {
+        ev.stopPropagation();
+        if (window.JavisCopy) window.JavisCopy(sao.dataset.sao, sao);
+      };
       // Hàng TỰ DÒ chỉ mang đường dẫn, không có bản ghi nào phía sau để gỡ hay ghim.
       if (!row.dataset.id) {
         var mo = row.querySelector(".pd-row-body.mo-duoc");
@@ -949,7 +1138,7 @@
 
   async function themFile(duong, ten, nut) {
     if (nut) nut.disabled = true;
-    var r = await post(pdApi() + "/files", { path: duong, name: ten || "" });
+    var r = await pdPost("/files", { path: duong, name: ten || "" });
     if (!r || !r.ok) {
       alert(pdT("proj.err_add_file") + ": " + ((r && r.error) || ""));
       if (nut) nut.disabled = false;
@@ -965,7 +1154,7 @@
    *  trên, vì bấm nhầm thì cái nút vừa bấm đã quay về "Thêm" ngay dưới ngón tay. */
   async function goNhanhFile(f, nut) {
     if (nut) nut.disabled = true;
-    await post(pdApi() + "/files/" + encodeURIComponent(f.id) + "/delete", {});
+    await pdPost("/files/" + encodeURIComponent(f.id) + "/delete", {});
     await napLaiChiTiet();
     napLaiChip();
     veLaiDanhSach();
@@ -1014,8 +1203,8 @@
   }
 
   async function ghimFile(f) {
-    await post(pdApi() + "/files/" + encodeURIComponent(f.id) + "/pin",
-               { pinned: f.pinned ? "0" : "1" });
+    await pdPost("/files/" + encodeURIComponent(f.id) + "/pin",
+                 { pinned: f.pinned ? "0" : "1" });
     await napLaiChiTiet();
     veLaiDanhSach();
   }
@@ -1030,16 +1219,15 @@
     if (!confirm(pdT("proj.confirm_delete_file", { ten: ten }))) return;
     var r = await post("/files/delete", { brain: brain(), path: f.path });
     if (!r || !r.ok) { alert(pdT("proj.err_delete_file") + ": " + ((r && r.error) || "")); return; }
-    await post(pdApi() + "/files/" + encodeURIComponent(f.id) + "/delete", {});
+    await pdPost("/files/" + encodeURIComponent(f.id) + "/delete", {});
     await napLaiChiTiet();
     napLaiChip();
     veLaiDanhSach();
   }
 
   async function goFile(f) {
-    if (!confirm(pdT(pdLaCuoc() ? "cts.confirm_remove_file" : "proj.confirm_remove_file",
-                     { ten: f.label || f.name || f.path }))) return;
-    await post(pdApi() + "/files/" + encodeURIComponent(f.id) + "/delete", {});
+    if (!confirm(pdT(pdK("confirm_remove_file"), { ten: f.label || f.name || f.path }))) return;
+    await pdPost("/files/" + encodeURIComponent(f.id) + "/delete", {});
     await napLaiChiTiet();
     napLaiChip();
     veLaiDanhSach();
@@ -1057,14 +1245,15 @@
     };
     var ve = function (l) {
       return hangMuc({ id: l.id, ten: l.label || l.url, icon: "link", pinned: !!l.pinned,
-                       ghimTitle: pdT("proj.pin_link_on"), subHtml: aHtml(l) });
+                       ghimTitle: pdT("proj.pin_link_on"), subHtml: aHtml(l),
+                       sao: l.url, saoTitle: pdT("common.copy_link") });
     };
     var veTuDong = function (l) {
       return hangMuc({ tuDong: true, icon: "link", tenHtml: aHtml(l),
-                       sub: l.vai === "user" ? pdT("cts.from_you") : pdT("cts.from_javis") });
+                       sub: l.vai === "user" ? pdT("cts.from_you") : pdT("cts.from_javis"),
+                       sao: l.url, saoTitle: pdT("common.copy_link") });
     };
-    if (!ls.length) return '<div class="pd-empty">' +
-      esc(pdT(laCuoc ? "cts.links_empty" : "proj.links_empty")) + "</div>";
+    if (!ls.length) return '<div class="pd-empty">' + esc(pdT(pdK("links_empty"))) + "</div>";
     var ds = "";
     if (tay.length) ds += (laCuoc ? nhomHtml(pdT("cts.added_group")) : "") + tay.map(ve).join("");
     if (tuDong.length) ds += nhomHtml(pdT("cts.auto_links_group")) + tuDong.map(veTuDong).join("");
@@ -1085,7 +1274,7 @@
             "</div></div>"
         : "") +
       '<div class="pd-note">' + ic("info") + "<span>" + esc(pdT("proj.link_note")) + "</span></div>" +
-      (pdLaCuoc() ? ghiChuCuoc() : "") +
+      ghiChuCuoi() +
       "</div>";
   }
 
@@ -1109,7 +1298,7 @@
   async function themLink(url, nhan) {
     var u = (url || "").trim();
     if (!u) return;
-    var r = await post(pdApi() + "/links", { url: u, label: (nhan || "").trim() });
+    var r = await pdPost("/links", { url: u, label: (nhan || "").trim() });
     if (!r || !r.ok) { alert(pdT("proj.err_add_link") + ": " + ((r && r.error) || "")); return; }
     await napLaiChiTiet();
     napLaiChip();
@@ -1124,16 +1313,15 @@
   }
 
   async function ghimLink(l) {
-    await post(pdApi() + "/links/" + encodeURIComponent(l.id) + "/pin",
-               { pinned: l.pinned ? "0" : "1" });
+    await pdPost("/links/" + encodeURIComponent(l.id) + "/pin",
+                 { pinned: l.pinned ? "0" : "1" });
     await napLaiChiTiet();
     veLaiDanhSach();
   }
 
   async function goLink(l) {
-    if (!confirm(pdT(pdLaCuoc() ? "cts.confirm_remove_link" : "proj.confirm_remove_link",
-                     { ten: l.label || l.url }))) return;
-    await post(pdApi() + "/links/" + encodeURIComponent(l.id) + "/delete", {});
+    if (!confirm(pdT(pdK("confirm_remove_link"), { ten: l.label || l.url }))) return;
+    await pdPost("/links/" + encodeURIComponent(l.id) + "/delete", {});
     await napLaiChiTiet();
     napLaiChip();
     veLaiDanhSach();
@@ -1272,6 +1460,7 @@
    *                    còn project là cách gom hội thoại của NGƯỜI DÙNG, không áp cho hội
    *                    thoại của một trợ lý.
    * `opts.onNew`     - thay hành vi nút "Hội thoại mới" (kênh cộng sự phải mở đúng kênh).
+   * `opts.trangTri`  - hàm (s) -> {dau, meta}: HTML chèn thêm vào một hàng (xem hamTrangTri).
    */
   function mount(container, opts) {
     if (!container) return;
@@ -1281,6 +1470,7 @@
     lastBrain = brain();
     kenhLoc = o.kenh || "";
     hamTaoMoi = typeof o.onNew === "function" ? o.onNew : null;
+    hamTrangTri = typeof o.trangTri === "function" ? o.trangTri : null;
     var gonNhe = !!o.chiHoiThoai;
     if (gonNhe) {
       side.classList.add("cside-gon");
@@ -1454,10 +1644,20 @@
       // KHÔNG có icon riêng cho từng hội thoại. Hàng nào cũng là một cuộc trò chuyện nên icon
       // ở đây không phân loại được gì, chỉ thêm một nút phải bấm và một hàng nút chật thêm.
       // Icon để PHÂN LOẠI thì nằm ở Project - xem openProjMenu.
-      var item = el('<div class="cside-item' + (s.id === cur ? " active" : "") + (isRun ? " running" : "") + '">' +
+      // Trang trí do nơi gắn cột cấp (trang Cộng sự: avatar các trợ lý + trạng thái lần chạy).
+      // Bọc try: một hàm của bên ngoài ném lỗi thì chỉ mất phần trang trí, không được phép
+      // làm cụt cả danh sách hội thoại.
+      var tt = {};
+      if (hamTrangTri) { try { tt = hamTrangTri(s) || {}; } catch (e) { tt = {}; } }
+      // Lớp `ghim` cho hàng ĐÃ GHIM: nhóm "Đã ghim" trên đầu nói được thứ tự, nhưng cuộn
+      // xuống giữa danh sách thì không còn thấy cái nhãn ấy nữa. Vạch màu bên trái và dấu ghim
+      // luôn hiện đi theo từng hàng, đúng khuôn danh sách trợ lý / quy trình của trang Cộng sự
+      // (chủ dự án chốt 16/09 sau khi dùng bản 0.59.20).
+      var item = el('<div class="cside-item' + (s.id === cur ? " active" : "") + (isRun ? " running" : "") + (s.pinned ? " ghim" : "") + '">' +
         '<div class="ci-title">' + (isRun ? '<span class="ci-run" title="' + esc(window.t("sess.running")) + '">' + ic("loader", { cls: "ic-spin" }) + '</span> ' : '') +
+        (tt.dau || "") +
         esc(s.title || s.preview || window.t("sess.untitled")) + '</div>' +
-        '<div class="ci-meta"><span>' + fmtT(s.updated_at) + '</span>' +
+        '<div class="ci-meta"><span>' + fmtT(s.updated_at) + '</span>' + (tt.meta || "") +
         (chLabel ? '<span class="ci-badge">' + esc(chLabel) + '</span>' : '') +
         (eng ? '<span class="ci-badge">' + esc(eng) + '</span>' : '') +
         '<span>' + esc(window.t("sess.msgs", { count: s.msg_count || 0 })) + '</span>' +
@@ -1575,7 +1775,16 @@
 
   window.JavisChatSide = { mount: mount, refresh: refresh, tab: chonTab,
                            chip: renderProjChip, moKhung: openProjDrawer,
-                           moKhungCuoc: openCuocDrawer };
+                           moKhungCuoc: openCuocDrawer,
+                           // Trang Cộng sự mở đúng ngăn kéo này cho MỘT trợ lý (nút "File &
+                           // link" trong Cài đặt trợ lý).
+                           moKhungAgent: openAgentDrawer,
+                           // Trang Cộng sự (0.64.19): một ngăn kéo, công tắc "của trợ lý / chỉ
+                           // cuộc này" ở đầu. Cả nút trên thanh đầu lẫn nút trong Cài đặt đi đây.
+                           moTaiLieu: openTaiLieuCongSu,
+                           // Bảng nổi (menu project) cho trang khác mượn - trang Cộng sự dùng
+                           // đúng khuôn này cho bộ chọn nhóm, để hai chỗ nhìn và bấm y nhau.
+                           menu: openMenu, dongMenu: closeMenu };
   // Cầu nối cho app.js: hội thoại VỪA được mint id trong lúc đang mở một project thì tự rơi
   // vào project đó. Phải gắn nhãn ngay tại lúc bấm gửi vì id sinh ở phía client, còn hàng
   // trong DB thì tới lượt server xử lý mới có - endpoint tự tạo hàng khi nhận kèm brain.
@@ -1606,6 +1815,7 @@
   window.addEventListener("javis:i18n", function () {
     var dangMo = !!(pdEl && pdEl.classList.contains("on"));
     var laCuoc = pdLaCuoc();
+    var ag = pdLaAgent() ? { slug: (agentTS || {}).slug, name: (agentTS || {}).name } : null;
     var id = projChiTiet && projChiTiet.id;
     if (pdEl && pdEl.parentNode) pdEl.parentNode.removeChild(pdEl);
     pdEl = null;
@@ -1613,6 +1823,7 @@
     // Mở lại ĐÚNG chế độ đang xem. Trước đây chỉ mở lại project, nên đổi ngôn ngữ trong lúc
     // đang xem file của cuộc là khung biến mất không lý do.
     if (dangMo && laCuoc) openCuocDrawer();
+    else if (dangMo && ag && ag.slug) openAgentDrawer(ag.slug, ag.name);
     else if (dangMo && id) openProjDrawer(id);
     renderProjChip();
   });

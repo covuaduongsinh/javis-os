@@ -30,6 +30,42 @@ const ds = [{ slug: "a", name: "Người viết", role: "viết", group: "Market
 check("loc theo chu khong dau", W.loc(ds, "nguoi viet", "").map(x => x.slug).join() === "a");
 check("loc theo nhom", W.loc(ds, "", "Finance").map(x => x.slug).join() === "b");
 
+// ============================================================
+// NHÓM: gom cộng sự theo `group` khi xem "Tất cả" (0.59.46)
+// ============================================================
+// Chủ repo 20/09: gom nhiều agent thành nhóm khác nhau, giống thư mục dự án bên Trò chuyện.
+{
+  const ds2 = [
+    { slug: "a", name: "A", group: "Marketing" },
+    { slug: "b", name: "B", group: "Chung" },
+    { slug: "c", name: "C", group: "Finance", pinned: true },
+    { slug: "d", name: "D" },                       // không khai group -> Chung
+    { slug: "e", name: "E", group: "Ăn uống" },
+    { slug: "f", name: "F", group: "Marketing" },
+  ];
+  const kh = W.gomNhom(ds2, "");
+  check("khoi Da ghim dung dau", kh[0].ghim === true && kh[0].items.map(x => x.slug).join() === "c");
+  check("moi nhom mot khoi, xep theo ten tieng Viet, 'Chung' xuong cuoi",
+    kh.slice(1).map(k => k.nhom).join("|") === "Ăn uống|Marketing|Chung", kh.map(k => k.nhom).join("|"));
+  check("khoi nhom co co theoNhom (ve tieu de thu gon duoc)", kh.slice(1).every(k => k.theoNhom === true));
+  check("nguoi khong khai group roi vao Chung", kh[3].items.map(x => x.slug).join() === "b,d");
+  check("giu thu tu trong nhom", kh[2].items.map(x => x.slug).join() === "a,f");
+  // Đang lọc MỘT nhóm: không chia nhóm nữa, chỉ còn "Đã ghim" + phần còn lại.
+  const kl = W.gomNhom(ds2.filter(x => (x.group || "Chung") === "Marketing"), "Marketing");
+  check("loc mot nhom -> mot khoi, khong tieu de nhom",
+    kl.length === 1 && kl[0].theoNhom === false && kl[0].tieuDe === false);
+  check("khong co gi thi rong", W.gomNhom([], "").length === 0);
+  // Nhóm TRỐNG (vừa tạo bằng "+ Nhóm mới"): vẫn có khối riêng với 0 người, xếp đúng chỗ theo tên.
+  const kt = W.gomNhom(ds2, "", ["Bán hàng", "Marketing", "Chung"]);
+  check("nhom trong thanh mot khoi 0 nguoi, xep theo ten; trung nhom that hay 'Chung' thi bo qua",
+    kt.slice(1).map(k => k.nhom + ":" + k.items.length).join("|") === "Ăn uống:1|Bán hàng:0|Marketing:2|Chung:2",
+    kt.map(k => k.nhom + ":" + k.items.length).join("|"));
+  const h = W.nhomHtml("Marketing", 2, true);
+  check("tieu de nhom: co nut thu gon, ten, so nguoi, nut quan ly, va co thu khi dang thu",
+    h.includes("ws-grp-tog") && h.includes("Marketing") && h.includes('ws-grp-n">2<')
+    && h.includes("data-gmore") && h.includes("ws-grp thu") && h.includes('aria-expanded="false"'));
+}
+
 // Tiến độ quy trình từ wf_event
 const st = W.tienDoMoi(3);
 W.apDung(st, { type: "step_start", i: 0, agent: "A" });
@@ -120,8 +156,18 @@ check("phan tram", W.phanTram(W.tienDoMoi(4)) === 0 && W.phanTram(st) === 100);
 
   const lop = () => ({ _c: {}, toggle(c, on) { this._c[c] = !!on; }, co(c) { return !!this._c[c]; } });
   const oGia = () => ({ innerHTML: "", textContent: "", value: "", hidden: true, dataset: {},
-    _attrs: {}, _focus: 0, classList: lop(),
+    _attrs: {}, _focus: 0, scrollTop: 0, classList: lop(),
     setAttribute(k, v) { this._attrs[k] = v; }, focus() { this._focus++; },
+    // querySelector: veDanhSach dò nút "Xem thêm" vừa vẽ. Trình duyệt thật luôn có hàm này -
+    // thiếu nó ở đây là bộ giả sai, không phải code sai. Trả node giả khi HTML vừa vẽ CÓ id
+    // đó, để phép thử phân trang bấm được vào nút.
+    querySelector(sel) {
+      if (sel === "#wsMore" && this.innerHTML.indexOf('id="wsMore"') !== -1) {
+        if (!this._more) this._more = oGia();
+        return this._more;
+      }
+      return null;
+    },
     querySelectorAll() { return []; } });
   const nodes = {};
   ["#wsGroup", "#wsNew", "#wsImport", "#wsList", "#wsSearch", "#wsSearchBtn", "#wsRightFiles",
@@ -140,8 +186,17 @@ check("phan tram", W.phanTram(W.tienDoMoi(4)) === 0 && W.phanTram(st) === 100);
               { slug: "c", name: "Chạy ads", role: "ads", group: "Marketing" }];
   const goi = [], kho = {};
   const ctx = {
-    S: { loai: "agent", q: "", nhom: "", chon: { agent: "a" }, el: el, tienDo: {}, sessionCuaPhien: {}, tabPhai: "cai" },
+    // `TRANG` (cỡ trang của danh sách trái) khai ở đầu module, ngoài đoạn được bóc - khai lại
+    // ở đây y như S, cùng lý do.
+    TRANG: 20,
+    S: { loai: "agent", q: "", nhom: "", chon: { agent: "a" }, el: el, tienDo: {}, sessionCuaPhien: {},
+         tabPhai: "cai", hien: 20, lanChay: {} },
     danhSach: () => ds, loc: W.loc, cacBuoc: () => [], dangChon: () => ds[0],
+    // Khối nhóm (0.59.46) khai ở đầu module, ngoài đoạn được bóc: mượn bản thật qua W,
+    // riêng trạng thái thu gọn cho về "không thu" để danh sách vẽ đủ.
+    gomNhom: W.gomNhom, nhomHtml: W.nhomHtml, daThu: () => false,
+    nhomCua: (x) => (String((x && x.group) || "").trim()) || "Chung", NHOM_MD: "Chung", brain: () => "brain",
+    nhomCua: (x) => (String((x && x.group) || "").trim()) || "Chung", NHOM_MD: "Chung", brain: () => "brain",
     TAB_PHAI: ["cai", "lichsu", "files"],
     luuChon() {}, moPhien() {}, heptLai: () => false, chatReady() {}, active: true, opening: 0,
     esc: (s) => String(s == null ? "" : s), t: (k) => k, ic: () => "<svg></svg>", avatar: () => "<i></i>",
@@ -158,16 +213,26 @@ check("phan tram", W.phanTram(W.tienDoMoi(4)) === 0 && W.phanTram(st) === 100);
   };
   vm.createContext(ctx); vm.runInContext(doan, ctx);
 
-  // ---- Bộ lọc nhóm là Ô CHỌN, không phải hàng chip ----
+  // ---- Bộ chọn nhóm là THANH + bảng nổi cùng khuôn thanh project bên Trò chuyện (0.59.47) ----
   ctx.veTrai();
   const html = nodes["#wsGroup"].innerHTML;
-  check("bo loc nhom ve bang <option>, khong con chip", html.indexOf("<option") === 0 && !/ws-group-chip/.test(html));
-  check("co dong Tat ca nhom dung dau", html.indexOf('<option value="">ws.all_groups (3)') === 0);
-  check("moi nhom kem so dem", html.includes(">Marketing (2)<") && html.includes(">Finance (1)<"));
-  check("o chon dung dang o mac dinh Tat ca", nodes["#wsGroup"].value === "");
-  nodes["#wsGroup"].value = "Finance"; nodes["#wsGroup"].onchange();
-  check("doi dong trong o chon thi loc theo nhom do", ctx.S.nhom === "Finance"
+  check("thanh chon nhom dung lop cs-proj-cur cua thanh project, khong con <select>/<option>",
+    html.includes("cs-proj-cur") && !html.includes("<option") && !/ws-group-chip/.test(html));
+  check("mac dinh hien Tat ca nhom, khong co nut bo loc", html.includes("ws.all_groups") && !html.includes("cs-proj-x"));
+  check("co nut tao nhom moi ben canh", html.includes("cs-proj-add"));
+  check("o chon dung dang o mac dinh Tat ca", ctx.S.nhom === "");
+  // "Tất cả": danh sách chia theo NHÓM có tiêu đề (0.59.46), Finance đứng trước Marketing.
+  const dsHtml = nodes["#wsList"].innerHTML;
+  check("xem Tat ca thi co tieu de nhom Finance va Marketing",
+    dsHtml.includes('data-nhom="Finance"') && dsHtml.includes('data-nhom="Marketing"')
+    && dsHtml.indexOf('data-nhom="Finance"') < dsHtml.indexOf('data-nhom="Marketing"'));
+  check("tieu de nhom dung truoc nguoi trong nhom do",
+    dsHtml.indexOf('data-nhom="Marketing"') < dsHtml.indexOf("Người viết"));
+  ctx.chonNhom("Finance");
+  check("chon mot nhom thi loc theo nhom do", ctx.S.nhom === "Finance"
     && nodes["#wsList"].innerHTML.includes("Kế toán") && !nodes["#wsList"].innerHTML.includes("Người viết"));
+  check("dang loc thi thanh hien ten nhom va nut bo loc",
+    nodes["#wsGroup"].innerHTML.includes("Finance") && nodes["#wsGroup"].innerHTML.includes("cs-proj-x"));
   ctx.S.nhom = ""; ctx.veTrai();
 
   // ---- Hàng quy trình ĐANG chạy đeo icon quay ----
@@ -240,6 +305,56 @@ check("phan tram", W.phanTram(W.tienDoMoi(4)) === 0 && W.phanTram(st) === 100);
   check("roi trang thi xoa cau dang tim", ctx.S.q === "");
   ctx.veDanhSach();
   check("quay lai thi danh sach day du tro lai", nodes["#wsList"].innerHTML.includes("Người viết"));
+
+  // ---- Muc DA GHIM phai nhin ra duoc (0.59.20) ----
+  // Chu du an bao 16/09: ghim roi ma danh sach trong y het chua ghim. Dau ghim nam TRONG the
+  // <strong> cua cai ten, ma the do cat chu bang ellipsis -> ten dai mot chut la mat dau ghim.
+  ds[1].pinned = true;
+  ctx.veDanhSach();
+  const htmlGhim = nodes["#wsList"].innerHTML;
+  check("hang ghim mang lop rieng", /ws-item-wrap ghim/.test(htmlGhim));
+  check("dau ghim nam NGOAI the ten (khong bi ellipsis cat)",
+    /<\/strong>/.test(htmlGhim) && htmlGhim.indexOf("ws-item-pin") > htmlGhim.indexOf("</strong>"));
+  check("CANARY: dau ghim khong con nam trong <strong>",
+    !/<strong>[^<]*<span class="ws-item-pin"/.test(htmlGhim));
+  // 0.59.46: ở "Tất cả", phần không ghim chia theo NHÓM chứ không gom thành "Còn lại"
+  // nữa; nhãn "Còn lại" chỉ còn khi đang lọc MỘT nhóm mà có mục ghim phía trên.
+  check("co nhan Da ghim, phan con lai chia theo nhom (khong con nhan Con lai)",
+    htmlGhim.includes("ws.grp_pinned") && !htmlGhim.includes("ws.grp_rest")
+    && htmlGhim.includes('data-nhom="Marketing"'));
+  ctx.S.nhom = "Finance"; ctx.veDanhSach();
+  check("loc mot nhom ma co ghim thi van co nhan Con lai, khong co tieu de nhom",
+    nodes["#wsList"].innerHTML.includes("ws.grp_pinned") === (ds[1].group === "Finance")
+    && !nodes["#wsList"].innerHTML.includes("data-nhom="));
+  ctx.S.nhom = ""; ctx.veDanhSach();
+  ds[1].pinned = false;
+  ctx.veDanhSach();
+  check("khong ghim gi thi KHONG doi them nhan nhom",
+    !nodes["#wsList"].innerHTML.includes("ws.grp_pinned")
+    && !nodes["#wsList"].innerHTML.includes("ws.grp_rest"));
+
+  // ---- Phan trang danh sach trai: 20 muc, bam Xem them ra 20 nua (0.59.20) ----
+  const dsGoc = ds.slice();
+  ds.length = 0;
+  for (let i = 0; i < 45; i++) ds.push({ slug: "t" + i, name: "Tro ly " + i, role: "r", group: "Chung" });
+  ctx.S.hien = 20;
+  ctx.veDanhSach();
+  const dem = (h) => (h.match(/data-slug="/g) || []).length;
+  check("chi ve 20 muc dau", dem(nodes["#wsList"].innerHTML) === 20);
+  check("con muc phia sau thi co nut Xem them", nodes["#wsList"].innerHTML.includes('id="wsMore"')
+    && nodes["#wsList"].innerHTML.includes("sess.more"));
+  nodes["#wsList"]._more.onclick();
+  check("bam Xem them ra them 20 muc", dem(nodes["#wsList"].innerHTML) === 40 && ctx.S.hien === 40);
+  nodes["#wsList"]._more.onclick();
+  check("het muc thi thoi ve nut Xem them",
+    dem(nodes["#wsList"].innerHTML) === 45 && !nodes["#wsList"].innerHTML.includes('id="wsMore"'));
+  check("CANARY: go chu tim la ve lai TRANG DAU", (() => {
+    o.value = "Tro ly 4"; o.oninput({ target: o });
+    return ctx.S.hien === 20;
+  })());
+  o.value = ""; o.oninput({ target: o });
+  ds.length = 0; dsGoc.forEach((x) => ds.push(x));
+  ctx.S.hien = 20;
 }
 
 // ============================================================
@@ -609,6 +724,64 @@ check("studio.js editAgent nhan host + onSaved", /function editAgent\(a, opts\)/
   const ws2 = src2;
   check("roi() co goi traKhungChat", /function roi\(\)[\s\S]{0,200}traKhungChat\(\)/.test(ws2));
   check("nho cuoc dang do NGAY LUC dung trang", /chonTabPhai\(S\.tabPhai\);\s*\n\s*nhoPhienTruoc\(\);/.test(ws2));
+}
+
+// ============================================================
+// Tab Lich su: MOT danh sach, khong phai hai (0.59.20)
+// ============================================================
+// Chu du an bao 16/09: "Lich su cua quy trinh hien dang co 2 lich su". Dung: moi lan chay quy
+// trinh de ra dung MOT hoi thoai, nen "LAN CHAY" va "HOI THOAI" la cung mot viec ke hai lan.
+// Nay chi con danh sach hoi thoai (ban muon cua trang Tro chuyen: co o tim, ghim, sua, xoa,
+// Xem them), con thu RIENG cua lan chay - avatar cac tro ly da phoi hop va trang thai - gan
+// thang vao hang hoi thoai do qua ham trang tri.
+{
+  const vm3 = require("node:vm");
+  const src3 = fs.readFileSync(path.join(root, "dashboard", "workspace.js"), "utf8");
+  const doan3 = src3.slice(src3.indexOf("  function veLichSu(item) {"),
+                           src3.indexOf("  // ---------- sự kiện quy trình từ WebSocket"));
+  const hostGia = { innerHTML: "", querySelector: () => ({}) };
+  const goiMount = [];
+  const ctx3 = {
+    S: { loai: "workflow", el: { querySelector: (s) => (s === "#wsRightHistory" ? hostGia : null) },
+         chon: { workflow: "wf" }, lanChay: {} },
+    esc: (x) => String(x == null ? "" : x), t: (k) => k, avatar: (a, n) => '<i data-avatar="' + (a && a.slug) + '" data-n="' + n + '"></i>',
+    agentOf: (sl) => ({ slug: sl }), kenh: () => "workflow:wf", dangChon: () => ({ slug: "wf" }),
+    conDangXem: () => true, moPhien() {}, api: async () => ({ runs: [] }), brain: () => "b",
+    window: { JavisChatSide: { mount: (h, o) => goiMount.push(o), refresh: () => goiMount.push("refresh") } },
+  };
+  vm3.createContext(ctx3); vm3.runInContext(doan3, ctx3);
+
+  ctx3.veLichSu({ slug: "wf" });
+  check("tab Lich su chi dung MOT khung danh sach", (hostGia.innerHTML.match(/<div /g) || []).length === 1
+    && hostGia.innerHTML.includes('id="wsSess"'));
+  check("CANARY: khong con danh sach LAN CHAY rieng", !hostGia.innerHTML.includes("wsRuns")
+    && !src3.includes('id="wsRuns"'));
+  check("CANARY: khong con tieu de nao day nut Hoi thoai moi xuong giua cot",
+    !hostGia.innerHTML.includes("ws-rtitle"));
+  check("quy trinh thi cot lich su nhan ham trang tri",
+    typeof goiMount[0].trangTri === "function" && goiMount[0].chiHoiThoai === true);
+
+  // Trang tri: avatar cac tro ly da phoi hop + trang thai lan chay, gan dung hang cua phien do.
+  ctx3.S.lanChay = { s1: { session_id: "s1", status: "error", nhan: "lỗi",
+                           steps: [{ agent: "a1" }, { agent: "a2" }, { agent: "a1" }] } };
+  const tt = ctx3.trangTriHang({ id: "s1" });
+  check("hang co lan chay thi deo avatar cac tro ly", /ws-run-avatars/.test(tt.dau)
+    && (tt.dau.match(/data-avatar/g) || []).length === 2);
+  check("trang thai lan chay thanh mot nhan nho", /ws-run-badge error/.test(tt.meta) && tt.meta.includes("lỗi"));
+  check("CANARY: hang khong phai lan chay thi khong trang tri gi",
+    ctx3.trangTriHang({ id: "khong-co" }) === null);
+
+  // Tro ly khong co lan chay nao -> khong gan ham trang tri (khoi tra ve null cho tung hang).
+  goiMount.length = 0; ctx3.S.loai = "agent";
+  ctx3.veLichSu({ slug: "ag" });
+  check("tro ly thi khong can ham trang tri", goiMount[0].trangTri === null);
+
+  const ss = fs.readFileSync(path.join(root, "dashboard", "sessions-ui.js"), "utf8");
+  check("sessions-ui nhan tuy chon trangTri", /hamTrangTri = typeof o\.trangTri === "function"/.test(ss));
+  check("trang tri duoc chen vao ca tieu de lan hang meta",
+    /\(tt\.dau \|\| ""\)/.test(ss) && /\(tt\.meta \|\| ""\)/.test(ss));
+  check("CANARY: ham trang tri nem loi thi KHONG lam cut danh sach",
+    /try \{ tt = hamTrangTri\(s\) \|\| \{\}; \} catch \(e\) \{ tt = \{\}; \}/.test(ss));
 }
 
 if (fails.length) { console.log("\nFAIL:", fails.length, fails); process.exit(1); }

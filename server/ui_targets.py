@@ -18,9 +18,9 @@ import unicodedata
 # Trang hợp lệ = RAIL_ITEMS trong dashboard/console.js và PAGES trong dashboard/ui-actions.js.
 # Thêm trang mới thì thêm ở cả ba chỗ.
 PAGES = (
-    "home", "chat", "settings", "workspace", "skills", "chatbots", "files",
-    "terminal", "selfimprove", "learn", "kanban", "models", "channels", "mcp", "plugins",
-    "packs", "logs", "account", "usage", "pet",
+    "home", "chat", "settings", "workspace", "skills", "chatbots", "conversations", "files",
+    "terminal", "coding", "selfimprove", "learn", "kanban", "models", "channels", "mcp", "plugins",
+    "packs", "logs", "account", "usage", "pet", "share",
 )
 
 # Bí danh người dùng hay nói, ánh xạ về id trang. Thường hoá không dấu trước khi tra, nên viết
@@ -37,9 +37,14 @@ ALIASES = {
     "tro chuyen": "chat", "hoi thoai": "chat", "trang chu": "home", "javis": "home",
     "do thi": "home", "graph": "home", "khoang nao": "home", "do thi tri thuc": "home",
     "linh vat": "pet", "mascot": "pet", "con pet": "pet", "pet": "pet", "thu cung": "pet",
+    "chia se": "share", "share": "share", "link chia se": "share", "duong link": "share",
+    "shared links": "share", "quan ly chia se": "share",
     "tu hoc": "selfimprove", "self improve": "selfimprove", "hoc": "learn",
     "viec dinh ky": "selfimprove", "nhac hen": "selfimprove",
     "code": "terminal", "ma": "terminal", "nhat ky": "logs", "log": "logs",
+    # "code" trần GIỮ NGUYÊN nghĩa cũ là Terminal: người dùng đã quen từ 0.32, đổi
+    # nghĩa một bí danh đang dùng là lấy đi thứ họ gõ hàng ngày để tặng một trang mới.
+    "coding": "coding", "lap trinh": "coding", "sua code": "coding", "repo": "coding",
     "cap nhat": "logs", "phien ban": "logs",
     "tai khoan": "account", "quy trinh": "workspace", "workflow": "workspace",
     "ky nang": "skills", "skill": "skills", "agent": "workspace", "chatbot": "chatbots", "bot": "chatbots",
@@ -47,6 +52,15 @@ ALIASES = {
     "tro ly": "workspace", "tro ly rieng": "workspace", "vai": "workspace",
     "cong cu": "plugins", "plugin": "plugins", "tien ich": "plugins",
     "bot tra loi khach": "chatbots", "tra loi khach": "chatbots",
+    # Trang Hội thoại (hộp thư khách, Chatbot V2). "hoi thoai" trần vẫn là trang Trò chuyện
+    # (bí danh cũ, người dùng quen nói vậy); phải nói rõ "khách" hoặc "hộp thư" mới tới đây.
+    "hoi thoai khach": "conversations", "hop thu khach": "conversations",
+    "tin nhan khach": "conversations", "conversations": "conversations", "inbox khach": "conversations",
+    "hop thu hoi thoai": "conversations", "khach nhan": "conversations",
+    # Nhãn mới của trang và ba tab (0.62.5): thanh bên gọi trang này là "Chatbot", ba tab là
+    # Hòm thư bot / Tài khoản bot / Tạo chatbot. Nói sao thấy vậy.
+    "hom thu bot": "conversations", "tai khoan bot": "conversations",
+    "tao chatbot": "chatbots",
     # Trang Trợ lý và Quy trình gộp thành Cộng sự ở 0.59.0, bí danh cũ giữ để lệnh nói quen tay
     # không chết.
     "cong su": "workspace", "workspace": "workspace", "tro ly va quy trinh": "workspace",

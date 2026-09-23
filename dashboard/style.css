@@ -948,6 +948,17 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
   padding: 12px 16px; border-top: 1px solid var(--border);
 }
 .fm-hint { font-size: 14px; color: var(--text2); }
+/* --red chứ không phải --danger: bảng màu không có token tên --danger, dùng nó là câu
+   lệnh bị bỏ và chữ lỗi hiện y như chữ thường. */
+.fm-hint-loi { color: var(--red); }
+/* Ô đường dẫn của JavisFolderPicker: vừa BÁO đang đứng ở đâu, vừa nhận một đường dẫn dán vào
+   rồi Enter. Nằm gọn trong khung .fm-path nên không tự vẽ viền hay nền riêng. 16px là cỡ tối
+   thiểu: nhỏ hơn thì Safari trên iPhone tự phóng to cả trang khi con trỏ nhảy vào ô. */
+.fm-path .fp-go {
+  width: 100%; box-sizing: border-box; border: none; background: none; padding: 0;
+  color: var(--text); font-family: var(--font); font-size: 16px; outline: none;
+}
+.fm-path .fp-go::placeholder { color: var(--text3); }
 .fm-use {
   background: var(--accent-solid); color: var(--on-accent); border: none; padding: 9px 18px;
   border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;
@@ -1050,6 +1061,16 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
   border-color: var(--accent); color: var(--accent); }
 #newMsgBtn.show { display: inline-flex; }
 #newMsgBtn:hover { background: var(--accent-wash-2); color: var(--accent); border-color: var(--accent); }
+
+/* Mồi tải tin cũ ở ĐẦU khung chat (app.js). Cuộn tới đây là tự kéo khúc cũ hơn về; nút chỉ
+   là đường lui khi trình duyệt không có IntersectionObserver, nên để nhạt, đừng tranh mắt
+   với nội dung hội thoại. */
+.older-seed { flex: none; display: flex; justify-content: center; padding: 6px 0 12px; }
+.older-btn { background: none; border: 1px solid var(--hairline); color: var(--text3);
+  border-radius: 14px; padding: 4px 14px; font-size: 13px; cursor: pointer;
+  transition: color 0.15s, border-color 0.15s; }
+.older-btn:hover { color: var(--text); border-color: var(--text3); }
+.older-btn:disabled { cursor: default; opacity: 0.7; }
 
 /* ===== THANH MỐC HỘI THOẠI (chat-marks.js) =====
    Mỗi vạch là một câu mình đã hỏi; rê vào hiện danh sách để nhảy về prompt cũ.
@@ -1201,6 +1222,37 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 @keyframes actDot { 30% { opacity: 1; transform: translateY(-3px); } }
 @keyframes actGlow { 50% { border-color: var(--accent2); box-shadow: 0 0 14px var(--accent2-wash); } }
 .act-time { color: var(--text3); font-size: 12px; font-variant-numeric: tabular-nums; }
+/* Khối tiến trình từng bước của một lượt (chat-steps.js). Nằm ngay trên bong bóng trả lời.
+   Tông xám, chữ nhỏ: đây là phần phụ để liếc, không được tranh chỗ với câu trả lời. */
+.msg-steps {
+  font-family: var(--font); font-size: 12.5px; color: var(--text3);
+  margin: 2px 0 4px; max-width: 100%;
+}
+.steps-sum {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 0; padding: 3px 2px; cursor: pointer;
+  color: var(--text3); font: inherit; text-align: left;
+}
+.steps-sum:hover { color: var(--text2); }
+.steps-sum svg { width: 13px; height: 13px; transition: transform 0.15s ease; }
+.msg-steps.steps-fold .steps-sum svg { transform: rotate(-90deg); }
+.msg-steps.steps-fold .steps-list { display: none; }
+.steps-list {
+  border-left: 2px solid var(--line); margin-left: 7px; padding: 2px 0 2px 11px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.steps-list .step {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Bước cuối đang chạy: đậm hơn một chút để mắt biết đang đứng ở đâu trong danh sách. */
+.steps-list .step-live { color: var(--text2); }
+
+/* Dòng ghi chú thoáng qua (cửa tạp âm bỏ một lượt). Nhạt và căn giữa để mắt lướt qua chứ
+   không đọc như một lượt hội thoại - nó tự tắt sau vài giây. */
+.msg-ghichu {
+  text-align: center; color: var(--text3); font-size: 12px; font-family: var(--font);
+  padding: 2px 12px; opacity: 0.85;
+}
 @keyframes spin { to { transform: rotate(360deg); } }   /* vẫn dùng cho .rs-spin */
 
 .mem-count {
@@ -1220,12 +1272,6 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 .auto-learn { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text2); cursor: pointer; }
 .auto-learn input { accent-color: var(--accent2); }
 
-.sys-status, .mcp-list { display: flex; flex-direction: column; gap: 4px; }
-.mcp-item { font-size: 13px; color: var(--text3); display: flex; align-items: center; gap: 6px; }
-.mcp-item.active { color: var(--green); }
-.mcp-item.loading { color: var(--yellow); }
-.mcp-item.error { color: var(--red); }
-.mcp-item.dim { color: var(--text3); font-style: italic; }
 
 /* BOTTOM voice bar: pill nổi có khoảng thở quanh 4 phía (đồng bộ với kiểu pill của mobile),
    thay cho dải full-width dán sát mép dưới viewport */
@@ -1721,6 +1767,10 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 .qs-field > select, .qs-field > input { flex: 0 1 400px; min-width: 0; margin: 0; }
 .qs-field > .toggle { flex: none; }
 .qs-hint { font-size: 12.5px; line-height: 1.5; color: var(--text3); margin: -2px 0 10px; }
+/* Tiêu đề phụ TRONG một thẻ (vd "MICRO" nằm trong thẻ Chế độ nói chuyện): cùng cỡ chữ với
+   nhãn thẻ, thêm gạch mảnh phía trên để mắt thấy đây là phần hai của cùng một thẻ. */
+.qs-sub { font-family: var(--font); font-size: 12px; letter-spacing: 2px; color: var(--text3);
+  margin: 14px 0 4px; padding-top: 12px; border-top: 1px solid var(--border); }
 .qs-block .opt-sub { font-size: 12.5px; line-height: 1.5; color: var(--text3); }
 /* Nút Lưu của MỌI thẻ: luôn ở góc dưới phải, luôn cùng một họ nút (.gcard-btn của trang Cài
    đặt). Trước đây mỗi thẻ một kiểu - nút tím tràn ngang, nút viền tràn ngang, nút thường canh
@@ -1821,6 +1871,7 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
   background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, .45); }
 .cs-menu-sep { height: 1px; background: var(--border); margin: 5px 3px; }
+@media (max-width: 900px) { .cs-menu-main { font-size: 16px; } .ci-meta { font-size: 13px; } }
 .cs-menu-row { display: flex; align-items: center; gap: 2px; border-radius: 7px; }
 .cs-menu-row:hover { background: var(--info-wash); }
 .cs-menu-row.on .cs-menu-lbl { color: var(--accent); font-weight: 600; }
@@ -1869,8 +1920,6 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
    trong danh sách hội thoại cũng là một cuộc trò chuyện. */
 .cs-menu-ico, .cs-proj-name .ic { display: inline-flex; flex: none; color: var(--text2); }
 .cs-menu-row.on .cs-menu-ico, .cs-proj-name .ic { color: inherit; }
-/* Nút ghim đang BẬT thì tô màu, nhưng vẫn nằm trong .act nên chỉ hiện khi rê chuột - hàng đã
-   ghim đã có nhóm "Đã ghim" trên đầu làm dấu hiệu rồi, không cần thêm một chấm màu nữa. */
 .ci-meta .act .pin.on { color: var(--accent); }
 .cside-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; padding-right: 2px; }
 .cside-list::-webkit-scrollbar { width: 4px; }
@@ -1881,6 +1930,16 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
   border: 1px solid transparent; margin-bottom: 2px; }
 .cside-item:hover { background: var(--info-wash); border-color: var(--info-line); }
 .cside-item.active { background: var(--accent-wash-2); border-color: var(--accent-line); }
+/* HÀNG ĐÃ GHIM. Nhóm "Đã ghim" trên đầu chỉ nói được thứ tự: cuộn xuống giữa danh sách là
+   không còn thấy cái nhãn ấy, và dấu ghim thì nằm trong .act nên chờ rê chuột mới hiện. Nay
+   mỗi hàng ghim tự mang vạch màu bên trái và một dấu ghim luôn thấy, đúng khuôn danh sách
+   trợ lý / quy trình của trang Cộng sự (chủ dự án chốt 16/09).
+   Không thể để .act trong suốt rồi tô riêng dấu ghim: con không bao giờ rõ hơn cha trong
+   opacity, nên mở .act ra và giấu HAI nút còn lại cho tới lúc rê chuột. */
+.cside-item.ghim { border-left: 3px solid var(--accent); }
+.cside-item.ghim .act { opacity: 1; }
+.cside-item.ghim .act > :not(.pin) { opacity: 0; transition: opacity .15s; }
+.cside-item.ghim:hover .act > :not(.pin) { opacity: 1; }
 .ci-title { color: var(--text); font-size: 14px; font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ci-meta { display: flex; gap: 8px; align-items: center; font-size: 12px;
@@ -1889,6 +1948,11 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 .ci-meta .act { margin-left: auto; display: flex; gap: 7px; opacity: 0; transition: opacity 0.15s; }
 .cside-item:hover .act { opacity: 1; }
 .ci-meta .act span { cursor: pointer; }
+/* Màn cảm ứng KHÔNG có rê chuột: ghim/chuyển/đổi tên/xoá của hàng hội thoại và nút chép mã
+   ẩn theo hover là vĩnh viễn không thấy trên điện thoại (vẫn nhận chạm, nên hay bấm nhầm). */
+@media (hover: none) {
+  .ci-meta .act, .cside-item.ghim .act > :not(.pin), .code-wrap .code-copy { opacity: .75; }
+}
 .ci-meta .act span:hover { color: var(--text-hi); }
 /* Lớp chắn thứ hai cho cùng lỗi bấm-trượt: icon không nhận chuột thì e.target luôn là cái
    span, kể cả khi ai đó lỡ viết lại handler theo kiểu so classList. */
@@ -1914,34 +1978,12 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 /* KHÔNG đặt overflow:hidden lên hàng này. Popup đổi model (.mb-pop) là con position:absolute
    nằm HOÀN TOÀN phía trên hàng (bottom: 100% + 6px), mà hàng lại là khối chứa của nó
    (position:relative) - cắt tràn ở đây là popup biến mất sạch, bấm chip không thấy gì.
-   Việc chống nở ngang do dải HỆ THỐNG/MCP dài đã có .sysbar và .mb-chip tự lo bên dưới. */
+   Việc chống nở ngang do .mb-chip tự lo bên dưới. */
 .model-bar {
   position: relative; display: flex; align-items: center; gap: 8px 16px;
   width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box;
   padding: 8px 18px 6px;
 }
-/* Dải HỆ THỐNG + MCP nằm ngang nhưng chỉ dùng phần rộng còn lại. Nội dung dài bị cắt
-   trong chính dải này, tuyệt đối không làm nở grid/canvas hay đẩy cột chat ra ngoài. */
-.sysbar {
-  display: flex; align-items: center; gap: 6px 12px;
-  flex: 1 1 0; width: 0; min-width: 0; max-width: 100%;
-  flex-wrap: nowrap; overflow: hidden;
-}
-.sysbar-label { font-family: var(--font); font-size: 11px; letter-spacing: 1px; color: var(--text3); flex: none; white-space: nowrap; }
-.sysbar-sep { width: 1px; height: 13px; background: var(--border); flex: none; }
-.sysbar .sys-status {
-  flex: 0 0 auto; min-width: 0; flex-direction: row; flex-wrap: nowrap; gap: 4px 12px;
-}
-.sysbar .mcp-list {
-  flex: 1 1 0; width: 0; min-width: 0; max-width: 100%;
-  flex-direction: row; flex-wrap: nowrap; gap: 4px 12px; overflow: hidden;
-}
-.sysbar .mcp-item {
-  min-width: 0; max-width: min(420px, 42vw); overflow: hidden; text-overflow: ellipsis;
-  font-size: 12.5px; white-space: nowrap;
-}
-.sysbar .mcp-list .mcp-item { flex: 0 1 auto; }
-.sysbar .mcp-kind { color: var(--text3); font-size: 10px; }
 .mb-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2);
   background: var(--bg3); border: 1px solid var(--border); border-radius: 999px; padding: 4px 11px;
   cursor: pointer; font-family: var(--font); transition: border-color .15s, color .15s;
@@ -2132,33 +2174,82 @@ a.jv-fcode:hover code { color: var(--accent); text-decoration: underline; }
 .jv-art-sub { color: var(--text3); font-size: 12px; }
 .jv-art-open { color: var(--accent); font-size: 13px; font-weight: 600; flex: none; }
 
-/* Panel artifact (drawer ben phai, chay ca o chat thuong lan chat phong to) */
-.jv-artpanel { position: fixed; top: 0; right: 0; bottom: 0; width: min(52vw, 720px);
-  z-index: 390; display: none; flex-direction: column; background: var(--bg2);
-  border-left: 1px solid var(--border); box-shadow: -16px 0 50px var(--shadow-veil); }
-.jv-artpanel.open { display: flex; animation: artIn .18s ease; }
-@keyframes artIn { from { transform: translateX(24px); opacity: .4; } to { transform: translateX(0); opacity: 1; } }
-.jv-ap-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-  border-bottom: 1px solid var(--border); }
-.jv-ap-title { font-weight: 600; font-size: 14px; color: var(--text); flex: none; max-width: 30%;
+/* Khung xem artifact: HỘP THOẠI GIỮA MÀN HÌNH (0.62.1, trước đây là ngăn kéo ép sát lề phải).
+
+   Chủ repo báo 21/09: mở một khối mã trong file .md thì khung dính mép phải, chữ chạy thẳng
+   sang phải vô hạn và phải kéo ngang từng dòng để đọc. Ba thứ đổi cùng lúc, và cả ba đều là
+   cùng một lý do - khung này để ĐỌC:
+     - `.jv-artpanel` nay là LỚP PHỦ toàn màn, hộp thật là `.jv-ap-box` nằm giữa. Nội dung
+       rộng đều hai bên thì mắt quét được cả dòng, không phải dồn về một mép.
+     - Mã XUỐNG DÒNG theo bề ngang hộp. Ai cần đọc nguyên dòng (bảng log, cột canh nhau) thì
+       tắt ở nút "Xuống dòng" - lúc đó mới có cuộn ngang, và là do họ chọn.
+     - Bấm ra ngoài hộp là đóng, đúng thói quen của mọi hộp thoại khác trong app.
+
+   z-index 390 giữ nguyên: nó phải đứng TRÊN trình sửa phóng to (xem test_phong_to_md_che_het_rail). */
+.jv-artpanel { position: fixed; inset: 0; z-index: 390; display: none; align-items: center;
+  justify-content: center; padding: 28px; background: var(--scrim); backdrop-filter: blur(6px); }
+/* Khoá cuộn NỀN khi hộp đang mở: lăn chuột trong một hộp thoại giữa màn mà trang phía sau
+   trôi theo là cảm giác hỏng, và cuộn xong đóng hộp ra thì lạc mất chỗ đang đọc. */
+body.jv-artpanel-open { overflow: hidden; }
+.jv-artpanel.open { display: flex; animation: artIn .16s ease; }
+.jv-ap-box { display: flex; flex-direction: column; width: min(980px, 100%);
+  max-height: min(86vh, 100%); background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 16px; overflow: hidden; box-shadow: 0 24px 70px var(--shadow-veil); }
+/* Xem MÃ thì hộp ôm lấy nội dung (chỉ cao tới trần trên): một đoạn mã mười dòng nằm trong
+   một cái hộp cao 84% màn hình là chín phần mười hộp trống trơn. Tab XEM TRƯỚC thì ngược
+   lại - trong đó là một <iframe> cao 100%, mà iframe trong một hộp cao-theo-nội-dung thì
+   xẹp xuống còn 0. */
+.jv-artpanel:not(.jv-ap-oncode) .jv-ap-box { height: min(86vh, 100%); }
+@keyframes artIn { from { opacity: 0; } to { opacity: 1; } }
+.jv-ap-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  border-bottom: 1px solid var(--border); background: var(--bg2); }
+.jv-ap-meta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.jv-ap-title { font-weight: 700; font-size: 15px; color: var(--text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jv-ap-tabs { display: flex; gap: 4px; flex: 1; }
+.jv-ap-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.jv-ap-tabs { display: flex; gap: 4px; flex: none; }
 .jv-ap-tab { background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
-  border-radius: 7px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
+  border-radius: 8px; padding: 5px 13px; font-size: 13px; cursor: pointer; }
 .jv-ap-tab.active { color: var(--accent); border-color: var(--accent); }
 .jv-artpanel.no-preview .jv-ap-tabs { display: none; }
-.jv-ap-actions { display: flex; gap: 6px; flex: none; }
-.jv-ap-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
-  width: 30px; height: 30px; border-radius: 7px; cursor: pointer; font-size: 14px; }
+.jv-ap-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+/* Nút gạt "Xuống dòng": mang CHỮ chứ không icon (bộ icon đóng gói sẵn không có wrap-text),
+   và bật sáng khi đang bật để nhìn là biết mã đang ngắt dòng hay đang cuộn ngang. */
+.jv-ap-tog { background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
+  border-radius: 8px; padding: 5px 11px; font: inherit; font-size: 12.5px; cursor: pointer;
+  white-space: nowrap; }
+.jv-ap-tog[aria-pressed="true"] { color: var(--accent); border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent); }
+/* Nút này chỉ có nghĩa khi đang nhìn MÃ. Ở tab xem trước (trang HTML, sơ đồ) nó không đổi
+   được gì, mà một cái nút bấm vào không thấy gì xảy ra còn tệ hơn là không có nút. */
+.jv-artpanel:not(.jv-ap-oncode) .jv-ap-tog { display: none; }
+.jv-ap-btn { display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
+  width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 14px; }
 .jv-ap-btn:hover { color: var(--text-hi); border-color: var(--accent); }
+.jv-ap-btn svg { width: 16px; height: 16px; }
 .jv-ap-body { flex: 1; min-height: 0; overflow: auto; background: var(--bg); }
 .jv-ap-frame { width: 100%; height: 100%; border: 0; background: #fff; display: block; }
 .jv-ap-mermaid { min-height: 100%; display: flex; align-items: center; justify-content: center;
   padding: 16px; background: var(--bg); color: var(--text2); }
 .jv-ap-mermaid svg { max-width: 100%; height: auto; }
-.jv-ap-code { margin: 0; border: 0; border-radius: 0; min-height: 100%; box-sizing: border-box; }
+/* MẶC ĐỊNH XUỐNG DÒNG. `overflow-wrap: anywhere` để một chuỗi dài không có dấu cách (URL,
+   chuỗi base64, đường dẫn) cũng ngắt được - thiếu nó thì "xuống dòng" vẫn đẩy ngang một dòng
+   duy nhất ra ngoài hộp. Tắt nút thì quay về `pre` và có cuộn ngang như cũ. */
+.jv-ap-code { margin: 0; border: 0; border-radius: 0; min-height: 100%; box-sizing: border-box;
+  padding: 16px 18px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere;
+  tab-size: 2; }
+.jv-artpanel.jv-ap-nowrap .jv-ap-code { white-space: pre; overflow-wrap: normal; }
 .jv-ap-note { color: var(--text3); font-size: 13px; padding: 10px 12px; }
-@media (max-width: 900px) { .jv-artpanel { width: 100vw; } }
+/* Điện thoại: hộp chiếm gần trọn màn, bỏ bo góc dưới cho đỡ phí chỗ. Đầu khung xếp hai hàng
+   vì bốn nút cộng hai tab không đứng vừa một hàng ở bề ngang đó. */
+@media (max-width: 760px) {
+  .jv-artpanel { padding: 0; }
+  .jv-ap-box { width: 100%; height: 100%; max-height: none; border: 0; border-radius: 0; }
+  .jv-ap-head { flex-wrap: wrap; gap: 8px; }
+  .jv-ap-meta { flex: 1 1 100%; order: -1; }
+  .jv-ap-code { padding: 13px 14px; font-size: 13px; }
+}
 
 /* ============================================================
    VAULT EXPLORER (cột trái) - cây thư mục kiểu Obsidian + tìm note
@@ -2261,6 +2352,11 @@ body.ne-full-on .cview { z-index: 250; }
 .ne-seg button:first-child { border-radius: 6px 0 0 6px; }
 .ne-seg button:last-child { border-radius: 0 6px 6px 0; border-right: 1px solid var(--border); }
 .ne-seg button.active { background: var(--accent-wash-2); border-color: var(--accent-line); color: var(--accent); }
+/* Thanh link chia se cua trinh sua dinh. Lop .jvfe-share (file-editor.js tu chen) lo phan
+   nhin; o day chi chot MOT dieu ma flex column can biet: no khong duoc co gian, kelo no an
+   mat chieu cao cua than bai viet. */
+.ne-share { flex: none; }
+.ne-share[hidden] { display: none; }
 .ne-body { flex: 1; display: flex; min-height: 0; overflow: hidden; }
 .ne-body.ne-md { flex-direction: column; }                    /* .md: thanh công cụ trên, khung soạn/xem dưới */
 .ne-fmt { display: flex; flex-wrap: wrap; gap: 3px; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--bg2); flex: none; }
@@ -2493,19 +2589,24 @@ body.ne-full-on .cview { z-index: 250; }
 .cb-loc-o.on { background: var(--surface-3); color: var(--text); border-color: var(--info-line); }
 .cb-loc-n { font-size: 11.5px; color: var(--text3); }
 
-/* Bộ chọn kênh trong form. Thẻ bấm to chứ không phải <select>: đây là quyết định ĐẦU TIÊN
-   và nó đổi cả phần còn lại của form (token lấy ở đâu, có nhóm không), nên nó phải nhìn ra
-   được là một ngã rẽ chứ không phải một tuỳ chọn nhỏ. */
-.cb-kenh { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
-.cb-kenh-o { display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
-  cursor: pointer; text-align: left; padding: 11px 12px; border-radius: 10px;
+/* Bộ chọn kênh khi nối một tài khoản mới. Thẻ bấm chứ không phải <select>: đây là quyết định
+   ĐẦU TIÊN và nó đổi cả phần còn lại của form (token lấy ở đâu, có nhóm không), nên nó phải
+   nhìn ra được là một ngã rẽ chứ không phải một tuỳ chọn nhỏ.
+   DANH SÁCH DỌC chứ không phải lưới hai cột (đổi 0.61.1): lưới hai cột bóp câu tóm tắt của
+   mỗi kênh thành năm sáu dòng chữ hẹp trên điện thoại, và nó không mở rộng được - kênh thứ
+   tư, thứ năm là màn hình dài thêm chừng ấy lần. Một hàng cho một kênh thì thêm bao nhiêu
+   kênh cũng vẫn đọc được, và tên kênh nằm thẳng hàng nên mắt lướt dọc là xong. */
+.cb-kenh { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.cb-kenh-o { display: grid; grid-template-columns: auto 1fr; align-items: center;
+  column-gap: 11px; row-gap: 2px;
+  cursor: pointer; text-align: left; padding: 10px 12px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--bg2); color: var(--text); }
 .cb-kenh-o:hover { border-color: var(--info-line); }
 .cb-kenh-o.on { border-color: var(--accent); background: var(--surface-3);
   box-shadow: inset 0 0 0 1px var(--accent); }
-.cb-kenh-o b { font-size: 14px; }
-.cb-kenh-o small { font-size: 12px; color: var(--text3); line-height: 1.45; }
-.cb-kenh-logo { display: inline-flex; margin-bottom: 2px; }
+.cb-kenh-o b { font-size: 15px; }
+.cb-kenh-o small { grid-column: 2; font-size: 13px; color: var(--text3); line-height: 1.45; }
+.cb-kenh-logo { display: inline-flex; grid-row: span 2; }
 .cb-kenh-khoa { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 9px 12px; border-radius: 10px; margin-top: 4px;
   border: 1px solid var(--border); background: var(--surface-3); color: var(--text); }
@@ -2597,6 +2698,34 @@ body.ne-full-on .cview { z-index: 250; }
   cursor: pointer; }
 .cb-ack input { width: auto; flex: none; margin-top: 2px; }
 .cb-form-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+/* ---- Form tạo bot hai bước (0.61.1) ----
+   Bước 1 hỏi bot trả lời ở đâu, bước 2 mới là cài đặt. Hai nút ở chân form ĐỨNG YÊN một chỗ
+   và chỉ đổi chữ theo bước: một cặp nút cố định đọc dễ hơn hai hàng nút hiện ra rồi biến đi,
+   và trên điện thoại ngón tay luôn tìm thấy chúng ở đúng chỗ cũ. */
+.cb-form-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.cb-form-h h3 { margin: 0; }
+.cb-buoc { font-size: 13px; color: var(--text3); font-weight: 600; white-space: nowrap; }
+.cb-wizard .cb-form-acts { justify-content: space-between; }
+/* Tóm tắt lựa chọn của bước 1, đặt ở đầu bước 2. Không có nó thì sang bước sau là mất dấu
+   thứ vừa chọn, và người dùng phải lùi lại chỉ để nhìn cho chắc. */
+.cb-tom { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 13px;
+  padding: 9px 11px; border-radius: 10px; background: var(--surface-3);
+  border: 1px solid var(--border); }
+.cb-tom-l { color: var(--text3); }
+.cb-doi-tk { margin-left: auto; background: none; border: 0; cursor: pointer; padding: 0 2px;
+  font: inherit; font-weight: 600; color: var(--accent); text-decoration: underline; }
+.cb-trong-tk { font-size: 13.5px; color: var(--text2); padding: 12px; border-radius: 10px;
+  border: 1px dashed var(--border); background: var(--surface-1); margin-top: 4px; }
+.cb-noi-kenh { margin-top: 10px; width: 100%; display: inline-flex; align-items: center;
+  justify-content: center; gap: 6px; }
+/* Ba ô có mặc định dùng được ngay (ngôn ngữ tự nhận, không chuyển người thật, chưa khai nhóm)
+   gấp vào đây. Ô mức quyền thì KHÔNG: đọc sót nó là mất tiền thật. */
+.cb-nangcao { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 4px; }
+.cb-nangcao summary { cursor: pointer; font-size: 13.5px; color: var(--text2); font-weight: 600;
+  display: flex; align-items: center; gap: 6px; list-style: none; padding: 8px 0; }
+.cb-nangcao summary::-webkit-details-marker { display: none; }
+.cb-nangcao[open] summary { color: var(--text); }
 
 /* ---- Nhật ký bot: hai tab "Bot bí" / "Hội thoại gần đây" ---- */
 .cb-log-form { width: min(760px, 96vw); }
@@ -2706,6 +2835,28 @@ body.ne-full-on .cview { z-index: 250; }
 .pd-hbtn:hover { color: var(--text-hi); background: var(--bg3); }
 .pd-hbtn.on { color: var(--accent); }
 
+/* Công tắc phạm vi tài liệu (trang Cộng sự, 0.64.19): "của trợ lý" hay "chỉ cuộc này".
+   Hai ô to, có số lượng, kèm một câu nói rõ đang gắn vào đâu - thay cho hai ngăn kéo giống
+   hệt nhau mà chủ repo dùng nhầm lẫn. Chữ 16px vì đây là chỗ phải đọc kỹ trước khi gắn. */
+.pd-scope { flex: none; padding: 10px 12px 4px; }
+.pd-scope[hidden] { display: none; }
+.pd-sc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pd-sc { display: flex; align-items: flex-start; gap: 8px; min-width: 0; text-align: left;
+  padding: 10px; border-radius: 10px; cursor: pointer; font-family: inherit;
+  border: 1px solid var(--border); background: var(--bg3); color: var(--text2); }
+.pd-sc:hover:not(:disabled) { border-color: var(--accent-line); color: var(--text); }
+.pd-sc.on { border-color: var(--accent); background: var(--accent-wash-2); color: var(--text-hi); }
+.pd-sc:disabled { opacity: .55; cursor: not-allowed; }
+.pd-sc-ico { flex: none; display: inline-flex; margin-top: 2px; color: var(--text3); }
+.pd-sc.on .pd-sc-ico { color: var(--accent); }
+.pd-sc-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pd-sc-txt b { font-size: 16px; font-weight: 600; line-height: 1.3; }
+.pd-sc-txt small { font-size: 14px; color: var(--text3); line-height: 1.35; }
+.pd-sc-n { display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 999px;
+  font-size: 13px; font-weight: 600; text-align: center; background: var(--bg2); color: var(--text2); }
+.pd-sc.on .pd-sc-n { background: var(--accent); color: var(--bg2); }
+.pd-sc-hint { margin-top: 8px; font-size: 14px; line-height: 1.5; color: var(--text2); }
+
 .pd-tabs { flex: none; display: flex; gap: 2px; padding: 8px 10px 0;
   border-bottom: 1px solid var(--border); }
 .pd-tab { flex: 1 1 0; padding: 8px 6px; cursor: pointer; font-family: inherit;
@@ -2764,6 +2915,11 @@ body.ne-full-on .cview { z-index: 250; }
 .pd-row-act:hover { color: var(--text-hi); background: var(--bg3); }
 .pd-ghim.on { color: var(--accent); }
 .pd-go:hover { color: var(--red); }
+.pd-sao:hover { color: var(--accent); }
+/* Nháy dấu tích sau khi chép xong (window.JavisCopy trong copy-path.js đặt lớp này). Màu
+   chứ không chỉ đổi icon: nút chỉ 26px, đổi icon không thôi thì liếc qua khó thấy. */
+.pd-row-act.da-chep, .ne-actions button.da-chep { color: var(--green); }
+.pd-row-act.chep-loi, .ne-actions button.chep-loi { color: var(--warn-ink); }
 .pd-xoa:hover { color: var(--red); background: var(--bg3); }
 /* Icon trên đầu mỗi tab: ba tab chỉ khác nhau bằng chữ thì liếc qua phải đọc mới biết đang
    ở đâu, y như hai tab Hội thoại/Thư mục ở cột trái đã có icon. */
@@ -2861,6 +3017,8 @@ body.ne-full-on .cview { z-index: 250; }
 
 /* Voice V3: dòng "đang làm nền" dưới câu xác nhận của bộ não giọng */
 .msg-javis .voice-nen { font-size: 12.5px; opacity: .7; margin: 4px 0 0 4px; font-style: italic; }
+/* Chữ THÔ của máy nghe, dưới câu đã diễn giải trong bong bóng người dùng (sự kiện user_text). */
+.msg-user .nghe-tho { font-size: 12.5px; color: var(--text3); margin-top: 4px; font-style: italic; }
 
 /* ============================================================
    LINH VẬT (pet.js) - khuôn mặt nhỏ nép ở mép màn hình
@@ -3004,3 +3162,18 @@ body.ne-full-on .cview { z-index: 250; }
   display: block; border-radius: 50%; background: var(--pet-face, var(--accent));
   margin-bottom: 4px; flex: none;
 }
+
+/* Form bot 0.61.0: tích chọn tài khoản kênh + khối "thêm tài khoản mới bằng token" gập được. */
+.cb-tk-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.cb-tk { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 10px; cursor: pointer; background: var(--surface-1); margin: 0; font-weight: 400; }
+.cb-form .cb-tk input { width: auto; margin: 0; flex: none; }
+.cb-tk-logo { display: inline-flex; flex: none; }
+.cb-tk-text { display: flex; flex-direction: column; min-width: 0; }
+.cb-tk-text b { font-size: 14px; color: var(--text); }
+.cb-tk-text small { font-size: 12px; color: var(--text3); }
+.cb-them-tk { margin-top: 10px; border: 1px dashed var(--border); border-radius: 10px; padding: 6px 10px 10px; }
+.cb-them-tk summary { cursor: pointer; font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 6px;
+  list-style: none; }
+.cb-them-tk summary::-webkit-details-marker { display: none; }
+.cb-them-tk[open] summary { color: var(--text); margin-bottom: 4px; }

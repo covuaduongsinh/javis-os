@@ -33,6 +33,8 @@ const CB = D("chatbots.js");
 const CON = D("console.js");
 const HTML = D("index.html");
 const CSS = D("style.css");
+// Bảng bí danh lệnh nói ở server: nhãn đổi thì nói tên mới cũng phải mở được đúng trang.
+const SRV2 = fs.readFileSync(path.join(ROOT, "server", "ui_targets.py"), "utf8");
 // 0.55.14 đưa chữ tiếng Việt của dashboard vào từ điển i18n: chatbots.js gọi `window.t("khoa")`,
 // câu chữ nằm ở vi.json. Nên mọi khẳng định về LỜI trang nói phải soi ĐỦ HAI VẾ - giao diện gọi
 // đúng khoá, VÀ khoá đó mang đúng câu. Soi một vế thôi là test hở: chỉ kiểm khoá thì đổi nội
@@ -53,8 +55,17 @@ check("index.html có nạp module trang Chatbot", /chatbots\.js\?v=/.test(HTML)
 check("nạp TRƯỚC console.js (console gọi window.JavisChatbots)",
   HTML.indexOf('src="/static/chatbots.js') < HTML.indexOf('src="/static/console.js'));
 check("module phơi ra đúng một cửa vào", /window\.JavisChatbots\s*=\s*\{\s*render:\s*render\s*\}/.test(CB));
-// RAIL_ITEMS nay là danh sách ID phẳng (nhãn lấy từ từ điển i18n).
-check("console có mục Chatbot trên thanh bên", /"chatbots"/.test(CON));
+// RAIL_ITEMS nay là danh sách ID phẳng (nhãn lấy từ từ điển i18n). Id `chatbots` VẪN còn (nó
+// là nguồn icon + nhãn, và là bí danh cho lệnh nói / bookmark cũ) nhưng KHÔNG được hiện thành
+// một mục trên thanh bên: trang Chatbot là tab của trang Hội thoại từ 0.61.0.
+check("console vẫn biết id chatbots (nguồn icon, nhãn, bí danh)", /"chatbots"/.test(CON));
+// 0.62.5: `chatbots` nằm trong RAIL_AN nhưng KHÔNG nằm trong `ids` của nhóm nào, nên tới
+// 0.62.4 nó rơi qua nhánh "mục chưa xếp nhóm" và hiện ra ở CUỐI nhóm Hệ thống - cạnh Tài
+// khoản, đúng chỗ chẳng ai ngờ (chủ repo thấy 21/09). Lọc phải áp cho cả nhánh đó.
+check("CANARY: mục chưa xếp nhóm cũng phải đi qua RAIL_AN",
+  /RAIL_ITEMS\.filter\(i => !seen\.has\(i\.id\) && !RAIL_AN\.has\(i\.id\)\)/.test(CON));
+check("chatbots nằm trong danh sách ẩn khỏi thanh bên",
+  /RAIL_AN = new Set\(\["chatbots"\]\)/.test(CON));
 check("console định tuyến sang trang Chatbot",
   /if \(id === "chatbots"\) return renderChatbots\(el\)/.test(CON));
 check("console uỷ quyền cho module chứ không tự vẽ lại",
@@ -87,13 +98,21 @@ check("CSS có màu riêng cho ô trạng thái lỗi", /\.cb-dot\.err/.test(CSS
 check("Agent biến mất thì thẻ báo động", /agent_missing/.test(CB));
 
 // ============================================================
-// 4. Token không rò, và mỗi bot một token
+// 4. Token KHÔNG nằm trong form bot nữa (0.61.1)
 // ============================================================
-check("ô token là type=password", /id="cbToken" type="password"/.test(CB));
-check("KHÔNG đổ token cũ vào ô", !/id="cbToken"[^>]*value="/.test(CB));
-check("sửa bot thì nói rõ để trống là giữ nguyên", noi("cb.token_de_trong", "để trống nếu không đổi"));
-check("có nút kiểm tra token trước khi lưu", /chatbots\/verify-token/.test(CB));
-check("dặn mỗi bot một token riêng", noi("cb.token_rieng", "token RIÊNG"));
+// Trước đó form bot có form dán token riêng, y hệt modal "Thêm tài khoản" của tab Kênh. Hai
+// form song song nghĩa là hướng dẫn lấy token của từng kênh bị nhân đôi, và thêm một kênh mới
+// là phải sửa cả hai nơi. Nay chỉ còn MỘT chỗ biết dán token (conversations.js), form bot gọi
+// lại chính nó - xem test_hoi_thoai_khach.js cho các phép kiểm về token.
+check("CANARY: form bot KHÔNG còn ô token", CB.indexOf('id="cbToken"') === -1);
+check("CANARY: form bot KHÔNG còn tự gọi verify-token", CB.indexOf("/chatbots/verify-token") === -1);
+check("CANARY: form bot KHÔNG còn gửi token lên server", !/chung\.token = /.test(CB));
+check("nối kênh mới thì gọi lại modal Thêm tài khoản của tab Kênh",
+  /JavisConversations && window\.JavisConversations\.themTaiKhoan/.test(CB) &&
+  noi("cb.noi_kenh_moi", "Kết nối kênh mới"));
+check("nối xong thì nạp lại danh sách tài khoản và TÍCH SẴN con vừa nối",
+  /function noiKenhMoi\(/.test(CB) && /onXong: async function \(tk\)/.test(CB) &&
+  /if \(aid\) giu\.push\(aid\)/.test(CB));
 
 // ============================================================
 // 5. Nói thật với người dùng về hậu quả
@@ -291,40 +310,30 @@ check("Zalo là chữ Z trắng trong bong bóng trò chuyện xanh",
   /zalo:[\s\S]{0,400}fill="#0068FF"[\s\S]{0,600}M8\.5 7\.9h7\.05/.test(ICONS));
 check("kênh lạ trả rỗng chứ không vẽ dấu hỏi", /if \(!k\) return "";/.test(ICONS));
 
-check("kênh hiện trên thẻ bot (huy hiệu ở icon + chip ở phần thông tin)",
-  /class="cb-ico-kenh"/.test(CB) && /function chipKenh\(/.test(CB) && /chipKenh\(kenh\)/.test(CB));
-check("form hỏi kênh NGAY Ở ĐẦU, trước cả tên bot",
-  tu("cb.lb_kenh", "Bot này nói chuyện ở đâu") && tu("cb.lb_ten", "Tên bot") &&
-  CB.indexOf('window.t("cb.lb_kenh")') > -1 &&
-  CB.indexOf('window.t("cb.lb_kenh")') < CB.indexOf('window.t("cb.lb_ten")'));
-check("chọn kênh bằng thẻ bấm có logo, không phải <select> trơn",
-  /class="cb-kenh"/.test(CB) && /class="cb-kenh-o/.test(CB) && /cb-kenh-logo/.test(CB));
-check("mỗi kênh nói rõ ưu và nhược ngay trên nút",
-  /KENH_TOM\s*=/.test(CB) && noi("cb.kenhtom_zalo", "chưa gửi được tài liệu"));
-// Đổi kênh của bot đã tạo = đổi sang một con bot khác (token khác, khách khác). Khoá lại và
-// nói thẳng, chứ đừng cho bấm rồi báo lỗi token ở bước sau.
-check("sửa bot thì kênh bị KHOÁ kèm lý do",
-  /veKenhChon\(kenh, sua\)/.test(CB) && /cb-kenh-khoa/.test(CB) &&
-  noi("cb.kenh_khoa", "Không đổi được kênh của bot đã tạo"));
-check("đổi kênh là đổi theo cả form (nhãn token, chỗ lấy token, khối nhóm)",
-  /function apKenh\(k\)/.test(CB) && /cbTokenLabel/.test(CB) && /cbNhomBox/.test(CB));
-check("đổi kênh thì BỎ token đã kiểm (nó là danh tính ở nền tảng kia)",
-  /function apKenh\(k\)[\s\S]{0,400}if \(k !== kenh\) uname = "";/.test(CB));
-// Hàm này còn chạy MỘT LẦN lúc mở form để dựng trạng thái ban đầu. Bỏ uname vô điều kiện thì
-// mở form Sửa rồi bấm Lưu là xoá trắng tên bot đang chạy, và thẻ báo "chưa có token" cho một
-// con bot vẫn sống - hỏng im lặng, chỉ lộ ra khi nhìn kỹ thẻ.
-check("mở form Sửa mà chưa đổi kênh thì KHÔNG xoá tên bot đang dùng",
-  /if \(k !== kenh\) uname = "";/.test(CB) &&
-  /sua && k === \(\(b && b\.channel\) \|\| "telegram"\) && uname/.test(CB));
-check("kiểm token gửi kèm kênh để hỏi đúng nền tảng",
-  /channel: kenh/.test(CB) && /window\.t\("cb\.dang_hoi", \{ kenh: kc\.nhan \}\)/.test(CB)
-  && tu("cb.dang_hoi", "Đang hỏi") && tu("cb.dang_hoi", "{kenh}"));
-check("tạo bot gửi kênh lên server", /channel: kenh,/.test(CB));
-check("kênh không vào được nhóm thì ẨN cả khối nhóm, không hiện ra rồi vô tác dụng",
-  /cbKhongNhom/.test(CB) && /kc\.co_nhom \? "" : "none"/.test(CB));
+// 0.61.0: bot TRỎ tới tài khoản kênh (một bot trực được nhiều tài khoản), kênh không còn là
+// một trường của bot. Thẻ hiện một chip cho MỖI tài khoản; huy hiệu ở icon chỉ khi có đúng một.
+check("kênh hiện trên thẻ bot (huy hiệu ở icon khi một tài khoản + chip cho từng tài khoản)",
+  /class="cb-ico-kenh"/.test(CB) && /function chipTK\(/.test(CB) && /\.map\(chipTK\)/.test(CB));
+check("form hỏi tài khoản NGAY Ở ĐẦU, trước cả tên bot",
+  tu("cb.lb_tai_khoan", "tài khoản") && tu("cb.lb_ten", "Tên bot") &&
+  CB.indexOf('window.t("cb.lb_tai_khoan")') > -1 &&
+  CB.indexOf('window.t("cb.lb_tai_khoan")') < CB.indexOf('window.t("cb.lb_ten")'));
+check("tích được NHIỀU tài khoản (cùng một vai trực Telegram lẫn Zalo)",
+  /class="cb-tk-o"/.test(CB) && /account_ids: ids\.join\(","\)/.test(CB) && tu("cb.hint_tai_khoan", "nhiều tài khoản"));
+// CANARY: giao diện KHÔNG đoán gì theo id kênh. Logo, nhãn, năng lực đều từ danh sách server;
+// thêm kênh ở server là trang này vẽ được ngay, không sửa một dòng nào ở đây.
+check("CANARY: không rẽ nhánh theo id kênh (logo qua kenhCua().logo, không Icons.kenh(kenh) trực tiếp)",
+  /function logoKenh\(/.test(CB) && !/Icons\.kenh\(kenh/.test(CB) && !/Icons\.kenh\(k\.id/.test(CB)
+  && !/=== "zalo"/.test(CB));
+check("không tài khoản nào vào được nhóm thì ẨN cả khối nhóm, không hiện ra rồi vô tác dụng",
+  /cbKhongNhom/.test(CB) && /function coNhomForm\(/.test(CB) && /nhomBox\.style\.display = co \? "" : "none"/.test(CB));
 check("và KHÔNG gửi id nhóm thừa lên server",
-  /var coNhom = kenhCua\(kenh\)\.co_nhom/.test(CB) && /coNhom \? box\.querySelector\("#cbGroups"\)/.test(CB));
-check("cảnh báo riêng tư chỉ hiện cho bot Telegram", /kenh === "telegram" && duNhom/.test(CB));
+  /var coNhomLuu = coNhomForm\(\)/.test(CB) && /coNhomLuu \? box\.querySelector\("#cbGroups"\)/.test(CB));
+check("thẻ bot nói thẳng khi chưa có tài khoản bot nào",
+  noi("cb.chua_token", "chưa có tài khoản bot"));
+check("mở form từ tab Tài khoản bot với tài khoản tích sẵn", /javis:chatbot-new/.test(CB) && /chonSan/.test(CB));
+check("cảnh báo riêng tư chỉ hiện khi bot có tài khoản Telegram",
+  /a\.channel === "telegram"/.test(CB) && /coTelegram && duNhom/.test(CB));
 check("bộ lọc kênh chỉ hiện khi có từ hai kênh trở lên",
   /function veLoc\(/.test(CB) && /if \(ks\.length < 2\)/.test(CB));
 check("danh sách kênh lấy từ SERVER, không chép cứng ở giao diện",
@@ -332,6 +341,73 @@ check("danh sách kênh lấy từ SERVER, không chép cứng ở giao diện",
 check("CSS của bộ chọn kênh đã có",
   /\.cb-kenh-o/.test(CSS) && /\.cb-loc-o/.test(CSS) && /\.cb-ico-kenh/.test(CSS));
 check("icons.js không có em dash", ICONS.indexOf("—") === -1);
+
+// ============================================================
+// 6e. Form tạo bot đi HAI BƯỚC (0.61.1)
+// ============================================================
+// Chủ repo báo (2026-09-21) khi nhìn form trên điện thoại: "phần lựa chọn kênh này quá nhiều
+// ghi chú và phức, cách chọn kênh cũng sẽ không có tính mở rộng về sau". Đúng vậy: một màn
+// duy nhất phải cõng cả chọn tài khoản, dán token, hướng dẫn riêng của từng kênh, tên bot,
+// Agent, nguồn trả lời, mức quyền, ngôn ngữ, chuyển người thật và nhóm. Người dùng cuộn qua
+// một trang chú thích trước khi thấy ô Tên bot, và mỗi kênh thêm vào là dài thêm một khối nữa.
+check("có hai bước, bước 1 chọn chỗ trả lời và bước 2 mới cài đặt",
+  /id="cbB1"/.test(CB) && /id="cbB2"/.test(CB) && /function veBuoc\(n\)/.test(CB));
+check("bước 1 chỉ hỏi bot trả lời ở đâu, KHÔNG hỏi tên bot",
+  CB.indexOf('id="cbB1"') < CB.indexOf('window.t("cb.lb_tai_khoan")') &&
+  CB.indexOf('window.t("cb.lb_tai_khoan")') < CB.indexOf('id="cbB2"') &&
+  CB.indexOf('id="cbB2"') < CB.indexOf('window.t("cb.lb_ten")'));
+check("nói rõ đang ở bước mấy", noi("cb.buoc_may", "Bước {n}") && /id="cbBuoc"/.test(CB));
+// Chưa tích tài khoản nào mà sang được bước 2 thì bot tạo ra không có chỗ nào để trả lời.
+check("chưa chọn tài khoản thì không sang được bước 2",
+  /function sangBuoc2\(\)[\s\S]{0,160}if \(!tkDangChon\(\)\.length\) return alert/.test(CB));
+// Sang bước 2 là mất dấu lựa chọn vừa làm nếu không tóm tắt lại, và người dùng phải lùi lại
+// chỉ để nhìn cho chắc.
+check("bước 2 tóm tắt lại bot sẽ trả lời ở đâu, kèm lối quay lại đổi",
+  /function veTom\(\)/.test(CB) && /class="cb-doi-tk"/.test(CB) &&
+  noi("cb.tra_loi_o", "Trả lời ở") && noi("cb.doi", "Đổi"));
+check("sửa bot thì vào thẳng bước 2 (tài khoản đã chọn rồi)", /var buoc = sua \? 2 : 1;/.test(CB));
+// Một cặp nút cố định đọc dễ hơn hai hàng nút hiện ra rồi biến đi, và trên điện thoại ngón
+// tay luôn tìm thấy chúng ở đúng chỗ cũ.
+check("hai nút ở chân form đổi vai theo bước chứ không mọc thêm hàng nút",
+  /id="cbLui"/.test(CB) && /id="cbTien"/.test(CB) &&
+  noi("cb.quay_lai", "Quay lại") && noi("cb.tiep_tuc", "Tiếp tục"));
+// Ba ô có mặc định dùng được ngay mới được gấp. Mức quyền thì KHÔNG: đọc sót nó là mất tiền
+// thật, nên nó phải nằm phơi ra trên màn hình chứ không phải sau một cú bấm.
+check("ngôn ngữ, chuyển người thật và nhóm gấp vào Cài đặt thêm",
+  /class="cb-nangcao"/.test(CB) && noi("cb.nang_cao", "Cài đặt thêm") &&
+  CB.indexOf('class="cb-nangcao"') < CB.indexOf('id="cbNgonNgu"') &&
+  CB.indexOf('class="cb-nangcao"') < CB.indexOf('id="cbHandoff"') &&
+  CB.indexOf('class="cb-nangcao"') < CB.indexOf('id="cbNhomBox"'));
+check("CANARY: mức quyền KHÔNG bị gấp vào khối Cài đặt thêm",
+  CB.indexOf('id="cbMuc"') < CB.indexOf('class="cb-nangcao"'));
+check("CSS của form hai bước đã có",
+  /\.cb-wizard \.cb-form-acts/.test(CSS) && /\.cb-buoc \{/.test(CSS) &&
+  /\.cb-tom \{/.test(CSS) && /\.cb-nangcao \{/.test(CSS));
+// Gõ lại đúng cái tên vừa đọc ở bước trước là việc thừa.
+check("gợi sẵn tên bot từ tài khoản vừa chọn",
+  /if \(!ten\.value\.trim\(\)\) ten\.value = \(tkDangChon\(\)\[0\] \|\| \{\}\)\.ten/.test(CB));
+
+// ============================================================
+// 6b. Thẻ phải nói bot chạy MODEL nào (0.62.3)
+// ============================================================
+// Từ 0.62.3 bot mượn model của Agent nó trỏ tới, không còn luôn chạy model chính. Không hiện
+// ra thì chọn model cho trợ lý xong vẫn không có cách nào biết bot đã theo hay chưa.
+check("thẻ bot hiện model đang chạy", /b\.agent_model \|\| window\.t\("cb\.model_chinh"\)/.test(CB));
+check("agent để Mặc định thì nói rõ là theo model chính, không để trống",
+  CB.indexOf('window.t("cb.model_chinh")') !== -1);
+
+// ============================================================
+// 6c. Nhãn trang và ba tab (0.62.5)
+// ============================================================
+// Chủ repo chốt 21/09: thanh bên gọi trang này là "Chatbot", ba tab là Hòm thư bot /
+// Tài khoản bot / Tạo chatbot. Nhãn nằm trong từ điển, nên canary soi từ điển.
+check("thanh bên gọi trang này là Chatbot", VI["page.conversations.label"] === "Chatbot");
+check("ba tab đúng tên mới",
+  VI["ht.tab_inbox"] === "Hòm thư bot" && VI["ht.tab_kenh"] === "Tài khoản bot" &&
+  VI["ht.tab_chatbot"] === "Tạo chatbot");
+check("nói tên mới cũng mở đúng trang",
+  SRV2.includes('"hom thu bot": "conversations"') && SRV2.includes('"tai khoan bot": "conversations"') &&
+  SRV2.includes('"tao chatbot": "chatbots"'));
 
 // ============================================================
 // 7. Luật chung của dashboard

@@ -28,6 +28,53 @@ _MSG_CLIP = 1500        # mỗi message đưa vào prompt tóm tắt cắt còn 
 # lúc xoay không rơi tự do. 300.000 ký tự ~ 100k token: đủ dày để mang theo cả một phiên làm
 # việc dài, mà vẫn nhỏ hơn nhiều so với một triệu token vừa bỏ đi.
 CODEX_BOOTSTRAP_MAX_CHARS = 300_000
+# Riêng Antigravity CLI (`agy`): KHÔNG nối lại mạch, nên gói lịch sử này được gửi lại NGUYÊN
+# mỗi lượt chứ không phải chỉ một lần lúc xoay mạch như Codex/Claude Code. 300.000 ký tự mỗi
+# lượt vừa tốn hạn mức gói Google, vừa là cái file ngữ cảnh mà model phải tự mở ra đọc trên
+# Windows (dòng lệnh chặn 32k), và file càng dài thì tool đọc file càng dễ cắt cụt trước khi tới
+# câu hỏi ở cuối - model đọc được nửa đầu rồi trả lời một câu hỏi cũ (báo 2026-09-18/19).
+# Ghi đè bằng env JAVIS_AGY_BOOTSTRAP_MAX_CHARS nếu máy nào cần khác.
+#
+# VÌ SAO 45.000 CHỨ KHÔNG PHẢI 100.000 (đo 2026-09-22). Con số này KHÔNG đứng một mình: nó
+# phải cộng với system prompt rồi lọt qua `antigravity_cli._tran_argv()`, mà trần đó đếm theo
+# BYTE (Linux, 120.000) chứ không theo ký tự. Hai hằng số nằm ở hai file, không ai đặt cạnh
+# nhau, nên chúng đã mâu thuẫn với nhau trong im lặng một thời gian dài.
+#
+# SỐ ĐO THẬT, không phải ước lượng:
+#   - tỉ lệ byte/ký tự của tiếng Việt, đo trên văn bản trong docs/dev: 1,202 (lấy 1,21 cho an toàn)
+#   - `build_system_prompt` + khối kênh, đo trên brain mẫu: 46.179 ký tự (CLAUDE.md mới 33.577,
+#     phần còn lại là lớp agentic, chỉ mục năng lực, router skill và khối kênh 8.412)
+#   - ngân sách còn lại cho lịch sử: 120.000 x 0,97 / 1,21 - 48.000 = 48.198 ký tự
+#
+# Nên 45.000 là số lớn nhất còn chừa biên. `test_ba_loi_tran_prompt.py` giữ phép tính này để
+# hai hằng số không lệch nhau lần nữa mà không ai biết.
+#
+# VƯỢT TRẦN THÌ SAO, nói cho đúng mức độ. `_chon_duong` không nhảy thẳng xuống file: nó thử
+# STDIN trước (`duong_prompt_dai`), và stdin không có trần. Chỉ máy nào không công thức stdin
+# nào chạy được mới rơi xuống đường file, và đó mới là chỗ đắt (model phải tự mở file đọc,
+# thêm một vòng tool). Nên lợi ích của việc hạ số này có hai phần, phần thứ hai chắc chắn hơn:
+#   1. Máy dùng đường file: bỏ được một vòng tool mỗi lượt.
+#   2. MỌI máy dùng đường file: file ngắn hơn thì tool đọc file ít bị cắt cụt hơn. Đây là bug
+#      ĐÃ ĐƯỢC BÁO (2026-09-18/19): model đọc nửa đầu rồi trả lời một câu hỏi cũ. Lần hạ trước
+#      (300.000 -> 100.000) cũng vì lý do này, và 100.000 vẫn còn đủ dài để dính.
+#
+# Đánh đổi phải nói thẳng: `agy` KHÔNG nối lại mạch, nên gói này là toàn bộ trí nhớ hội thoại
+# của nó. 45.000 ký tự là khoảng 20-30 lượt chat thường. Đổi lại là không còn trả lời nhầm câu
+# hỏi cũ. `bootstrap_prompt` giữ phần GẦN NHẤT và không cắt `summary`, nên phần rơi ra là các
+# lượt cũ nhất chứ không phải ngẫu nhiên.
+#
+# Trên WINDOWS trần là 30.000 ĐƠN VỊ UTF-16, tức riêng system prompt đã không lọt dù hạ số này
+# xuống bao nhiêu. Đường argv ở đó chết hẳn; đường đúng là stdin và `duong_prompt_dai` đã ưu
+# tiên sẵn. Đừng đi tối ưu nhầm hướng.
+try:
+    AGY_BOOTSTRAP_MAX_CHARS = max(
+        20_000, int(__import__("os").environ.get("JAVIS_AGY_BOOTSTRAP_MAX_CHARS") or 45_000))
+except (TypeError, ValueError):
+    AGY_BOOTSTRAP_MAX_CHARS = 45_000
+# Dòng đánh dấu ranh giới giữa lịch sử đã gói và câu hỏi hiện tại trong bootstrap_prompt. Engine
+# nào cần bóc lại câu hỏi thật (antigravity_cli.cau_hoi_moi_nhat) tìm theo ĐÚNG chuỗi này, nên
+# đổi chữ ở đây là phải đổi ở đó - vì thế mới đặt thành hằng dùng chung.
+CURRENT_REQUEST_MARKER = "[YÊU CẦU HIỆN TẠI]"
 # Đuôi hội thoại CHƯA nén dài quá ngưỡng này → nén ĐỒNG BỘ ngay trong lượt trước khi gửi,
 # để phần cũ vào tóm tắt thay vì bị cắt câm. Hay xảy ra khi đổi từ engine Claude (CLI - không
 # tạo tóm tắt) sang engine API giữa chừng, hoặc nén nền chưa kịp bắt đầu.
@@ -136,11 +183,12 @@ def bootstrap_prompt(raw_msgs, current_prompt: str,
     header = (
         "[KHÔI PHỤC NGỮ CẢNH HỘI THOẠI]\n"
         "Các đoạn dưới đây là lịch sử thật của cùng cuộc trò chuyện Javis. "
-        "Hãy tiếp tục đúng mạch, không coi chúng là yêu cầu mới cần làm lại.\n"
+        "Hãy tiếp tục đúng mạch, không coi chúng là yêu cầu mới cần làm lại. Mọi câu hỏi trong "
+        "lịch sử ĐÃ được trả lời rồi; chỉ trả lời phần " + CURRENT_REQUEST_MARKER + " ở cuối.\n"
     )
     if tom_tat:
         header += SUMMARY_HEADER + tom_tat + "\n"
-    footer = "\n[HẾT LỊCH SỬ]\n\n[YÊU CẦU HIỆN TẠI]\n"
+    footer = "\n[HẾT LỊCH SỬ]\n\n" + CURRENT_REQUEST_MARKER + "\n"
     budget = max(1000, int(max_chars)) - len(header) - len(footer) - len(current_prompt)
     blocks = []
     truncated = False

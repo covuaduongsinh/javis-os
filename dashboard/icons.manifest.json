@@ -26,6 +26,7 @@
   "groups": {
     "nav": [
       "hexagon",
+      "code-xml",
       "message-circle",
       "bot",
       "puzzle",
@@ -43,7 +44,13 @@
       "circle-user",
       "sliders-horizontal",
       "clipboard-check",
-      "headset"
+      "headset",
+      "messages-square",
+      "inbox",
+      "user-round",
+      "users",
+      "arrow-left",
+      "hand"
     ],
     "hanh-dong": [
       "save",
@@ -105,6 +112,7 @@
       "folder",
       "folder-open",
       "folder-plus",
+      "folder-git",
       "image",
       "book-open",
       "scroll",
@@ -118,6 +126,7 @@
       "history",
       "volume-2",
       "link",
+      "share-2",
       "quote",
       "circle-help",
       "star",

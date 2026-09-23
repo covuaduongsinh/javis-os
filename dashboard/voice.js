@@ -9,6 +9,11 @@ class JavisVoice {
   //   service-not-allowed trình duyệt chặn dịch vụ nhận giọng
   //   audio-capture       máy không có mic (hay gặp trên phiên điều khiển từ xa)
   static LOI_CHET = ["not-allowed", "service-not-allowed", "audio-capture"];
+  // Trần cho MỘT lượt nói: nói liên tục quá chừng này ms mà chưa từng có khoảng im thì chốt
+  // luôn, không chờ im lặng nữa (xem chú thích dài ở onresult). Người thật ra lệnh gần như
+  // luôn ngắt hơi trước mốc này, nên nó chỉ cắt đúng thứ đáng cắt: một dòng tiếng liên tục
+  // của TV hay của người khác trong phòng.
+  static TRAN_LUOT_MS = 30000;
 
   // ---- Ngắt lời bằng giọng: mẹo NHÁ TIẾNG (0.57.14) ----
   // Đo mức âm mic KHÔNG phân biệt nổi giọng người với tiếng LOA NGOÀI vọng lại, nên bản cũ
@@ -40,6 +45,9 @@ class JavisVoice {
 
   constructor(opts = {}) {
     this.lang = opts.lang || "vi-VN";
+    // Đa ngôn ngữ (ô "Ngôn ngữ nghe" = auto): không cố định tiếng nào. this.lang vẫn giữ mã
+    // cụ thể gần nhất cho phần ĐỌC; chỉ phần NGHE mới bỏ ghim (xem setRecognitionLang).
+    this.langAuto = false;
     this.onTranscript = opts.onTranscript || (() => {});
     this.onInterim = opts.onInterim || (() => {});
     this.onStart = opts.onStart || (() => {});
@@ -134,9 +142,18 @@ class JavisVoice {
       const ctx = this._ensureCtx();
       if (!this.micStream) {
         // Bật khử vọng/khử ồn: giảm việc mic nghe lại chính giọng TTS (chống tự-kích-hoạt + lồng tiếng).
-        this.micStream = await navigator.mediaDevices.getUserMedia({
+        const st = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
         });
+        // Chỗ này là ASYNC, và cái chờ có thể rất lâu (hộp xin quyền chờ người bấm Cho phép).
+        // Trong lúc chờ, trên ĐIỆN THOẠI ta có thể đã quay lại NGHE: nhận luồng này vào là hai
+        // đường lại tranh mic và nhận dạng câm, đúng lỗi _nhaMicStream sinh ra để chặn. Trả
+        // ngay, đừng gán - lần đọc sau sẽ tự xin lại.
+        if (this._laDiDong() && (this.isListening || this._starting)) {
+          try { (st.getTracks ? st.getTracks() : []).forEach((t) => { try { t.stop(); } catch (e) {} }); } catch (e) {}
+          return;
+        }
+        this.micStream = st;
       }
       const src = ctx.createMediaStreamSource(this.micStream);
       const an = ctx.createAnalyser();
@@ -182,7 +199,8 @@ class JavisVoice {
     try {
       const fd = new FormData();
       fd.append("file", blob, "voice.webm");
-      fd.append("lang", this.lang || "");
+      // "auto" = bảo máy chủ ĐỪNG gợi ý tiếng cho Whisper, để nó tự dò (xem /stt trong main.py).
+      fd.append("lang", this.langAuto ? "auto" : (this.lang || ""));
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), 8000);
       const r = await fetch(this.sttUrl, { method: "POST", body: fd, signal: ctl.signal });
@@ -221,7 +239,9 @@ class JavisVoice {
     }
 
     this.recognition = new SR();
-    this.recognition.lang = this.lang;
+    // Đa ngôn ngữ: để trống lang, Chrome lấy ngôn ngữ của trình duyệt. Web Speech không nghe
+    // được nhiều tiếng cùng lúc, nên đây là mức "không cố định" tốt nhất máy nghe này có.
+    this.recognition.lang = this.langAuto ? "" : this.lang;
     this.recognition.continuous = true;       // nghe liên tục, không dừng giữa câu
     // iPhone/iPad: WebKit KHÔNG nghe liên tục được. Đặt continuous=true thì nó vào một phiên
     // "ghi âm" không bao giờ tự kết thúc câu, và onend tự mở lại càng làm nó kéo dài - đúng
@@ -234,6 +254,7 @@ class JavisVoice {
     this.accumulatedTranscript = "";
     this._committed = "";                     // chữ đã nghe ở các phiên trước trong CÙNG một lượt nói
     this._duoiTam = "";                       // đuôi chữ TẠM (chưa final) của sự kiện onresult cuối
+    this._batDauLuot = 0;                     // mốc ms chữ đầu tiên của lượt này (trần TRAN_LUOT_MS)
     this.userStopped = false;                 // user chủ động dừng?
     this.silenceMs = 1500;                    // im lặng bao lâu thì tự gửi
     this._silenceTimer = null;
@@ -273,11 +294,17 @@ class JavisVoice {
       // sự kiện: "Ok" + "Ok có" + "Ok có vẻ" + ... - đúng cái tin dài cả trang chủ repo gửi
       // ảnh ngày 02/09. results là bức ảnh đầy đủ của phiên nên đọc lại từ 0 luôn đúng, và
       // phần đã nghe ở phiên trước (Chrome tự đóng rồi ta mở lại) giữ ở _committed.
+      // Nối các mảnh bằng ghepManh chứ KHÔNG phải `+=`. Chrome Android giao nhiều mảnh cùng
+      // lúc trong một event, mà mảnh sau thường là BẢN DÀI HƠN của mảnh trước (cùng câu, thêm
+      // chữ) chứ không phải đoạn tiếp theo. Cộng thẳng là chép lại cả câu ở mỗi mảnh:
+      // "Em có" + "Em có nghe" + "Em có nghe thấy" ... - đúng tin dài dần chủ dự án gửi ảnh
+      // ngày 18/09 khi bật mic trên điện thoại. ghepManh thấy mảnh mới phủ đoạn đang có thì
+      // THAY, thấy đoạn mới thật thì mới nối thêm.
       let interim = "", final = "";
       for (let i = 0; i < event.results.length; i++) {
         const transcript = (event.results[i][0] || {}).transcript || "";
-        if (event.results[i].isFinal) final += transcript + " ";
-        else interim += transcript;
+        if (event.results[i].isFinal) final = JavisVoice.ghepManh(final, transcript);
+        else interim = JavisVoice.ghepManh(interim, transcript);
       }
       this.accumulatedTranscript = this._ghepChuyenBien(final.trim());
       // Nhớ ĐUÔI CHỮ TẠM của sự kiện cuối. WebKit trên iOS hay giao toàn chữ tạm rồi kết
@@ -287,12 +314,20 @@ class JavisVoice {
       // máy tính chốt final trước onend nên tới đó đuôi này rỗng, không đổi gì.
       this._duoiTam = interim.trim();
       // Show user toàn bộ tích lũy + đoạn đang nghe
-      const display = (this.accumulatedTranscript + " " + interim).trim();
+      const display = JavisVoice.ghepDuoiTam(this.accumulatedTranscript, interim);
       if (display) {
         this.onInterim(display);
+        if (!this._batDauLuot) this._batDauLuot = Date.now();
         // Reset đồng hồ im lặng - nói tiếp thì hoãn, im đủ lâu thì tự gửi. Có đạo diễn thì
         // độ trễ tính theo câu (kết bằng liên từ thì chờ lâu hơn), không thì số cố định.
         clearTimeout(this._silenceTimer);
+        // TRẦN CHO MỘT LƯỢT. Đồng hồ trên được hẹn lại ở MỌI mẩu chữ tạm, nên tiếng TV hay hai
+        // người nói chuyện trong phòng giữ nó không bao giờ nổ: chữ cứ dồn vào một lượt khổng
+        // lồ và Javis trông như điếc suốt cả đoạn đó (chủ dự án 17/09 gửi ảnh một lượt dài cả
+        // trang, lẫn tiếng TV, mà cuối mới có câu hỏi thật). Quá trần thì chốt NGAY thay vì hẹn
+        // tiếp: mỗi mẩu 30 giây đi qua cửa tạp âm ở bộ não giọng và bị bỏ nếu không nói với
+        // Javis, còn câu thật thì được trả lời trong vòng nửa phút chứ không phải hai phút.
+        if (Date.now() - this._batDauLuot >= JavisVoice.TRAN_LUOT_MS) { this.stopListening(); return; }
         let ms = this.silenceMs;
         try { if (this.endpointDelay) ms = this.endpointDelay(display) || ms; } catch (e) {}
         this._silenceTimer = setTimeout(() => this.stopListening(), ms);
@@ -330,7 +365,7 @@ class JavisVoice {
           // Phiên mới thì event.results bắt đầu lại từ trống. Gói phần đã nghe vào
           // _committed trước (kể cả đuôi tạm chưa kịp chốt), không thì onstart xoá trắng và
           // nửa câu đầu biến mất.
-          this._committed = JavisVoice.ghepDuoiTam(this._ghepChuyenBien(""), this._duoiTam);
+          this._committed = JavisVoice.ghepDuoiTam(this.accumulatedTranscript || this._committed, this._duoiTam);
           this._duoiTam = "";
           this.recognition.start();
           return;
@@ -345,6 +380,7 @@ class JavisVoice {
       const finalText = JavisVoice.ghepDuoiTam(this.accumulatedTranscript, this._duoiTam);
       this._committed = "";
       this._duoiTam = "";
+      this._batDauLuot = 0;            // lượt này khép lại: trần tính lại từ đầu ở lượt sau
       if (finalText) this.onTranscript(finalText);
       this.onEnd();
     };
@@ -361,6 +397,24 @@ class JavisVoice {
     if (moi.startsWith(cu)) return moi;
     if (cu.endsWith(moi)) return cu;
     return (cu + " " + moi).trim();
+  }
+
+  // Ghép MỘT MẢNH của event.results vào đoạn đang dựng trong CÙNG một sự kiện onresult.
+  // Thuần để test bằng node. Ba nước, so không phân biệt hoa thường và dấu câu cuối:
+  //   - mảnh mới mở đầu bằng cả đoạn đang có -> nó là bản dài hơn, THAY (gồm cả trùng khít);
+  //   - mảnh nhiều chữ đã nằm ở cuối đoạn -> đã chép rồi, BỎ;
+  //   - còn lại là đoạn mới thật -> nối thêm.
+  // Mảnh một chữ trùng đuôi thì vẫn nối, vì người ta có nói lặp thật ("không không").
+  static ghepManh(daCo, manh) {
+    const cu = String(daCo || "").trim();
+    const moi = String(manh || "").trim();
+    if (!moi) return cu;
+    if (!cu) return moi;
+    const chuan = (s) => s.toLowerCase().replace(/[.,!?;:…]+$/, "").trim();
+    const a = chuan(cu), b = chuan(moi);
+    if (b.startsWith(a)) return moi;
+    if (a.endsWith(b) && /\s/.test(b)) return cu;
+    return cu + " " + moi;
   }
 
   // Ghép đuôi chữ TẠM (chưa final) vào phần đã chốt, lúc phiên kết thúc. Thuần để test bằng
@@ -389,18 +443,66 @@ class JavisVoice {
     return this._iosCache;
   }
 
+  // Máy ĐIỆN THOẠI (Android hoặc iOS). Quan trọng vì điện thoại chỉ cho MỘT thứ thu mic một
+  // lúc, xem chú thích ở _nhaMicStream.
+  _laDiDong() {
+    if (this._diDongCache === undefined) {
+      const ua = navigator.userAgent || "";
+      this._diDongCache = this._laIOS() || /Android/i.test(ua);
+    }
+    return this._diDongCache;
+  }
+
+  // TRẢ mic về cho máy: tắt track, bỏ bộ đo, bỏ bộ ghi.
+  //
+  // VÌ SAO PHẢI CÓ (0.59.35). Trang này thu mic bằng HAI đường độc lập: luồng getUserMedia
+  // (đo mức âm cho hiệu ứng phát sáng, ngắt lời, ghi âm Groq) và SpeechRecognition, thứ tự
+  // thu bằng luồng RIÊNG của nó (xem 0.9.x, chính vì luồng riêng đó không được khử vọng nên
+  // mới có cả cơ chế tạm ngừng nhận dạng lúc TTS đọc). Máy tính chạy hai đường song song
+  // được. ĐIỆN THOẠI THÌ KHÔNG: đường nào chiếm mic trước thì đường kia câm.
+  //
+  // Bản cũ mở luồng getUserMedia rồi GIỮ SUỐT ĐỜI TRANG, không bao giờ tắt track, và mở nó
+  // ngay trước recognition.start(). Hệ quả đúng như người dùng tả 18/09:
+  //   - Lần đầu vào trang, quyền CHƯA cấp: getUserMedia treo lại chờ người bấm Cho phép, nên
+  //     nhận dạng kịp chiếm mic trước -> nghe được ĐÚNG MỘT LƯỢT.
+  //   - Xong lượt đó luồng mic đã nằm sẵn, lượt sau nhận dạng không còn mic -> câm.
+  //   - Tải lại trang: quyền đã cấp nên getUserMedia trả về gần như tức thì, chiếm mic trước
+  //     nhận dạng -> câm ngay từ lượt đầu. "Refresh là không nghe được."
+  //   - Reset quyền: hộp xin phép quay lại, lại có độ trễ, lại nghe được một lượt. "Phải
+  //     reset quyền mới nghe tiếp."
+  // Ba triệu chứng đó là một nguyên nhân, và nó là cuộc đua giữa hai đường thu mic.
+  //
+  // Chữa: trên điện thoại, lúc NGHE thì chỉ để SpeechRecognition giữ mic. Luồng getUserMedia
+  // chỉ sống trong lúc Javis ĐỌC, là lúc nhận dạng đã bị abort (xem _muteRecognition), nên
+  // ngắt lời vẫn nguyên vẹn. Thứ mất đi trên điện thoại chỉ là hiệu ứng phát sáng theo giọng
+  // lúc đang nghe, và bản ghi gửi Groq - hai thứ trang trí và tuỳ chọn, đổi lấy cái mic chạy.
+  _nhaMicStream() {
+    this._stopRecorder().catch(() => {});
+    const st = this.micStream;
+    this.micStream = null;
+    this.inAnalyser = null;
+    if (!st) return;
+    try {
+      (st.getTracks ? st.getTracks() : []).forEach((t) => { try { t.stop(); } catch (e) {} });
+    } catch (e) {}
+  }
+
   // iOS chỉ cho phát âm thanh do CỬ CHỈ người dùng khởi động, và mỗi `new Audio()` là một
   // phần tử mới chưa được "mở khoá". Bản cũ tạo Audio mới cho từng đoạn + một Audio preload,
   // nên trên iPhone đoạn đầu phát được còn các đoạn sau bị chặn hoặc trễ - "đọc ngập ngừng,
   // ngắt giữa chừng". Chữa: MỘT phần tử Audio dùng lại, mở khoá ngay trong cử chỉ bấm mic
   // bằng một file WAV im lặng, sau đó chỉ đổi src.
   _moKhoaAudioIOS() {
-    if (!this._laIOS() || this._iosAudio) return;
-    const a = new Audio();
+    if (!this._laIOS() || this._iosUnlocked || this._iosUnlocking) return;
+    const a = this._iosAudio || new Audio();
     a.setAttribute("playsinline", "");
-    a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
-    a.play().catch(() => {});
+    // WAV PCM có 80 mẫu im lặng (10 ms), không phải tệp có data dài 0.
+    a.src = "data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0Ya" + "A".repeat(218);
     this._iosAudio = a;
+    this._iosUnlocking = true;
+    a.play().then(() => { this._iosUnlocked = true; }, () => {
+      this._iosUnlocked = false;
+    }).finally(() => { this._iosUnlocking = false; });
   }
 
   _loadVoices() {
@@ -439,10 +541,15 @@ class JavisVoice {
     if (!giuTieng) this._resumeAfterTTS = false;
     clearTimeout(this._resumeTimer);
     this._committed = "";                     // lượt nói MỚI, không kéo chữ của lượt trước sang
+    this._batDauLuot = 0;                     // đồng hồ trần tính lại từ chữ đầu của lượt mới
     // Stop TTS đang đọc nếu user bấm nói
     if (!giuTieng) { this.synth.cancel(); this.stopSpeaking(); }
-    this._moKhoaAudioIOS(); // iOS: mở khoá phần tử phát tiếng NGAY trong cử chỉ bấm mic
-    this._startMicMeter();  // bật đo âm mic cho hiệu ứng phát sáng (kèm ghi âm Groq nếu bật)
+    if (!tuDong) this._moKhoaAudioIOS(); // iOS: chỉ mở khoá trong cử chỉ bấm mic
+    // Điện thoại: TRẢ mic lại trước khi mở nhận dạng, không thì hai đường thu tranh nhau và
+    // nhận dạng câm (xem chú thích dài ở _nhaMicStream). Máy tính chạy song song được nên giữ
+    // nguyên hiệu ứng phát sáng như cũ.
+    if (this._laDiDong()) this._nhaMicStream();
+    else this._startMicMeter();  // đo âm mic cho hiệu ứng phát sáng (kèm ghi âm Groq nếu bật)
     try {
       this._stopPending = false;
       this._starting = true;
@@ -559,6 +666,7 @@ class JavisVoice {
     this.userStopped = true;             // chặn auto-restart trong onend
     clearTimeout(this._silenceTimer);
     this.accumulatedTranscript = "";     // bỏ những gì lỡ nghe - không gửi
+    this._batDauLuot = 0;                // bỏ luôn đồng hồ trần của lượt vừa vứt
     this._duoiTam = "";                  // cả đuôi chữ tạm, kẻo onend ghép nó thành tin
     this.onInterim("");                  // xoá chữ đang hiện dở trên màn hình
     this._stopRecorder().catch(() => {}); // Voice V2: bỏ đoạn ghi âm dở, không gửi Groq
@@ -797,6 +905,17 @@ class JavisVoice {
     return n;
   }
 
+  // Hiện cả cụm đang phát để chữ luôn sẵn để đọc, kể cả duration=Infinity
+  // của audio stream. Giữ spokenWords riêng cho ngữ cảnh khi bị ngắt lời.
+  visibleWords() {
+    const a = this.currentAudio, i = this._chunkIndex;
+    if (this._countThis && this.isPlaying && a && a.currentTime > 0 &&
+        this.ttsChunks && i != null && i < this.ttsChunks.length) {
+      return this._wordsDone + JavisVoice.demTu(this.ttsChunks[i]);
+    }
+    return this.spokenWords();
+  }
+
   lastSpokenPrefix() {
     const parts = (this._spokenChunks || []).slice();
     try {
@@ -869,7 +988,6 @@ class JavisVoice {
     if (this._laIOS()) {
       // Đường iOS: một phần tử Audio dùng lại, KHÔNG preload, KHÔNG nối qua AudioContext
       // (createMediaElementSource trên WebKit hay làm câm tiếng khi context chưa chạy).
-      this._moKhoaAudioIOS();
       const a = this._iosAudio || (this._iosAudio = new Audio());
       a.onended = null; a.onerror = null;
       a.src = this._chunkUrl(this.ttsChunks[i]) + (retry ? "&retry=1" : "");
@@ -1046,8 +1164,13 @@ class JavisVoice {
   }
 
   setRecognitionLang(lang) {
-    this.lang = lang;
-    if (this.recognition) this.recognition.lang = lang;
+    // "auto" = ĐA NGÔN NGỮ, không cố định. Web Speech không nghe được nhiều tiếng cùng lúc,
+    // nên với máy nghe trình duyệt "auto" nghĩa là để trống lang (Chrome lấy ngôn ngữ của
+    // trình duyệt); còn máy nghe Groq Whisper nhận "auto" và tự dò tiếng (xem /stt). Giữ
+    // this.lang là mã cụ thể gần nhất để phần ĐỌC (utter.lang, chọn giọng Việt) không hỏng.
+    this.langAuto = lang === "auto";
+    if (!this.langAuto) this.lang = lang;
+    if (this.recognition) this.recognition.lang = this.langAuto ? "" : this.lang;
   }
 
   _splitIntoChunks(text, maxLen) {

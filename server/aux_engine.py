@@ -273,8 +273,13 @@ def availability(spec: dict, settings: dict = None) -> tuple:
             import antigravity_cli as _a
             if not _a.find_antigravity_cli():
                 return False, "Chưa cài Antigravity CLI (`agy`) trên máy chạy Javis."
-            st = _a.auth_status()
-            if not st.get("connected"):
+            # Bản NỀN (đọc cache, làm mới bằng thread), KHÔNG phải auth_status(): hàm này chạy
+            # ngay trong code async (học sau lượt chat, việc Kanban, nhắc hẹn, loop), mà
+            # auth_status() hỏi thẳng `agy models` tới 80 giây. Cả app đứng theo: chủ repo đổi
+            # trợ lý giữa lúc Gemini đang chạy thì màn hình không đổi (23/09).
+            # "dang_kiem" = mới khởi động, chưa có kết quả: cứ cho chạy, lượt thật tự báo lỗi.
+            st = _a.auth_status_nen()
+            if not st.get("connected") and not st.get("dang_kiem"):
                 return False, st.get("error") or "Antigravity CLI chưa đăng nhập Google."
         except Exception:
             return False, "Không kiểm tra được Antigravity CLI."
@@ -471,6 +476,7 @@ class _FallbackChain:
 
     async def query(self, prompt: str):
         fail = "chuỗi engine việc nền rỗng"
+        dau = ""      # lỗi của mắt xích ĐẦU TIÊN thật sự chạy - thường là lỗi có nghĩa nhất
         for e in self._all():
             try:
                 if not e.is_available():
@@ -507,7 +513,12 @@ class _FallbackChain:
                 fail = f"{self._name(e)}: {type(exc).__name__}: {exc}"
             print(f"[aux router] {self._name(e)} lỗi → thử mắt xích kế tiếp. Lý do: {str(fail)[:300]}",
                   file=sys.stderr)
-        yield {"type": "error", "content": str(fail)}            # hết chuỗi → trả lỗi thật
+            dau = dau or str(fail)
+        # Hết chuỗi: trả CẢ lỗi đầu lẫn lỗi cuối. Chỉ trả lỗi cuối ("openrouter không sẵn sàng")
+        # là câu "hết lượt gói Claude" của mắt đầu bị nuốt, và hàng đợi việc không nhận ra để hoãn
+        # tới giờ gói mở lại (tasks._het_luot đọc câu này).
+        noi = str(fail) if (not dau or dau == str(fail)) else f"{dau} | {fail}"
+        yield {"type": "error", "content": noi}
 
 
 def _build_api(spec, claude_cli_obj, mode, tag):

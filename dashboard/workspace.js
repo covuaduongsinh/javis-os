@@ -55,6 +55,57 @@
       return String(a.name || "").localeCompare(String(b.name || ""), "vi");
     });
   }
+  // ---------- NHÓM: gom cộng sự theo field `group`, giống thư mục dự án bên Trò chuyện ----------
+  // Chủ repo 20/09: "làm thêm phần gom nhóm giống bên trò chuyện để có thể gom nhiều agent
+  // thành nhóm khác nhau". Trước đó cột trái chỉ có Ô LỌC theo nhóm; chọn "Tất cả" thì
+  // danh sách phẳng, hai chục cộng sự của năm nhóm trộn vào nhau. Nay ở chế độ "Tất cả"
+  // danh sách chia thành từng nhóm có tiêu đề bấm thu gọn/mở, số người bên phải, và nút
+  // "..." để đổi tên cả nhóm. Dữ liệu vẫn là field `group` sẵn có trong frontmatter, nên
+  // Studio, ô lọc và menu "Chuyển sang nhóm" đều nhìn thấy cùng một thứ.
+  var NHOM_MD = "Chung";
+  var KHOA_THU = "javis_ws_thu";                 // localStorage: nhóm đang THU GỌN, theo loại
+  function nhomCua(x) { return (String((x && x.group) || "").trim()) || NHOM_MD; }
+  function docThu() {
+    try { return JSON.parse(localStorage.getItem(KHOA_THU) || "{}") || {}; }
+    catch (e) { return {}; }
+  }
+  function luuThu() { try { localStorage.setItem(KHOA_THU, JSON.stringify(S.thu)); } catch (e) {} }
+  // Khoá theo BRAIN + loại (như sổ nhóm trống): hai brain có nhóm trùng tên mà dùng chung sổ thu
+  // gọn thì thu ở brain này là bên kia cũng thu theo.
+  function khoaThu() { return brain() + "|" + S.loai; }
+  function daThu(g) { return (S.thu[khoaThu()] || []).indexOf(g) >= 0; }
+  function latThu(g) {
+    var ds = S.thu[khoaThu()] || (S.thu[khoaThu()] = []);
+    var i = ds.indexOf(g); if (i >= 0) ds.splice(i, 1); else ds.push(g);
+    luuThu();
+  }
+  // Chia danh sách (đã lọc, đã sắp) thành các KHỐI theo thứ tự vẽ. Hàm thuần, test được:
+  //   - khối "Đã ghim" đứng đầu nếu có mục ghim;
+  //   - đang lọc MỘT nhóm thì phần còn lại là một khối duy nhất (nhãn "Còn lại" chỉ khi
+  //     có khối ghim phía trên, như trước);
+  //   - "Tất cả" thì mỗi nhóm một khối, xếp theo tên (tiếng Việt), "Chung" xuống cuối vì
+  //     đó là chỗ của người chưa được xếp vào đâu, giống "Không thuộc dự án" bên Trò chuyện.
+  // `nhomTrong`: nhóm vừa tạo bằng "+ Nhóm mới" mà chưa có ai (xem docNhomTrong) - vẫn vẽ
+  // tiêu đề với số 0 để người dùng thấy nhóm mình vừa lập rồi kéo cộng sự vào.
+  function gomNhom(ds, nhomLoc, nhomTrong) {
+    var ghim = (ds || []).filter(function (x) { return x.pinned; });
+    var thuong = (ds || []).filter(function (x) { return !x.pinned; });
+    var ra = [];
+    if (ghim.length) ra.push({ ghim: true, nhom: "", items: ghim });
+    if (nhomLoc) {
+      if (thuong.length) ra.push({ ghim: false, nhom: nhomLoc, items: thuong, theoNhom: false, tieuDe: !!ghim.length });
+      return ra;
+    }
+    var theo = {};
+    thuong.forEach(function (x) { var g = nhomCua(x); (theo[g] = theo[g] || []).push(x); });
+    (nhomTrong || []).forEach(function (g) { g = String(g || "").trim(); if (g && g !== NHOM_MD && !theo[g]) theo[g] = []; });
+    Object.keys(theo).sort(function (a, b) {
+      if (a === NHOM_MD) return 1; if (b === NHOM_MD) return -1;
+      return a.localeCompare(b, "vi");
+    }).forEach(function (g) { ra.push({ ghim: false, nhom: g, items: theo[g], theoNhom: true, tieuDe: true }); });
+    return ra;
+  }
+
   function loc(ds, q, nhom) {
     var nq = khongDau(q || "").trim();
     return ds.filter(function (x) {
@@ -135,9 +186,22 @@
   // THỨ TỰ (chủ dự án chốt 16/09): Lịch sử trước, rồi Thư mục, Cài đặt sau cùng. Việc hằng
   // ngày là mở lại một hội thoại cũ và mở một file, còn cài đặt trợ lý thì sửa một lần rồi
   // thôi - để nó ở tab đầu là bắt người dùng bấm thêm một cú mỗi lần vào trang.
+  // Thứ tự nút là chung, còn tab MỞ SẴN thì khác nhau theo loại: quy trình mở ở Cài đặt vì
+  // nút Chạy quy trình nằm ở đó (chủ dự án chốt 17/09) - xem S.tabCua.
   var TAB_PHAI = ["lichsu", "files", "cai"];   // ba tab cột phải, thứ tự đúng như lúc vẽ
-  var S = { loai: "agent", q: "", nhom: "", agents: [], workflows: [], chon: { agent: null, workflow: null },
+  // Danh sách trái chỉ vẽ TRANG mục đầu, bấm "Xem thêm" mở thêm TRANG nữa - đúng cỡ trang của
+  // cột lịch sử (sessions-ui.js: PAGE = 20) để cả app cùng một nhịp. Brain của chủ dự án có
+  // vài chục trợ lý, vẽ hết một lượt là một cột cuộn dài dằng dặc mà chín phần mười số hàng
+  // chẳng ai nhìn tới.
+  var TRANG = 20;
+  var S = { loai: "agent", q: "", nhom: "", thu: docThu(), agents: [], workflows: [], chon: { agent: null, workflow: null },
             el: null, tienDo: {}, sessionCuaPhien: {}, tabPhai: "lichsu",
+            // Tab cột phải NHỚ RIÊNG theo loại. Trợ lý mở ở Lịch sử (chốt 16/09, xem TAB_PHAI);
+            // quy trình mở ở Cài đặt vì nút Chạy nằm ở đó (chủ dự án chốt 17/09). Dùng chung
+            // một ô nhớ thì vừa xem xong hội thoại của một trợ lý, sang quy trình là Lịch sử
+            // đè lên và nút Chạy biến mất.
+            tabCua: { agent: "lichsu", workflow: "cai" },
+            hien: TRANG, lanChay: {},
             menu: null };   // tienDo[session_id] = tiến độ lần chạy đang xem
 
   function danhSach() { return S.loai === "agent" ? S.agents : S.workflows; }
@@ -154,7 +218,11 @@
 
   async function taiDanhSach() {
     var b = encodeURIComponent(brain());
-    var r = await Promise.all([api("/agents?brain=" + b), api("/workflows?brain=" + b)]);
+    // `prompt=0` = danh sách NHẸ. Đo trên brain 14 trợ lý: kèm system prompt là 366 KB, bỏ ra
+    // còn 2.9 KB - 99% số byte là thứ cột trái không bao giờ hiện. Qua mạng nhà, 366 KB là cả
+    // giây cột trái trống trơn mỗi lần mở trang (chủ dự án 22/09: mở trang Cộng sự từ linh vật
+    // vẫn lag). Prompt của ĐÚNG trợ lý đang sửa do studio.js lấy riêng qua /agents/get.
+    var r = await Promise.all([api("/agents?brain=" + b + "&prompt=0"), api("/workflows?brain=" + b)]);
     S.agents = sapXep(r[0].agents || [], "last_chat_at");
     S.workflows = sapXep((r[1].workflows || []).filter(function (w) { return w.status === "active"; }), "last_run_at");
     daTai = true;
@@ -163,6 +231,18 @@
   // ---------- dựng khung ----------
   function render(el, opts) {
     S.el = el; active = true; ready = false;
+    // DỰNG LẠI TỪ ĐẦU, không nối tiếp lần trước. Trang này còn được dựng lại NGAY TẠI CHỖ khi
+    // người dùng đổi bộ não (console.js gọi thẳng renderPage, không đi qua navigateTo nên roi()
+    // KHÔNG chạy), và lúc đó mọi thứ còn sót lại đều là của brain cũ:
+    //   - một moPhien đang chờ mạng sẽ mở phiên của brain cũ vào khung chat vừa dựng
+    //     (chủ dự án 22/09: "khung chat hiển thị dữ liệu của hội thoại cũ") -> opening++ cắt nó;
+    //   - _phienTruoc trỏ vào cuộc chính của brain cũ, rời trang là mở nhầm nó ra;
+    //   - danh sách cũ mà `daTai` vẫn true thì brain mới chưa tải xong đã bày nhầm màn khởi đầu.
+    opening++;
+    dongMenu();            // menu nổi của lần dựng trước neo vào <body>, không chết theo DOM cũ
+    _phienTruoc = null;
+    S.sessionCuaPhien = {}; S.tienDo = {}; S.lanChay = {};
+    S.agents = []; S.workflows = []; daTai = false;
     el.innerHTML =
       '<div class="wspage" id="wsPage">' +
         '<aside class="ws-left" id="wsLeft">' +
@@ -172,7 +252,10 @@
           // nằm đó suốt ngày ăn mất một dòng mà chín trên mười lần người dùng không gõ gì.
           // Bấm nút kính lúp mới bung ra, gõ xong xoá hết rồi rời đi là nó tự thu lại.
           '<div class="ws-filters" id="wsFilters">' +
-            '<select class="ws-group" id="wsGroup" aria-label="' + esc(t("studio.groups")) + '"></select>' +
+            // Thanh chọn nhóm: ĐÚNG khuôn thanh project của cột trái trang Trò chuyện (nút mở
+            // bảng nổi + nút tạo nhóm), thay cho ô <select> cũ. Chủ repo 20/09: "xem phần
+            // project trong trò chuyện thì agent làm tương tự".
+            '<div class="cside-proj ws-nhom-bar" id="wsGroup"></div>' +
             // Ô nhập được GIEO LẠI từ S.q, và nút mang aria-controls trỏ vào nó: câu đang lọc
             // phải luôn NHÌN THẤY ĐƯỢC. Dựng khung với ô rỗng trong khi S.q còn chữ là danh
             // sách thiếu người mà không có gì trên màn hình giải thích vì sao.
@@ -207,7 +290,7 @@
           // Chỗ đứng cho TRÌNH SỬA khi mở một file .md từ chat hay từ cây thư mục, y như
           // #chatPageEdit của trang Trò chuyện. Thiếu nó thì _borrowNoteEditor() không tìm
           // được khung nào để mượn và cú bấm vào link file lặng lẽ không làm gì cả.
-          '<div class="ws-edit" id="wsEdit"></div>' +
+          '<div class="ws-edit" id="wsEdit" data-ne-host></div>' +
         '</div>' +
         '<aside class="ws-right" id="wsRight">' +
           '<button type="button" class="ws-ico ws-panel-close" aria-label="' + esc(t("common.close")) + '">' + ic("x") + '</button>' +
@@ -224,7 +307,7 @@
         '</aside>' +
       '</div>';
     if (opts && opts.borrow) opts.borrow(el.querySelector("#wsSlot"));
-    el.querySelectorAll("[data-loai]").forEach(function (b) { b.onclick = function () { S.loai = b.dataset.loai; S.nhom = ""; luuChon(); veTrai(); chonMacDinh(); }; });
+    el.querySelectorAll("[data-loai]").forEach(function (b) { b.onclick = function () { S.loai = b.dataset.loai; S.nhom = ""; S.hien = TRANG; luuChon(); veTrai(); chonMacDinh(); }; });
     noiODoTim(el);
     el.querySelectorAll("[data-rtab]").forEach(function (b) { b.onclick = function () { chonTabPhai(b.dataset.rtab); }; });
     el.querySelector(".ws-panel-close").onclick = function () { el.querySelector("#wsPage").classList.remove("right-open"); };
@@ -235,7 +318,14 @@
         await taiDanhSach(); veTrai(); chonMacDinh();
       });
     };
-    el.querySelector("#wsFiles").onclick = function () { if (ready && window.JavisChatSide) window.JavisChatSide.moKhungCuoc(); };
+    // Một ngăn kéo cho cả hai phạm vi (của trợ lý / chỉ cuộc này), công tắc nằm ở đầu ngăn.
+    // Quy trình không có tài liệu riêng, nên ở tab Quy trình nút này vẫn mở tài liệu của cuộc.
+    el.querySelector("#wsFiles").onclick = function () {
+      if (!ready || !window.JavisChatSide) return;
+      var x = dangChon();
+      if (S.loai === "agent" && x && window.JavisChatSide.moTaiLieu) window.JavisChatSide.moTaiLieu(x.slug, x.name);
+      else window.JavisChatSide.moKhungCuoc();
+    };
     el.querySelector("#wsStore").onclick = function () { if (window.JavisPacks && window.JavisPacks.moKho) window.JavisPacks.moKho(S.loai, "workspace", t("page.workspace.label")); };
     el.querySelector("#wsNewChat").onclick = function () { var x = dangChon(); if (x) moPhien(x, true); };
     var page = el.querySelector("#wsPage");
@@ -251,6 +341,10 @@
     // khác rồi quay lại là mất chỗ, trong khi cộng sự đang dùng thường chỉ là một hai mục.
     try { var l = localStorage.getItem("javis_ws_loai"); if (l === "agent" || l === "workflow") S.loai = l; S.chon.agent = localStorage.getItem("javis_ws_agent"); S.chon.workflow = localStorage.getItem("javis_ws_workflow"); } catch (e) {}
     try { var r = localStorage.getItem("javis_ws_rtab"); S.tabPhai = TAB_PHAI.indexOf(r) >= 0 ? r : "lichsu"; } catch (e) { S.tabPhai = "lichsu"; }
+    // Chỉ tab của TRỢ LÝ được nhớ qua localStorage. Quy trình mở trang là về Cài đặt: "khởi
+    // đầu vào luôn cài đặt" là điều chủ dự án muốn, nhớ tab cũ qua F5 là làm ngược lại.
+    S.tabCua = { agent: S.tabPhai, workflow: "cai" };
+    S.tabPhai = S.tabCua[S.loai] || S.tabPhai;
     chonTabPhai(S.tabPhai);
     nhoPhienTruoc();
     taiDanhSach().then(function () { if (pendingCommand) { var cmd = pendingCommand; pendingCommand = null; selectCommand(cmd); } else { veTrai(); chonMacDinh(); } }).catch(function () { if (pendingCommand) { pendingCommand.resolve(false); pendingCommand = null; } veLoi(t("ws.err_list")); });
@@ -260,11 +354,14 @@
     luuChon(); veTrai();
     var item = dangChon();
     if (!item) { cmd.resolve(false); return; }
-    cmd.resolve(await moPhien(item, false));
+    cmd.resolve(await moPhien(item, false, cmd.sid));
   }
-  function openCommand(kind, slug) {
+  // `sid` (tuỳ chọn): mở ĐÚNG hội thoại đó thay vì cuộc gần nhất của cộng sự này. Hòm thư
+  // truyền vào, vì mẩu thư trỏ tới một hội thoại CỤ THỂ - kết quả việc nền của tuần trước
+  // không nằm ở cuộc mới nhất.
+  function openCommand(kind, slug, sid) {
     return new Promise(function (resolve) {
-      var cmd = {kind: kind, slug: slug, resolve: resolve};
+      var cmd = {kind: kind, slug: slug, sid: sid || "", resolve: resolve};
       if (active) { selectCommand(cmd); return; }
       if (!window.JavisNav) { resolve(false); return; }
       if (pendingCommand) pendingCommand.resolve(false);
@@ -305,12 +402,12 @@
     var o = el.querySelector("#wsSearch"), nut = el.querySelector("#wsSearchBtn");
     if (!o || !nut) return;
     nut.onclick = function () { if (o.hidden) moODoTim(el, true); else if (!o.value.trim()) moODoTim(el, false); else o.focus(); };
-    o.oninput = function (e) { S.q = e.target.value; veDanhSach(); };
+    o.oninput = function (e) { S.q = e.target.value; S.hien = TRANG; veDanhSach(); };
     o.onblur = function () { if (!o.value.trim()) { o.hidden = true; nut.setAttribute("aria-expanded", "false"); } };
     o.onkeydown = function (e) {
       if (e.key !== "Escape" && e.key !== "Esc") return;
       e.preventDefault(); e.stopPropagation();
-      o.value = ""; S.q = ""; veDanhSach(); moODoTim(el, false);
+      o.value = ""; S.q = ""; S.hien = TRANG; veDanhSach(); moODoTim(el, false);
     };
   }
 
@@ -322,7 +419,9 @@
   function chonTabPhai(tab) {
     var el = S.el; if (!el) return;
     S.tabPhai = TAB_PHAI.indexOf(tab) >= 0 ? tab : "cai";
-    try { localStorage.setItem("javis_ws_rtab", S.tabPhai); } catch (e) {}
+    if (S.tabCua) S.tabCua[S.loai] = S.tabPhai;
+    // Tab của quy trình chỉ sống trong lần mở trang này (xem S.tabCua), không ghi xuống.
+    if (S.loai !== "workflow") { try { localStorage.setItem("javis_ws_rtab", S.tabPhai); } catch (e) {} }
     el.querySelectorAll("[data-rtab]").forEach(function (b) { b.classList.toggle("active", b.dataset.rtab === S.tabPhai); });
     el.querySelectorAll("[data-rpane]").forEach(function (p) { p.classList.toggle("on", p.dataset.rpane === S.tabPhai); });
     var host = el.querySelector("#wsRightFiles");
@@ -330,19 +429,115 @@
     else traCayThuMuc();
   }
 
+  // (0.62.0 đã bỏ hàm dongBoNhomForm ở đây. Nó tồn tại chỉ để vá một xung đột tự gây ra:
+  // form "Cài đặt trợ lý" từng có ô nhóm RIÊNG, nên chuyển nhóm ở cột trái xong bấm Lưu là
+  // ô cũ ghi đè ngược. Nay form không còn ô nhóm và server giữ nguyên nhóm khi form không
+  // gửi `group`, nên không còn gì để đồng bộ.)
+  // ---------- bộ chọn NHÓM: thanh + bảng nổi, cùng khuôn với project bên Trò chuyện ----------
+  // Nhóm TRỐNG (tạo bằng "+ Nhóm mới" mà chưa kéo ai vào) không tồn tại ở đâu trên đĩa - nhóm
+  // là tập hợp cộng sự có cùng `group` - nên nhớ tạm trong localStorage theo brain và loại; hễ
+  // có cộng sự mang tên nhóm đó là xoá khỏi sổ vì nhóm đã "thật".
+  var KHOA_NHOM_TRONG = "javis_ws_nhom_trong";
+  function khoaTrong() { return brain() + "|" + S.loai; }
+  function docNhomTrong() {
+    try { var o = JSON.parse(localStorage.getItem(KHOA_NHOM_TRONG) || "{}") || {}; return (o[khoaTrong()] || []).slice(); }
+    catch (e) { return []; }
+  }
+  function luuNhomTrong(ds) {
+    try {
+      var o = JSON.parse(localStorage.getItem(KHOA_NHOM_TRONG) || "{}") || {};
+      o[khoaTrong()] = ds; localStorage.setItem(KHOA_NHOM_TRONG, JSON.stringify(o));
+    } catch (e) {}
+  }
+  function demNhom() { var m = {}; danhSach().forEach(function (x) { var g = nhomCua(x); m[g] = (m[g] || 0) + 1; }); return m; }
+  // Mọi nhóm đang có (trừ "Chung"), nhóm thật lẫn nhóm trống, xếp theo tên tiếng Việt.
+  function tenCacNhom() {
+    var dem = demNhom(), ds = Object.keys(dem).filter(function (g) { return g !== NHOM_MD; });
+    docNhomTrong().forEach(function (g) { if (g && g !== NHOM_MD && ds.indexOf(g) < 0) ds.push(g); });
+    return ds.sort(function (a, b) { return a.localeCompare(b, "vi"); });
+  }
+  function nhanNhom(g) { return !g ? t("ws.all_groups") : g === NHOM_MD ? t("ws.group_none") : g; }
+  function chonNhom(g) { S.nhom = g || ""; S.hien = TRANG; veTrai(); }
+  function taoNhomMoi() {
+    var ten = window.prompt(t("ws.group_ask"), "");
+    if (ten == null) return;
+    ten = String(ten).trim();
+    if (!ten) return;
+    if (ten !== NHOM_MD && !demNhom()[ten]) {
+      var ds = docNhomTrong(); if (ds.indexOf(ten) < 0) { ds.push(ten); luuNhomTrong(ds); }
+    }
+    chonNhom(ten);
+  }
+  // Xoá nhóm = đưa mọi cộng sự trong nhóm về "Chưa xếp nhóm" (group mặc định) và bỏ khỏi sổ
+  // nhóm trống. Không xoá cộng sự nào.
+  async function xoaNhom(g) {
+    var ds = danhSach().filter(function (x) { return nhomCua(x) === g; });
+    if (ds.length && !window.confirm(t("ws.group_delete_ask", { ten: g, n: ds.length }))) return;
+    for (var i = 0; i < ds.length; i++) {
+      var r = await api("/capability/meta", { method: "POST", body: fd({ kind: S.loai, slug: ds[i].slug, brain: brain(), group: "" }) });
+      if (!r || !r.ok) { veLoi((r && r.error) || t("ws.err_meta")); break; }
+    }
+    luuNhomTrong(docNhomTrong().filter(function (x) { return x !== g; }));
+    var th = S.thu[khoaThu()] || []; var j = th.indexOf(g); if (j >= 0) { th.splice(j, 1); luuThu(); }
+    if (S.nhom === g) S.nhom = "";
+    await taiDanhSach();
+    if (!active) return;
+    veTrai(); veGiua(dangChon());
+  }
+  function moBangNhom(neo) {
+    var cs = window.JavisChatSide; if (!cs || !cs.menu) return;
+    var dem = demNhom();
+    var rows = [
+      { label: t("ws.all_groups"), icon: "layers", on: !S.nhom, run: function () { chonNhom(""); } },
+      { label: t("ws.group_none"), icon: "circle", right: String(dem[NHOM_MD] || 0), on: S.nhom === NHOM_MD,
+        run: function () { chonNhom(NHOM_MD); } },
+    ];
+    var ds = tenCacNhom();
+    if (ds.length) rows.push({ sep: true });
+    ds.forEach(function (g) {
+      rows.push({ label: g, icon: "folder", right: String(dem[g] || 0), on: S.nhom === g,
+                  run: function () { chonNhom(g); },
+                  acts: [{ icon: "ellipsis-vertical", title: t("ws.group_acts"),
+                           run: function () { moChucNangNhom(neo, g); } }] });
+    });
+    rows.push({ sep: true });
+    rows.push({ label: t("ws.group_new_row"), run: function () { taoNhomMoi(); } });
+    cs.menu(neo, rows);
+  }
+  // Hộp chức năng của MỘT nhóm, đi sâu trong cùng bảng nổi (như project bên Trò chuyện).
+  function moChucNangNhom(neo, g) {
+    var cs = window.JavisChatSide; if (!cs || !cs.menu) return;
+    cs.menu(neo, [
+      { label: g, icon: "folder", wrap: true, run: function () { chonNhom(g); } },
+      { sep: true },
+      { label: t("ws.group_only"), icon: "folder-open", run: function () { chonNhom(g); } },
+      { label: t("ws.group_rename"), icon: "pencil", run: function () { doiTenNhom(g); } },
+      { label: t("ws.group_delete"), icon: "trash-2", run: function () { xoaNhom(g); } },
+    ]);
+  }
+  function veThanhNhom(el) {
+    var bar = el.querySelector("#wsGroup"); if (!bar) return;
+    var icNhom = !S.nhom ? "layers" : S.nhom === NHOM_MD ? "circle" : "folder";
+    bar.innerHTML =
+      '<button type="button" class="cs-proj-cur" title="' + esc(t("ws.group_pick_title")) + '">' +
+        '<span class="cs-proj-name">' + ic(icNhom) + ' ' + esc(nhanNhom(S.nhom)) + '</span>' +
+        '<span class="cs-proj-caret">' + ic("chevron-down") + '</span></button>' +
+      (S.nhom ? '<button type="button" class="cs-proj-x" title="' + esc(t("ws.group_clear_title")) + '">' + ic("x") + '</button>' : '') +
+      '<button type="button" class="cs-proj-add" title="' + esc(t("ws.group_add_title")) + '">' + ic("folder-plus") + '</button>';
+    var cur = bar.querySelector(".cs-proj-cur"); if (cur) cur.onclick = function (e) { moBangNhom(e.currentTarget); };
+    var x = bar.querySelector(".cs-proj-x"); if (x) x.onclick = function () { chonNhom(""); };
+    var add = bar.querySelector(".cs-proj-add"); if (add) add.onclick = function () { taoNhomMoi(); };
+  }
+
   function veTrai() {
     var el = S.el; if (!el) return;
     el.querySelectorAll("[data-loai]").forEach(function (b) { b.classList.toggle("on", b.dataset.loai === S.loai); });
-    var nhoms = {}; danhSach().forEach(function (x) { var g = x.group || "Chung"; nhoms[g] = (nhoms[g] || 0) + 1; });
-    if (S.nhom && !nhoms[S.nhom]) S.nhom = "";
-    // Một Ô CHỌN chứ không phải hàng chip (chủ repo yêu cầu): brain thật có cả chục nhóm, mà
-    // chip thì xuống dòng thành một mảng chiếm gần nửa cột trái, đẩy danh sách cộng sự xuống
-    // dưới. Số đếm giữ lại trong nhãn từng dòng nên vẫn biết nhóm nào đông.
-    var sel = el.querySelector("#wsGroup");
-    var groups = [{name: "", label: t("ws.all_groups"), count: danhSach().length}].concat(Object.keys(nhoms).sort().map(function (g) { return {name:g, label:g, count:nhoms[g]}; }));
-    sel.innerHTML = groups.map(function (g) { return '<option value="'+esc(g.name)+'">'+esc(g.label)+' ('+g.count+')</option>'; }).join('');
-    sel.value = S.nhom;
-    sel.onchange = function () { S.nhom = sel.value; veTrai(); };
+    var nhoms = demNhom();
+    // Nhóm trống đã có người thì thành nhóm thật, bỏ khỏi sổ.
+    var trong = docNhomTrong(), conTrong = trong.filter(function (g) { return !nhoms[g]; });
+    if (conTrong.length !== trong.length) luuNhomTrong(conTrong);
+    if (S.nhom && !nhoms[S.nhom] && conTrong.indexOf(S.nhom) < 0) S.nhom = "";
+    veThanhNhom(el);
     el.querySelector("#wsNew").innerHTML = ic("plus") + " " + esc(S.loai === "agent" ? t("ws.new_agent") : t("ws.new_workflow"));
     el.querySelector("#wsImport").textContent = t(S.loai === "agent" ? "ws.upload_agent" : "ws.upload_workflow");
     veDanhSach();
@@ -356,32 +551,94 @@
       return S.sessionCuaPhien[sid] === slug && S.tienDo[sid] && S.tienDo[sid].trang_thai === "dang";
     });
   }
+  // Danh sách trái. Ba việc dễ sai gộp ở đây, nên nói rõ từng cái:
+  //
+  // 1. MỤC ĐÃ GHIM phải NHÌN RA ĐƯỢC. Bản 0.59.14 có ghim (sapXep đưa lên đầu) nhưng dấu ghim
+  //    lại nằm BÊN TRONG thẻ <strong> của cái tên, mà thẻ đó cắt chữ bằng ellipsis - tên dài
+  //    một chút là dấu ghim bị cắt mất, danh sách trông y như chưa ghim gì (chủ dự án báo
+  //    16/09 kèm ảnh). Nay dấu ghim là một ô RIÊNG, không nằm trong phần bị cắt, và phía trên
+  //    khối ghim có một dòng nhãn "Đã ghim" như cột lịch sử vẫn làm - liếc một cái là biết
+  //    đâu là mục mình kéo lên, đâu là phần xếp theo thời gian.
+  // 2. Chỉ vẽ TRANG đầu, còn lại nằm sau nút "Xem thêm".
+  // 3. Nhãn nhóm chỉ hiện khi CÓ mục ghim: danh sách không ghim gì mà vẫn đội hai dòng nhãn
+  //    thì chỉ tổ chật cột.
   function veDanhSach() {
     var el = S.el; if (!el) return;
     var ds = loc(danhSach(), S.q, S.nhom), chon = S.chon[S.loai];
     var host = el.querySelector("#wsList");
-    if (!ds.length) { host.innerHTML = '<div class="ws-empty">' + esc(t("ws.empty")) + '</div>'; return; }
-    host.innerHTML = ds.map(function (x) {
-      // "Đang chạy" phải đọc được BẰNG CHỮ, không chỉ bằng icon quay: người tắt hiệu ứng
-      // (prefers-reduced-motion, xem style.css) và trình đọc màn hình không thấy vòng quay
-      // nào cả, nên thêm một chữ vào dòng phụ và một <title> vào icon.
-      var chay = S.loai === "workflow" && dangChay(x.slug);
-      var phu = S.loai === "agent" ? (x.group || "Chung") + " · " + (x.role || "") : (x.group || "Chung") + " · " + cacBuoc(x).length + " " + t("studio.steps");
-      if (chay) phu += " · " + t("ws.running");
-      // Nút "..." KHÔNG được lồng trong nút chọn mục: button trong button là HTML sai và
-      // trình duyệt tự tách thẻ ra, làm cú bấm rơi vào chỗ không ai ngờ. Nên bọc cả hai trong
-      // một khối và để chúng là hai nút ngang hàng.
-      return '<div class="ws-item-wrap' + (x.pinned ? " ghim" : "") + '">' +
-        '<button type="button" class="ws-item' + (x.slug === chon ? " on" : "") + '" aria-pressed="' + (x.slug === chon) + '" data-slug="' + esc(x.slug) + '">' +
-        '<span class="ws-item-ic">' + (S.loai === "agent" ? avatar(x, 42)
-          : (chay ? ic("loader", { cls: "ic-spin", title: t("ws.running") }) : ic("workflow"))) + '</span>' +
-        '<span class="ws-item-text"><strong>' + esc(x.name) +
-          (x.pinned ? '<span class="ws-item-pin" title="' + esc(t("ws.pinned")) + '">' + ic("pin") + '</span>' : "") +
-        '</strong><small>' + esc(phu) + '</small></span></button>' +
-        '<button type="button" class="ws-item-more" data-more="' + esc(x.slug) + '" title="' +
-          esc(t("ws.manage")) + '" aria-label="' + esc(t("ws.manage")) + '">' + ic("ellipsis-vertical") + '</button>' +
-        '</div>';
-    }).join("");
+    var trong = (S.q || S.nhom) ? [] : docNhomTrong();
+    if (!ds.length && !trong.length) {
+      var nhomTrong = !!(S.nhom && !S.q && docNhomTrong().indexOf(S.nhom) >= 0);
+      host.innerHTML = '<div class="ws-empty">' + esc(t(nhomTrong ? "ws.group_empty_hint" : "ws.empty")) + '</div>';
+      return;
+    }
+    if (S.hien < TRANG) S.hien = TRANG;
+    // Vẽ theo KHỐI (xem gomNhom). Nhóm đang thu gọn chỉ còn hàng tiêu đề, không tính vào
+    // trang; phân trang đếm MỤC đã vẽ chứ không đếm tiêu đề.
+    var html = "", daVe = 0, tong = 0;
+    gomNhom(ds, S.nhom, trong).forEach(function (n) {
+      var thu = n.theoNhom && daThu(n.nhom);
+      if (n.ghim) html += '<div class="ws-glabel">' + esc(t("ws.grp_pinned")) + '</div>';
+      else if (n.theoNhom) html += nhomHtml(n.nhom, n.items.length, thu);
+      else if (n.tieuDe) html += '<div class="ws-glabel">' + esc(t("ws.grp_rest")) + '</div>';
+      if (thu) return;
+      tong += n.items.length;
+      n.items.forEach(function (x) { if (daVe < S.hien) { html += mucHtml(x, chon); daVe++; } });
+    });
+    host.innerHTML = html +
+      (tong > S.hien
+        ? '<button type="button" class="ws-more" id="wsMore">' +
+            esc(t("sess.more", { so: Math.min(TRANG, tong - S.hien) })) + '</button>'
+        : "");
+    var nutThem = host.querySelector("#wsMore");
+    if (nutThem) nutThem.onclick = function () {
+      // Giữ chỗ cuộn: vẽ lại cả danh sách mà để nó nhảy về đầu thì bấm "Xem thêm" xong lại
+      // phải cuộn tay xuống đúng chỗ vừa đứng.
+      var cuon = host.scrollTop;
+      S.hien += TRANG; veDanhSach();
+      var lai = S.el && S.el.querySelector("#wsList"); if (lai) lai.scrollTop = cuon;
+    };
+    noiDanhSach(host);
+  }
+  // Hàng tiêu đề của MỘT nhóm: nút thu gọn/mở (tên + số người) và nút "..." quản lý.
+  // Hai nút ngang hàng trong một khối, không lồng nhau (button trong button là HTML sai).
+  function nhomHtml(g, n, thu) {
+    return '<div class="ws-glabel ws-grp' + (thu ? " thu" : "") + '" data-nhom="' + esc(g) + '">' +
+      '<button type="button" class="ws-grp-tog" aria-expanded="' + (thu ? "false" : "true") +
+        '" title="' + esc(t("ws.group_toggle")) + '">' + ic("chevron-down") +
+        '<span class="ws-grp-name">' + esc(g) + '</span><span class="ws-grp-n">' + n + '</span></button>' +
+      '<button type="button" class="ws-grp-more" data-gmore="' + esc(g) + '" title="' + esc(t("ws.group_manage")) +
+        '" aria-label="' + esc(t("ws.group_manage")) + '">' + ic("ellipsis-vertical") + '</button>' +
+      '</div>';
+  }
+  // HTML của MỘT hàng. Tách khỏi veDanhSach để chỗ kia chỉ còn lo nhóm - phân trang, và để
+  // test dựng được một hàng mà không cần cả trang.
+  function mucHtml(x, chon) {
+    // "Đang chạy" phải đọc được BẰNG CHỮ, không chỉ bằng icon quay: người tắt hiệu ứng
+    // (prefers-reduced-motion, xem style.css) và trình đọc màn hình không thấy vòng quay
+    // nào cả, nên thêm một chữ vào dòng phụ và một <title> vào icon.
+    var chay = S.loai === "workflow" && dangChay(x.slug);
+    var phu = S.loai === "agent" ? (x.group || "Chung") + " · " + (x.role || "") : (x.group || "Chung") + " · " + cacBuoc(x).length + " " + t("studio.steps");
+    if (chay) phu += " · " + t("ws.running");
+    // Nút "..." KHÔNG được lồng trong nút chọn mục: button trong button là HTML sai và
+    // trình duyệt tự tách thẻ ra, làm cú bấm rơi vào chỗ không ai ngờ. Nên bọc cả hai trong
+    // một khối và để chúng là hai nút ngang hàng.
+    return '<div class="ws-item-wrap' + (x.pinned ? " ghim" : "") + '">' +
+      '<button type="button" class="ws-item' + (x.slug === chon ? " on" : "") + '" aria-pressed="' + (x.slug === chon) + '" data-slug="' + esc(x.slug) + '">' +
+      '<span class="ws-item-ic">' + (S.loai === "agent" ? avatar(x, 42)
+        : (chay ? ic("loader", { cls: "ic-spin", title: t("ws.running") }) : ic("workflow"))) + '</span>' +
+      '<span class="ws-item-text"><strong>' + esc(x.name) + '</strong>' +
+      '<small>' + esc(phu) + '</small></span>' +
+      // Dấu ghim đứng NGOÀI khối chữ: trong đó nó bị ellipsis của cái tên cắt mất.
+      (x.pinned ? '<span class="ws-item-pin" title="' + esc(t("ws.pinned")) + '">' + ic("pin") + '</span>' : "") +
+      '</button>' +
+      '<button type="button" class="ws-item-more" data-more="' + esc(x.slug) + '" title="' +
+        esc(t("ws.manage")) + '" aria-label="' + esc(t("ws.manage")) + '">' + ic("ellipsis-vertical") + '</button>' +
+      '</div>';
+  }
+  // Nối dây cho các nút vừa vẽ. Gọi lại sau MỖI lần vẽ: innerHTML mới là node mới, handler cũ
+  // chết theo node cũ.
+  function noiDanhSach(host) {
     host.querySelectorAll("[data-slug]").forEach(function (b) {
       b.onclick = function () {
         S.chon[S.loai] = b.dataset.slug; luuChon(); veDanhSach(); moPhien(dangChon(), false);
@@ -396,6 +653,16 @@
         var x = danhSach().find(function (m) { return m.slug === b.dataset.more; });
         if (x) moMenuMuc(x, b);
       };
+    });
+    host.querySelectorAll(".ws-grp-tog").forEach(function (b) {
+      b.onclick = function () {
+        var cuon = host.scrollTop;    // giữ chỗ cuộn như nút "Xem thêm"
+        latThu(b.parentNode.dataset.nhom); veDanhSach();
+        var lai = S.el && S.el.querySelector("#wsList"); if (lai) lai.scrollTop = cuon;
+      };
+    });
+    host.querySelectorAll("[data-gmore]").forEach(function (b) {
+      b.onclick = function (e) { e.stopPropagation(); moMenuCuaNhom(b.dataset.gmore, b); };
     });
   }
 
@@ -430,14 +697,49 @@
   function dongMenuNgoai(e) { if (S.menu && !S.menu.contains(e.target)) dongMenu(); }
   function dongMenuEsc(e) { if (e.key === "Escape") { e.stopPropagation(); dongMenu(); } }
 
-  function moMenuMuc(item, neo) {
+  function moMenuMuc(item, neo) { moMenuKhung(neo, function (m) { veMenuGoc(item, m); }); }
+  // Menu của MỘT nhóm (nút "..." trên hàng tiêu đề): chỉ xem nhóm này, đổi tên cả
+  // nhóm. Tạo nhóm mới vẫn đi qua menu của một cộng sự ("Nhóm mới…"): nhóm
+  // là tập hợp cộng sự có cùng `group`, không có nhóm rỗng để mà tạo trước.
+  function moMenuCuaNhom(g, neo) {
+    moMenuKhung(neo, function (m) {
+      var so = danhSach().filter(function (x) { return nhomCua(x) === g; }).length;
+      m.innerHTML = '<div class="ws-menu-head">' + esc(g) + ' · ' + so + '</div>' +
+        nutMenu("folder-open", t("ws.group_only"), "chi") +
+        nutMenu("pencil", t("ws.group_rename"), "ten") +
+        nutMenu("trash-2", t("ws.group_delete"), "xoa");
+      m.querySelector('[data-act="chi"]').onclick = function () { dongMenu(); chonNhom(g); };
+      m.querySelector('[data-act="ten"]').onclick = function () { dongMenu(); doiTenNhom(g); };
+      m.querySelector('[data-act="xoa"]').onclick = function () { dongMenu(); xoaNhom(g); };
+    });
+  }
+  // Đổi tên nhóm = đổi `group` của TỪNG cộng sự trong đó qua /capability/meta (cùng đường
+  // với "Chuyển sang nhóm"), rồi tải lại một lần. Trạng thái thu gọn và ô lọc đi theo tên mới.
+  async function doiTenNhom(g) {
+    var moi = window.prompt(t("ws.group_rename_ask", { ten: g }), g);
+    if (moi == null) return;
+    moi = String(moi).trim();
+    if (!moi || moi === g) return;
+    var ds = danhSach().filter(function (x) { return nhomCua(x) === g; });
+    for (var i = 0; i < ds.length; i++) {
+      var r = await api("/capability/meta", { method: "POST", body: fd({ kind: S.loai, slug: ds[i].slug, brain: brain(), group: moi }) });
+      if (!r || !r.ok) { veLoi((r && r.error) || t("ws.err_meta")); break; }
+    }
+    var th = S.thu[khoaThu()] || []; var j = th.indexOf(g); if (j >= 0) { th[j] = moi; luuThu(); }
+    var tr = docNhomTrong(); var k = tr.indexOf(g); if (k >= 0) { tr[k] = moi; luuNhomTrong(tr); }
+    if (S.nhom === g) S.nhom = moi;
+    await taiDanhSach();
+    if (!active) return;
+    veTrai(); veGiua(dangChon());
+  }
+  function moMenuKhung(neo, ve) {
     dongMenu();
     var m = document.createElement("div");
     m.className = "ws-menu";
     m.setAttribute("role", "menu");
     S.menu = m;
     document.body.appendChild(m);
-    veMenuGoc(item, m);
+    ve(m);
     datChoMenu(m, neo);
     // Gắn listener SAU một nhịp: cú bấm mở menu vẫn đang nổi bọt lên document, gắn ngay là
     // menu tự đóng đúng lúc vừa mở.
@@ -485,6 +787,9 @@
       var g = (x.group || "Chung").trim();
       if (g && nhom.indexOf(g) < 0) nhom.push(g);
     });
+    // Nhóm vừa lập bằng "+ Nhóm mới" (chưa có ai) cũng phải chọn được, không thì không có
+    // cách nào đưa cộng sự đầu tiên vào đó.
+    docNhomTrong().forEach(function (g) { if (g && nhom.indexOf(g) < 0) nhom.push(g); });
     nhom.sort(function (a, b) { return a.localeCompare(b, "vi"); });
     var hien = (item.group || "Chung").trim();
     m.innerHTML =
@@ -571,7 +876,11 @@
   function traKhungChat() {
     if (!window.JavisSessions) return;
     var cur = window.JavisSessions.current();
-    if (!laPhienCongSu(cur)) return;      // đang không mở phiên cộng sự thì không đụng gì
+    // Phiên mở từ tab Lịch sử (sessions-ui gọi thẳng JavisSessions.open) không đi qua moPhien
+    // nên không có trong S.sessionCuaPhien, mà nó VẪN là phiên cộng sự: rời trang mà không trả
+    // khung chat là tin kế tiếp ở trang Trò chuyện rơi vào phiên trợ lý. Chỉ đúng một trường
+    // hợp không đụng: khung chat vẫn đang ở đúng cuộc của bộ não chính lúc vào trang.
+    if (!cur || (!laPhienCongSu(cur) && cur === _phienTruoc)) return;
     window.JavisSessions.new();
     if (_phienTruoc && _phienTruoc !== cur && !laPhienCongSu(_phienTruoc)) {
       try { window.JavisSessions.open(_phienTruoc); } catch (e) {}
@@ -590,15 +899,17 @@
   // Mở phiên của cộng sự đang chọn: có phiên cũ thì mở tiếp (F5 hay quay lại vẫn còn hội
   // thoại), chưa có thì xin server một phiên TRỐNG đúng kênh. Phải xin trước tin đầu tiên,
   // vì kho phiên phải biết kênh thì lượt đầu mới đi đúng đường (server/main.py: /sessions/new).
-  async function moPhien(item, moiHan) {
+  // `sidChiDinh`: mở đúng hội thoại này (đường từ hòm thư). Bỏ trống thì giữ lối cũ - cuộc
+  // gần nhất của cộng sự, hoặc mở cuộc mới khi `moiHan`.
+  async function moPhien(item, moiHan, sidChiDinh) {
     var ticket = ++opening;
     chatReady(false); veGiua(item);
     if (!item) return false;
     var still = function () { return active && ticket === opening && conDangXem(item); };
     try {
       vePhai(item);
-      var b = encodeURIComponent(brain()), ch = kenh(item), id = null;
-      if (!moiHan) {
+      var b = encodeURIComponent(brain()), ch = kenh(item), id = sidChiDinh || null;
+      if (!id && !moiHan) {
         var r = await api("/sessions?brain=" + b + "&channel=" + encodeURIComponent(ch) + "&limit=1");
         if (!still()) return false;
         if (r.sessions && r.sessions[0]) id = r.sessions[0].id;
@@ -618,7 +929,6 @@
       if (!still()) return false;
       if (!window.JavisSessions || window.JavisSessions.current() !== id) throw new Error(t("ws.err_session"));
       chatReady(true);
-      toMoiLichSu();   // phiên vừa đổi: tô lại hàng đang mở ở tab Lịch sử
       if (S.loai === "workflow") veBuoc(item, tienDoHienTai(item));
       return true;
     } catch (e) {
@@ -709,13 +1019,15 @@
   }
 
   // ---------- cột phải ----------
+  /** Tab cột phải cho LOẠI đang xem: trợ lý và quy trình nhớ riêng (xem S.tabCua). */
+  function tabTheoLoai() { return (S.tabCua && S.tabCua[S.loai]) || S.tabPhai; }
   function vePhai(item) {
     var host = S.el && S.el.querySelector("#wsRightSet"); if (!host) return;
     // TRẢ cây thư mục về trước khi vẽ lại cột phải. Vẽ lại chỉ ghi vào khung Cài đặt, nhưng
     // cây là node mượn và chỉ có một bản: trả rồi mượn lại theo tab đang mở là luật gọn nhất,
     // khỏi phải nhớ chỗ nào được phép ghi đè chỗ nào không.
     traCayThuMuc();
-    if (!item) { host.innerHTML = ""; veLichSu(null); chonTabPhai(S.tabPhai); return; }
+    if (!item) { host.innerHTML = ""; veLichSu(null); chonTabPhai(tabTheoLoai()); return; }
     if (S.loai === "agent") {
       host.innerHTML = '<div class="ws-rtitle">' + esc(t("ws.agent_settings")) + '</div><div class="ws-form" id="wsAgentForm"></div>' +
         '<div class="ws-acts"><button type="button" class="ws-btn" id="wsExport">' + esc(t("studio.export")) + '</button>' +
@@ -723,7 +1035,7 @@
       // MƯỢN chính trình sửa agent của Studio (studio.js), không dựng bản thứ hai: chọn model,
       // chọn skill, nhóm... đã nằm ở đó, chép lại là hai bản trôi lệch nhau ngay lần sửa đầu.
       if (window.JavisStudio && window.JavisStudio.editAgent) {
-        window.JavisStudio.editAgent(item, { host: host.querySelector("#wsAgentForm"), dsNhom: S.agents,
+        window.JavisStudio.editAgent(item, { host: host.querySelector("#wsAgentForm"),
           onSaved: async function () { await sauLuu(item, "agent"); } });
       }
       host.querySelector("#wsExport").onclick = function () { window.JavisStudio && window.JavisStudio.exportItem("agent", item.slug); };
@@ -744,7 +1056,7 @@
         '<button type="button" class="ws-btn danger" id="wsDel">' + esc(t("common.delete")) + '</button></div>';
       host.querySelector("#wsRun").onclick = chayQuyTrinh;
       veBuoc(item, td);
-      host.querySelector("#wsEditWf").onclick = function () { window.JavisStudio && window.JavisStudio.editWorkflow(item, { onSaved: async function () { await sauLuu(item, "workflow"); } }); };
+      host.querySelector("#wsEditWf").onclick = function () { var moi = dangChon() || item; window.JavisStudio && window.JavisStudio.editWorkflow(moi, { onSaved: async function () { await sauLuu(moi, "workflow"); } }); };
       host.querySelector("#wsExport").onclick = function () { window.JavisStudio && window.JavisStudio.exportItem("workflow", item.slug); };
       host.querySelector("#wsDel").onclick = async function () {
         if (!confirm(t("studio.del_wf", { ten: item.name }))) return;
@@ -753,7 +1065,7 @@
       };
     }
     veLichSu(item);
-    chonTabPhai(S.tabPhai);
+    chonTabPhai(tabTheoLoai());
   }
   function tenAgent(slug) { var a = S.agents.find(function (x) { return x.slug === slug; }); return a ? a.name : (slug || ""); }
   // Tiến độ ĐANG XEM: lần chạy sống của phiên đang mở nếu có, không thì khung rỗng dựng từ
@@ -805,15 +1117,20 @@
   // qua hết form sửa trợ lý, qua ba nút Xuất/Xoá, qua danh sách bước. Chủ dự án nói thẳng là
   // không tiện. Nay nó là một TAB riêng, ngang hàng với Cài đặt và Thư mục, đúng kiểu cột lịch
   // sử của trang Trò chuyện: bấm một cái là ra, không phải cuộn tìm.
+  //
+  // MỘT danh sách, không phải hai (chủ dự án chốt 16/09). Trước đây tab này xếp chồng "LẦN
+  // CHẠY" lên trên "HỘI THOẠI", mà mỗi lần chạy quy trình ĐẺ RA đúng một hội thoại: cùng một
+  // việc hiện hai lần, hai mốc giờ, hai chỗ để bấm, và bấm vào đâu cũng mở đúng một phiên.
+  // Nay chỉ còn danh sách hội thoại - bản mượn của trang Trò chuyện, sẵn ô tìm, ghim, đổi
+  // tên, xoá và nút "Xem thêm" - còn thứ RIÊNG của lần chạy thì gắn thẳng vào hàng hội thoại
+  // của nó qua hàm trang trí: avatar những trợ lý đã phối hợp, và trạng thái (xong/lỗi/chờ).
+  // Nút "Hội thoại mới" cùng ô tìm nhờ vậy đứng ngay đầu tab, không bị một danh sách khác đẩy
+  // xuống giữa cột.
   function veLichSu(item) {
     var host = S.el && S.el.querySelector("#wsRightHistory"); if (!host) return;
+    S.lanChay = {};
     if (!item) { host.innerHTML = '<div class="ws-empty">' + esc(t("ws.pick_one")) + '</div>'; return; }
-    host.innerHTML =
-      (S.loai === "workflow"
-        ? '<div class="ws-rtitle">' + esc(t("ws.history_runs")) + '</div><div class="ws-runs" id="wsRuns"></div>'
-        : "") +
-      '<div class="ws-rtitle">' + esc(t("ws.history_chats")) + '</div><div class="ws-chatside" id="wsSess"></div>';
-    if (S.loai === "workflow") taiLichSu(item);
+    host.innerHTML = '<div class="ws-chatside" id="wsSess"></div>';
     // Danh sách hội thoại là CHÍNH cột lịch sử của trang Trò chuyện (sessions-ui.js), gắn vào
     // đây ở chế độ lọc theo kênh: cùng ô tìm, cùng nhóm theo ngày, cùng ghim / đổi tên / xoá,
     // cùng nút "Xem thêm". Chủ dự án yêu cầu đúng trải nghiệm ấy chứ không phải một danh sách
@@ -822,55 +1139,38 @@
       window.JavisChatSide.mount(host.querySelector("#wsSess"), {
         kenh: kenh(item), chiHoiThoai: true,
         onNew: function () { var x = dangChon(); if (x) moPhien(x, true); },
+        trangTri: S.loai === "workflow" ? trangTriHang : null,
       });
     }
+    if (S.loai === "workflow") taiLichSu(item);
   }
-  // Tô lại hàng của phiên ĐANG MỞ trong danh sách LẦN CHẠY mà không tải lại gì cả: vẽ lại cả
-  // tab chỉ để đổi một cái viền là tốn một request và làm danh sách nháy một nhịp.
-  // (Danh sách hội thoại bên dưới là cột lịch sử mượn của trang Trò chuyện, nó tự tô hàng đang
-  // mở mỗi lần app.js gọi JavisChatSide.refresh - không đụng tay vào đây.)
-  function toMoiLichSu() {
-    var el = S.el; if (!el) return;
-    var cur = window.JavisSessions ? window.JavisSessions.current() : null;
-    el.querySelectorAll("#wsRuns [data-sid]").forEach(function (b) {
-      b.classList.toggle("on", !!cur && b.dataset.sid === cur);
-    });
+  // Trang trí một hàng hội thoại bằng dữ liệu LẦN CHẠY của đúng phiên đó. Tra sổ S.lanChay
+  // (taiLichSu nạp) chứ không đi hỏi mạng ở đây: hàm này chạy một lần cho MỖI hàng, mỗi lần
+  // danh sách vẽ lại.
+  function trangTriHang(s) {
+    var r = S.lanChay && S.lanChay[s && s.id]; if (!r) return null;
+    var slugs = Array.from(new Set((r.steps || []).map(function (b) { return b.agent; }).filter(Boolean))).slice(0, 3);
+    var nhan = r.nhan || r.status || "";
+    return {
+      dau: slugs.length ? '<span class="ws-run-avatars">' + slugs.map(function (sl) { return avatar(agentOf(sl), 18); }).join("") + '</span>' : "",
+      meta: nhan ? '<span class="ci-badge ws-run-badge ' + esc(r.status || "") + '">' + esc(nhan) + '</span>' : "",
+    };
   }
-  function moPhienCu(sid) {
-    if (!sid || !window.JavisSessions) return;
-    Promise.resolve(window.JavisSessions.open(sid)).then(toMoiLichSu).catch(function () {});
-  }
+  // Hàng của phiên ĐANG MỞ do chính cột lịch sử tự tô (lớp .active, mỗi lần
+  // JavisChatSide.refresh chạy) - từ 0.59.20 tab này không còn danh sách nào của riêng nó nữa
+  // nên ở đây không phải tô gì cả.
+  // Nạp SỔ lần chạy: session_id -> lần chạy. Không vẽ danh sách nào cả - dữ liệu này chỉ để
+  // trang trí hàng hội thoại tương ứng (xem trangTriHang), nên nạp xong thì bảo cột lịch sử
+  // vẽ lại là đủ. Lấy 40 cho khớp hai trang "Xem thêm" của cột đó (mỗi trang 20).
   async function taiLichSu(item) {
-    var host = S.el && S.el.querySelector("#wsRuns"); if (!host) return;
-    var r = await api("/workflows/runs?brain=" + encodeURIComponent(brain()) + "&slug=" + encodeURIComponent(item.slug) + "&limit=20");
-    // Vẽ trễ: người dùng có thể đã đổi sang mục khác trong lúc chờ mạng. Ghi vào khung của
-    // mục cũ là lịch sử của quy trình A nằm dưới tên quy trình B.
+    var r = await api("/workflows/runs?brain=" + encodeURIComponent(brain()) + "&slug=" + encodeURIComponent(item.slug) + "&limit=40");
+    // Về trễ: người dùng có thể đã đổi sang mục khác trong lúc chờ mạng. Ghi vào sổ lúc này là
+    // dán nhãn lần chạy của quy trình A lên hội thoại của quy trình B.
     if (!conDangXem(item)) return;
-    host = S.el && S.el.querySelector("#wsRuns"); if (!host) return;
-    var ds = r.runs || [];
-    if (!ds.length) { host.innerHTML = '<div class="ws-empty">' + esc(t("ws.no_runs")) + '</div>'; return; }
-    var curSid = window.JavisSessions ? window.JavisSessions.current() : null;
-    host.innerHTML = ds.map(function (x) {
-      var d = new Date(Number(x.started_at || 0) * 1000);
-      return '<button type="button" class="ws-run ' + esc(x.status) + (x.session_id && x.session_id === curSid ? " on" : "") + '" data-sid="' + esc(x.session_id || "") + '">' +
-        '<span class="ws-run-avatars">' + Array.from(new Set((x.steps || []).map(function (b) { return b.agent; }).filter(Boolean))).slice(0, 3).map(function (slug) { return avatar(agentOf(slug), 22); }).join('') + '</span><span>' + esc(gioPhut(d)) + '</span>' +
-        '<span class="ws-run-st">' + esc(x.nhan || x.status || "") + '</span><small>' + esc(loiNguoiGo(x.input).slice(0, 60)) + '</small></button>';
-    }).join("");
-    host.querySelectorAll("[data-sid]").forEach(function (b) { b.onclick = function () { moPhienCu(b.dataset.sid); }; });
-  }
-  // Bỏ khối "[NGỮ CẢNH GIAO DIỆN: ...]" mà dashboard chèn trước câu hỏi: kho lần chạy lưu
-  // nguyên chuỗi đã gửi, nên dòng lịch sử mà in thô thì 60 ký tự đầu là khối đó chứ không phải
-  // câu người dùng gõ. Dùng lại chính hàm của app.js, đừng viết bản thứ hai để rồi lệch nhau.
-  function loiNguoiGo(s) {
-    try { return window.chuNguoiGo ? window.chuNguoiGo(s || "") : String(s || ""); }
-    catch (e) { return String(s || ""); }
-  }
-  // Ngày giờ theo NGÔN NGỮ giao diện, không khoá "vi-VN": đổi sang tiếng Anh mà ngày vẫn
-  // dd/mm là nửa màn hình nói một kiểu (cùng lý do với LOC() bên studio.js).
-  function gioPhut(d) {
-    var loc = (window.JavisI18n && window.JavisI18n.locale && window.JavisI18n.locale()) || "vi-VN";
-    try { return d.toLocaleString(loc, { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }); }
-    catch (e) { return d.toLocaleString(); }
+    var so = {};
+    (r.runs || []).forEach(function (x) { if (x.session_id) so[x.session_id] = x; });
+    S.lanChay = so;
+    if (window.JavisChatSide && window.JavisChatSide.refresh) window.JavisChatSide.refresh();
   }
   // ---------- sự kiện quy trình từ WebSocket ----------
   // app.js chuyển MỌI khung wf_event vào đây, kể cả của phiên đang không mở: ghi theo
@@ -935,7 +1235,7 @@
     };
     // Không truyền `host`: tạo mới vẫn mở modal của Studio (cột phải đang là form của mục
     // đang chọn, vẽ đè lên đó thì người dùng tưởng mình đang sửa mục cũ).
-    if (loai === "agent") window.JavisStudio.editAgent(null, { dsNhom: S.agents, onSaved: sau });
+    if (loai === "agent") window.JavisStudio.editAgent(null, { onSaved: sau });
     else window.JavisStudio.editWorkflow(null, { onSaved: sau });
   }
 
@@ -958,5 +1258,5 @@
   }
 
   window.JavisWorkspace = { render: render, roi: roi, openCommand: openCommand, openTab: openTab, onTurnDone: onTurnDone, canSend: function () { return !active || ready; }, onChatState: onChatState, chayQuyTrinh: chayQuyTrinh, onWfEvent: onWfEvent, sapXep: sapXep, loc: loc, tienDoMoi: tienDoMoi, apDung: apDung, phanTram: phanTram,
-    dangChay: dangChay, tabPhai: chonTabPhai, state: function () { return S; } };
+    dangChay: dangChay, tabPhai: chonTabPhai, gomNhom: gomNhom, nhomHtml: nhomHtml, chonNhom: chonNhom, state: function () { return S; } };
 })();

@@ -20,6 +20,55 @@
   };
   const fd = (obj) => { const f = new FormData(); Object.entries(obj).forEach(([k, v]) => f.append(k, v)); return f; };
 
+  // ===== Hai lượt mạng NỀN của trình sửa trợ lý: danh sách skill + /settings (dựng ô chọn model) =====
+  // Ở trang Cộng sự, form này dựng lại MỖI LẦN bấm sang một trợ lý khác, nên cứ một cú bấm là
+  // thêm hai lượt mạng chen vào cùng lúc với /sessions và /agents của chính trang đó - trình
+  // duyệt chỉ mở 6 kết nối một lúc, và /settings thì còn đi dò từng binary CLI trên đĩa. Chủ
+  // dự án 22/09: "load phần trợ lý và phần cài đặt rất chậm".
+  // Trong vài giây giữa hai cú bấm, hai thứ này không đổi, nên giữ lại một lát. Khoá theo
+  // BRAIN để đổi bộ não là hết hiệu lực ngay; đổi skill/model rồi thì gọi quenForm().
+  const FORM_TTL = 20000;
+  let _formCache = null;
+  async function duLieuForm() {
+    const b = brain();
+    if (_formCache && _formCache.brain === b && Date.now() - _formCache.luc < FORM_TTL) return _formCache.ds;
+    const ds = await Promise.all([
+      api(`/skills?brain=${encodeURIComponent(b)}`),
+      api("/settings"),
+    ]);
+    // Lượt hỏng (api() nuốt lỗi và trả {}) thì ĐỪNG nhớ: nhớ một câu trả lời rỗng 20 giây là
+    // form mở lên không có skill nào, không có model nào, mà không gì nói vì sao.
+    if ((ds[0] && ds[0].skills) || (ds[1] && ds[1].model)) _formCache = { brain: b, luc: Date.now(), ds: ds };
+    return ds;
+  }
+  function quenForm() { _formCache = null; }
+
+  // ===== Trợ lý ĐẦY ĐỦ (kèm system prompt) cho trình sửa =====
+  // Các danh sách nay xin bản NHẸ (`/agents?prompt=0`): đo trên brain 14 trợ lý, kèm prompt
+  // là 366 KB còn bỏ ra là 2.9 KB, mà cột trái chưa bao giờ hiện prompt. Đổi lại, mục truyền
+  // vào trình sửa thiếu `prompt` nên phải đi lấy riêng đúng một trợ lý.
+  //
+  // Lấy HỎNG thì trả `false`, KHÔNG rơi về chuỗi rỗng: một ô sửa mở ra trống nhìn y hệt một
+  // trợ lý chưa có prompt, bấm Lưu một cái là prompt thật bị ghi đè mất, lặng lẽ.
+  async function layAgentDay(a) {
+    if (!a || !a.slug) return null;                  // tạo mới: chưa có gì để lấy
+    if (typeof a.prompt === "string") return a;      // người gọi đã cầm bản đầy đủ
+    const url = `/agents/get?slug=${encodeURIComponent(a.slug)}&brain=${encodeURIComponent(brain())}`;
+    let r = await api(url);
+    // `{}` trơn = api() nuốt một lần hết giờ / rớt mạng, KHÁC với `{error}` (server nói không
+    // có trợ lý này). Máy chủ bận một lượt chat là đủ để lần đầu trượt, nên thử lại đúng một
+    // lần trước khi báo lỗi. Trước đây trượt một lần là hiện ngay "Không tải được trợ lý này"
+    // dù trợ lý vẫn nằm nguyên đó (chủ repo gặp 23/09).
+    if (r && !r.error && typeof r.prompt !== "string") r = await api(url);
+    if (!r || typeof r.prompt !== "string") return false;
+    return Object.assign({}, a, r);
+  }
+  // Đổi bộ não / lưu skill / cắm key model ở trang khác đều làm bộ nhớ tạm này sai.
+  try {
+    const _gs = document.getElementById("graphSource");
+    if (_gs) _gs.addEventListener("change", quenForm);
+  } catch (e) { /* không có ô chọn brain thì thôi */ }
+
   // ===== Xuất / Nhập năng lực (chia sẻ agent/skill/workflow qua file .zip) =====
   // slug nhận 1 chuỗi hoặc mảng (chọn nhiều) - server gói tất cả vào MỘT file .zip.
   const exportUrl = (kind, slug) => `/export?kind=${kind}&slug=${encodeURIComponent(Array.isArray(slug) ? slug.join(",") : slug)}&brain=${encodeURIComponent(brain())}&deps=1`;
@@ -87,6 +136,8 @@
     workflows: loadWorkflows, agents: loadAgents, skills: loadSkills,
     // Trang Cộng sự mượn chính hai trình sửa này (xem editAgent/editWorkflow) + nút Xuất.
     editAgent: editAgent, editWorkflow: editWorkflow, exportItem: exportItem, importItems: importItems,
+    // Trang Models gọi sau khi cắm/ngắt key: ô chọn model trong form trợ lý dựng từ /settings.
+    quenForm: quenForm,
   };
   const _studioBtn = document.getElementById("studioOpenBtn");
   if (_studioBtn) _studioBtn.addEventListener("click", () => window.openStudio("workspace"));
@@ -100,16 +151,11 @@
   // xếp trên điện thoại. Chép tay thành ba bản là ba bản trôi lệch nhau ngay lần sửa đầu tiên.
   const NHOM_MD = "Chung";                     // nhóm mặc định khi file chưa khai `group`
   const nhomCua = (x) => (x && String(x.group || "").trim()) || NHOM_MD;
-  // Các dòng bày ra ô chọn nhóm: nhóm mặc định, nhóm ĐANG CÓ của mục đang sửa, rồi mọi nhóm
-  // đang dùng. Nhóm mà chỉ mình mục này dùng không nằm trong danh sách chung, thiếu dòng đó
-  // là ô chọn rơi về dòng đầu và bấm Lưu một cái là đổi nhóm im lặng.
-  const dsNhomChon = (nhomDangCo, ds) => [...new Set(
-    [NHOM_MD, nhomDangCo || NHOM_MD].concat((ds || []).map(nhomCua)).filter(Boolean))];
-  // Nhóm CHỐT khi bấm Lưu. Ô gõ tay rỗng KHÔNG có nghĩa là "Chung": chọn "Nhóm mới..." rồi đổi
-  // ý, không gõ gì, mà đẩy về Chung là mục đang ở Marketing bị ném sang Chung không một lời
-  // nào. Rỗng thì giữ nguyên nhóm cũ, chỉ mục thật sự chưa có nhóm mới rơi về Chung.
-  const nhomLuu = (oGoTay, nhomCu) =>
-    String(oGoTay == null ? "" : oGoTay).trim() || String(nhomCu == null ? "" : nhomCu).trim() || NHOM_MD;
+  // Ô CHỌN NHÓM trong trình sửa trợ lý đã BỎ ở 0.62.0 (chủ repo 21/09: "xoá nhóm ở đây vì đã
+  // có phần gom nhóm rồi"). Gom nhóm nay chỉ còn MỘT chỗ: thanh nhóm ở cột trái trang Cộng sự
+  // và menu "Chuyển sang nhóm" của từng mục. Hai chỗ cùng đặt một field là chỗ nào cũng có thể
+  // ghi đè chỗ kia - đúng lỗi phải vá bằng dongBoNhomForm() suốt từ 0.59.2. Server giữ nguyên
+  // nhóm cũ khi form không gửi `group` (xem main.save_agent), nên bỏ ô đi là hết hẳn lớp lỗi ấy.
 
   // Server trả về MÃ MÁY chứ không phải câu cho người đọc (server/agent_avatar.py ném
   // ValueError("avatar_shape"), main.py chuyển thẳng thành {"error": "avatar_shape"}). Đổ thẳng
@@ -423,7 +469,8 @@
   // chọn agent.)
   async function editWorkflow(w, tuyChon) {
     tuyChon = tuyChon || {};
-    const ad = await api(`/agents?brain=${encodeURIComponent(brain())}`);
+    // Bản NHẸ: ô chọn agent của từng bước chỉ cần slug + tên (xem layAgentDay).
+    const ad = await api(`/agents?brain=${encodeURIComponent(brain())}&prompt=0`);
     agentsCache = ad.agents || [];
     if (!agentsCache.length) { alert(t("studio.no_agents")); return; }
     const box = document.getElementById("editorBox");
@@ -545,7 +592,8 @@
     const panel = document.getElementById("panel-agents");
     if (!panel) return;   // cùng lý do với loadWorkflows: trang Trợ lý riêng đã gộp vào Cộng sự
     panel.innerHTML = `<div class="empty">${esc(t("common.loading"))}</div>`;
-    const d = await api(`/agents?brain=${encodeURIComponent(brain())}`);
+    // Bản NHẸ: lưới thẻ chỉ hiện tên/vai/nhóm; bấm Sửa thì layAgentDay() lấy prompt.
+    const d = await api(`/agents?brain=${encodeURIComponent(brain())}&prompt=0`);
     _agState.agents = d.agents || [];
     _sel.agent.clear();   // nạp lại trang là làm mới lựa chọn
     refreshStats();
@@ -596,51 +644,60 @@
   // đoán, mà đoán sai thì chạy nhầm nhà và nhầm cả hoá đơn.
   const MODEL_SEP = "::";
 
-  // `opts.dsNhom` = danh sách agent để gợi ý TÊN NHÓM đang có. Trang Cộng sự truyền vào vì
-  // `_agState.agents` chỉ được đổ khi trang Agents cũ chạy loadAgents(), mà trang đó đã bỏ -
-  // thiếu nó thì ô Nhóm mất sạch gợi ý và người dùng gõ tay đẻ ra "Marketing" lẫn "marketing".
   // `opts.host` = vẽ form thẳng vào một khung có sẵn (cột phải trang Cộng sự) thay vì bật
   // modal #studioEditor. Vì sao cần: trang Cộng sự muốn sửa trợ lý NGAY cạnh khung chat, mà
   // dựng bản form thứ hai ở đó là hai bản trôi lệch nhau ngay lần sửa đầu tiên (chọn model,
-  // chọn skill, nhóm... đều đã nằm ở đây). `opts.onSaved` thay cho loadAgents(): trang gọi
+  // chọn skill, avatar... đều đã nằm ở đây). `opts.onSaved` thay cho loadAgents(): trang gọi
   // tự quyết vẽ lại cái gì, vì panel Studio có thể đang không tồn tại trong DOM.
+  // (`opts.dsNhom` của bản cũ đã bỏ cùng ô chọn nhóm - xem khối NHÓM ở đầu file.)
   async function editAgent(a, opts) {
     opts = opts || {};
     // Có host thì KHÔNG đụng vào modal: mở/đóng nó sẽ che mất cả trang Cộng sự.
     const moDong = (mo) => { if (!opts.host) editor.classList.toggle("open", mo); };
-    const [sd, st] = await Promise.all([
-      api(`/skills?brain=${encodeURIComponent(brain())}`),
-      api("/settings"),
-    ]);
+    // Nói "đang tải" ngay: ở cột phải trang Cộng sự, khung này trống trơn suốt lúc chờ mạng
+    // trông y như app bị treo.
+    if (opts.host && opts.host.isConnected && !opts.host.childElementCount) {
+      opts.host.innerHTML = `<div class="empty">${esc(t("common.loading"))}</div>`;
+    }
+    // Song song, không nối đuôi: hai lượt của form và một lượt lấy prompt cùng đi một nhịp.
+    const [dsForm, day] = await Promise.all([duLieuForm(), layAgentDay(a)]);
+    const [sd, st] = dsForm;
+    if (day === false) {
+      const hong = opts.host || document.getElementById("editorBox");
+      if (hong && (!opts.host || hong.isConnected)) {
+        hong.innerHTML = `<div class="empty">${esc(t("studio.ag_load_err"))}</div>` +
+          `<div class="editor-actions"><button class="s-btn" id="agRetry">${esc(t("common.retry"))}</button></div>`;
+        hong.querySelector("#agRetry").onclick = () => editAgent(a, opts);
+        moDong(true);
+      }
+      return;
+    }
+    if (day) a = day;
     const skills = sd.skills || [];
-    const uniq = (xs) => [...new Set((xs || []).filter(Boolean))];
     // CÙNG nguồn với trình chọn model chính (/settings → model.providers), nên thêm nhà mới
-    // ở trang Models là ô này có ngay. Lọc `agent_ok`: server chỉ dựng nổi engine agent cho
-    // một số nhà (xem AGENT_PROVIDERS), bày thêm là hứa suông. Lọc `configured`: chưa cắm
-    // key thì chọn vào cũng không chạy.
-    const provs = ((st.model || {}).providers || []).filter(p => p.agent_ok && p.configured);
-    // Danh sách LIVE cho nhà có catalog rỗng/đổi liên tục (Codex, Gemini CLI, Groq...).
-    // Hỏng một nhà thì chỉ nhà đó rơi về catalog, không kéo cả ô chọn chết theo.
-    const live = await Promise.all(provs.map(p =>
-      api(`/provider/models?provider=${encodeURIComponent(p.id)}` + (p.id === "openai-oauth" ? "&refresh=1" : ""))
-        .then(d => uniq(d.models)).catch(() => [])));
-    const nhom = provs.map((p, i) => ({ id: p.id, label: p.label, models: uniq(live[i].concat(p.models || [])) }))
-                      .filter(g => g.models.length);
+    // ở trang Models là ô này có ngay - và giờ là cùng cả THÂN BẢNG CHỌN (model-list.js).
+    // Lấy MỌI nhà chạy được agent, KỂ CẢ nhà chưa cắm key: chúng hiện ra kèm ổ khoá và một dòng
+    // chỉ chỗ mở khoá, đúng như bảng chọn model dưới khung chat. Bản cũ lọc thẳng `configured`
+    // nên nhà chưa cắm key BIẾN MẤT, người dùng không biết là có nhà đó (chủ repo báo 21/09).
+    // `agent_ok` thì vẫn lọc thật: server không dựng nổi engine agent cho nhà ngoài danh sách
+    // (AGENT_PROVIDERS), bày ra là hứa suông - agent sẽ lặng lẽ chạy Claude.
+    const provs = ((st.model || {}).providers || []).filter(p => p.agent_ok);
+    const coKetNoi = provs.some(p => p.configured);
     const val = (pid, m) => pid + MODEL_SEP + m;
-    // Agent đang lưu một model không còn trong danh sách nào (nhà đã ngắt key, model bị gỡ):
-    // vẫn bày ra để mở form lên KHÔNG âm thầm đổi model của agent thành "Mặc định".
-    const dangCo = a && a.model && !nhom.some(g => (!a.model_provider || g.id === a.model_provider) && g.models.includes(a.model));
-    const currentOnly = dangCo
-      ? `<optgroup label="${esc(t("studio.model_saved"))}"><option value="${esc(val(a.model_provider || "", a.model))}">${esc(a.model)} ${esc(t("studio.saved_suffix"))}</option></optgroup>` : "";
-    const modelOptions = (g) =>
-      `<optgroup label="${esc(g.label)}">${g.models.map(m => `<option value="${esc(val(g.id, m))}">${esc(m)}</option>`).join("")}</optgroup>`;
-    // NHÓM: một Ô CHỌN các nhóm đang dùng, cộng một dòng "Nhóm mới..." mới bung ô gõ tay ra
-    // (chủ repo yêu cầu 0.59.2 - trước đây là ô gõ tay cộng một hàng chip, và hàng chip dài
-    // cả chục nhóm thì đẩy phần Skills rớt khỏi màn hình). Vẫn LƯU đúng field cũ qua #agGroup,
-    // nên agent/workflow đang có không phải đụng tới.
-    const NHOM_MOI = "__javis_nhom_moi__";
-    const nhomDangCo = a ? nhomCua(a) : NHOM_MD;
-    const dsNhomCo = dsNhomChon(nhomDangCo, opts.dsNhom || _agState.agents);
+    const provCua = (id) => provs.find(p => p.id === id) || {};
+    // Agent CŨ chỉ lưu tên model (chưa có trường `model_provider`): dò trong catalog tĩnh mà
+    // /settings đã trả về để mở form lên vẫn hiện đúng nhà, thay vì bỏ trống rồi bấm Lưu là
+    // server phải đi đoán. Không dò ra thì để rỗng - server có `_agent_model_provider` lo.
+    const doanNha = (m) => (provs.find(p => (p.models || []).includes(m)) || {}).id || "";
+    let mModel = (a && a.model) || "";
+    let mProv = mModel ? ((a && a.model_provider) || doanNha(mModel)) : "";
+    let mLoc = "", mMo = mProv || (provs.find(p => p.configured) || {}).id || "";
+    // Nhãn trên nút. Model đang lưu mà nhà đã ngắt key thì nói thẳng "(đang lưu)" chứ KHÔNG
+    // âm thầm tụt về Mặc định - đó là lựa chọn của người dùng, chỉ là tạm chưa chạy được.
+    const nhanModel = () => !mModel
+      ? t("studio.model_default")
+      : (provCua(mProv).label ? provCua(mProv).label + " · " + mModel : mModel)
+        + (mProv && !provCua(mProv).configured ? " " + t("studio.saved_suffix") : "");
     const box = opts.host || document.getElementById("editorBox");
     if (opts.host && !box.isConnected) return;
     let avatar = window.JavisAvatar ? (a ? window.JavisAvatar.of(a) : window.JavisAvatar.random()) : null;
@@ -649,9 +706,11 @@
       <div class="agent-avatar-picker" id="agAvatar"></div>
       <label>${esc(t("studio.name"))}</label><input id="agName" value="${esc(a ? a.name : "")}">
       <label>${esc(t("studio.role"))}</label><input id="agRole" value="${esc(a ? a.role : "")}">
-      <label>${esc(t("studio.groups"))}</label>
-      <select id="agGroupSel">${dsNhomCo.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join("")}<option value="${NHOM_MOI}">${esc(t("studio.group_new"))}</option></select>
-      <input id="agGroup" value="${esc(nhomDangCo)}" aria-label="${esc(t("studio.group_new"))}" placeholder="${esc(t("studio.group_ph"))}" hidden>
+      <label for="agAssets">${esc(t("studio.assets"))}</label>
+      <div class="ag-assets">
+        <button type="button" class="s-btn-ghost" id="agAssets"${a && a.slug ? "" : " disabled"}>${ic("paperclip")} ${esc(t("studio.assets_open"))}</button>
+        <div class="dim ag-assets-hint">${esc(a && a.slug ? t("studio.assets_hint") : t("studio.assets_new"))}</div>
+      </div>
       <label>${esc(t("studio.sys_prompt"))}</label><textarea id="agPrompt" rows="4">${esc(a ? (a.prompt || "") : "")}</textarea>
       <label>Skills</label>
       ${skills.length ? `<div class="sp-box">
@@ -660,36 +719,98 @@
           <button type="button" class="s-btn-ghost sp-clear" id="spClear">${esc(t("studio.sp_clear"))}</button></div>
         <div class="sp-groups" id="skillPick"></div>
       </div>` : `<div class="skill-pick"><span class="dim">${esc(t("studio.sp_none"))}</span></div>`}
-      <label>Model</label><select id="agModel">
-        <option value="">${esc(t("studio.model_default"))}</option>
-        ${currentOnly}
-        ${nhom.map(modelOptions).join("")}
-      </select>
-      <div class="dim" style="font-size:12px;margin-top:4px">${esc(nhom.length
+      <label for="agModelBtn">Model</label>
+      <div class="ag-model-pick" id="agModelPick">
+        <button type="button" class="ag-model-btn" id="agModelBtn">
+          <span id="agModelTxt">${esc(nhanModel())}</span>${ic("chevron-down")}
+        </button>
+        <input type="hidden" id="agModel" value="${esc(mModel ? val(mProv, mModel) : "")}">
+        <div class="mb-pop ag-model-pop" id="agModelPop" hidden></div>
+      </div>
+      <div class="dim" style="font-size:12px;margin-top:4px">${esc(coKetNoi
         ? t("studio.model_hint")
         : t("studio.model_none"))}</div>
       <div class="editor-actions"><button class="s-btn-ghost" id="cancelEd"${opts.host ? ' style="display:none"' : ""}>${esc(t("common.cancel"))}</button><button class="s-btn" id="saveAg">${esc(t("common.save"))}</button></div>`;
     if (window.JavisAvatar) window.JavisAvatar.picker(box.querySelector("#agAvatar"), avatar, v => { avatar = v; });
-    // Ô gõ tay là HÌNH CHIẾU của ô chọn, và cũng là chỗ lưu đọc ra - nên mỗi lần đổi dòng
-    // phải chép giá trị sang, không thì chọn nhóm khác mà bấm Lưu vẫn ra nhóm cũ.
-    const selNhom = box.querySelector("#agGroupSel"), oNhom = box.querySelector("#agGroup");
-    selNhom.value = nhomDangCo;
-    selNhom.onchange = () => {
-      const moi = selNhom.value === NHOM_MOI;
-      oNhom.hidden = !moi;
-      if (moi) { oNhom.value = ""; oNhom.focus(); } else oNhom.value = selNhom.value;
+    // TÀI LIỆU & LINK của trợ lý: mở ĐÚNG ngăn kéo mà project và cuộc trò chuyện đang dùng
+    // (sessions-ui.js), không dựng bản thứ hai ở đây. Trợ lý chưa lưu thì chưa có slug để gắn
+    // vào, nên nút đứng im kèm một câu nói vì sao - ẩn nút đi thì người dùng tưởng không có.
+    const nutTaiLieu = box.querySelector("#agAssets");
+    if (nutTaiLieu) nutTaiLieu.onclick = () => {
+      if (!(a && a.slug)) return;
+      // Ở trang Cộng sự (opts.host) thì mở ngăn có công tắc phạm vi, đứng sẵn ở "của trợ lý":
+      // bấm từ Cài đặt trợ lý là ý muốn gắn cho trợ lý. Ở Studio thì cuộc đang mở không liên
+      // quan gì tới trợ lý này, nên vẫn mở ngăn riêng của trợ lý như cũ.
+      if (opts.host && window.JavisChatSide && window.JavisChatSide.moTaiLieu)
+        window.JavisChatSide.moTaiLieu(a.slug, a.name || a.slug, "agent");
+      else if (window.JavisChatSide && window.JavisChatSide.moKhungAgent)
+        window.JavisChatSide.moKhungAgent(a.slug, a.name || a.slug);
     };
     box.querySelectorAll("label").forEach(label => { const input = label.nextElementSibling; if (input && /^(INPUT|SELECT|TEXTAREA)$/.test(input.tagName)) label.htmlFor = input.id; });
-    if (a && a.model) {
-      const sel = box.querySelector("#agModel");
-      sel.value = val(a.model_provider || "", a.model);
-      // Agent CŨ lưu mỗi tên model (chưa có trường nhà): dò dòng đầu tiên trùng tên để form
-      // mở lên vẫn hiện đúng model đang chạy, thay vì nhảy về "Mặc định" rồi bấm Lưu là mất.
-      if (!sel.value) {
-        const hit = [...sel.options].find(o => o.value.split(MODEL_SEP).slice(1).join(MODEL_SEP) === a.model);
-        if (hit) sel.value = hit.value;
+    // ----- Bảng chọn model: CÙNG thân với bảng dưới khung chat (model-list.js) -----
+    // Danh sách model của một nhà chỉ nạp khi nhà đó được sổ ra, nên mở form sửa trợ lý không
+    // còn gọi /provider/models cho mọi nhà một lượt như bản cũ.
+    const mPop = box.querySelector("#agModelPop");
+    const mBtn = box.querySelector("#agModelBtn");
+    const dongPop = () => { if (mPop) mPop.hidden = true; };
+    async function veModelPop() {
+      if (!mPop) return;
+      const hangMacDinh = `<div class="mb-item ${mModel ? "" : "cur"}" data-prov="" data-model="">`
+        + `<span class="tick">${mModel ? "" : ic("check", { cls: "ic-ok" })}</span>`
+        + `<span>${esc(t("studio.model_default"))}</span></div>`;
+      mPop.innerHTML = await window.JavisModelList.render({
+        providers: provs, expanded: mMo, filter: mLoc,
+        selected: { provider: mProv, model: mModel },
+        searchId: "agModelSearch", extraTop: hangMacDinh,
+      });
+      const se = box.querySelector("#agModelSearch");
+      if (se) {
+        se.oninput = () => { mLoc = se.value; veModelPop(); };
+        se.focus(); se.selectionStart = se.selectionEnd = se.value.length;   // giữ con trỏ khi gõ
       }
     }
+    if (mBtn) mBtn.onclick = async () => {
+      if (!mPop.hidden) { dongPop(); return; }
+      mPop.hidden = false;
+      await veModelPop();
+      // Ô Model nằm giữa một form dài: mở ra ở gần đáy khung là bảng chọn thò ra ngoài màn.
+      // Kéo khung chứa lên vừa đủ để thấy hết bảng, không nhảy giật cả trang.
+      try { mPop.scrollIntoView({ block: "nearest" }); } catch (e) {}
+    };
+    if (mPop) mPop.onclick = (e) => {
+      const goto = e.target.closest("[data-goto]");
+      if (goto) {
+        dongPop();
+        try { if (window.Alpine) Alpine.store("nav").go(goto.dataset.goto); } catch (er) {}
+        return;
+      }
+      const it = e.target.closest(".mb-item");
+      if (it) {
+        mProv = it.dataset.prov || ""; mModel = it.dataset.model || "";
+        box.querySelector("#agModel").value = mModel ? val(mProv, mModel) : "";
+        box.querySelector("#agModelTxt").textContent = nhanModel();
+        dongPop();
+        return;
+      }
+      const pr = e.target.closest(".mb-prov");
+      if (pr && pr.dataset.prov) { mMo = pr.dataset.prov; veModelPop(); }
+    };
+    // Bấm ra ngoài / Escape thì đóng. Listener TỰ GỠ khi form bị thay (mở sửa trợ lý nhiều
+    // lần là dựng lại DOM), khỏi để lại một chồng closure chết bám vào document.
+    const mPick = box.querySelector("#agModelPick");
+    const ngoaiKhung = (e) => {
+      if (!mPop || !mPop.isConnected) { document.removeEventListener("click", ngoaiKhung); return; }
+      // So bằng CHÍNH phần tử, không phải closest("#agModelPick"): trang Cộng sự có thể đang
+      // mở form trong cột phải trong khi Studio bật thêm form trong modal, tức hai khung cùng
+      // id trên một trang - so theo id là bấm vào khung này lại không đóng khung kia.
+      if (!mPop.hidden && !(mPick && mPick.contains(e.target))) dongPop();
+    };
+    const escKhung = (e) => {
+      if (!mPop || !mPop.isConnected) { document.removeEventListener("keydown", escKhung); return; }
+      if (e.key === "Escape" && !mPop.hidden) { dongPop(); e.stopPropagation(); }
+    };
+    document.addEventListener("click", ngoaiKhung);
+    document.addEventListener("keydown", escKhung);
     // Trạng thái chọn giữ trong Set, DOM chỉ là HÌNH CHIẾU của nó. Đây là chỗ dễ hỏng nhất của
     // khung có bộ lọc: vẽ lại theo bộ lọc rồi lúc lưu mới đi đọc DOM thì mọi skill đang bị lọc
     // ra khỏi màn hình sẽ mất tick, im lặng, và người dùng chỉ phát hiện sau khi agent chạy sai.
@@ -709,8 +830,9 @@
       const saveButton = box.querySelector("#saveAg");
       saveButton.disabled = true;
       try {
+        // KHÔNG gửi `group`: form không còn ô nhóm, mà gửi một giá trị đoán ra là ghi đè nhóm
+        // người dùng vừa đổi ở cột trái. Server thấy thiếu field là giữ nguyên nhóm đang có.
         const saved = await api("/agents", { method: "POST", body: fd({ name, role: box.querySelector("#agRole").value,
-          group: nhomLuu(box.querySelector("#agGroup").value, nhomDangCo),
           prompt: box.querySelector("#agPrompt").value, skills: sk, model: mName, model_provider: mProv,
           slug: a ? a.slug : "", brain: brain(), ...(avatar ? {avatar_shape: avatar.shape, avatar_palette: avatar.palette} : {}) }) });
         if (!saved.ok) { alert(loiLuu(saved.error)); return; }
@@ -822,6 +944,9 @@
     .sk2-act button{background:var(--surface-2);border:1px solid var(--hairline);color:var(--text2);border-radius:6px;cursor:pointer;font-size:13px;padding:3px 9px} .sk2-act button:hover{color:var(--text-hi);border-color:rgba(120,180,255,.5)}
     .sk2-act button.danger:hover{color:var(--red);border-color:rgba(255,120,120,.5)}
     .sysb{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--link-ink);background:var(--info-wash);border:1px solid var(--info-line);vertical-align:2px}
+    /* .sk2-list là flex cột, nên hàng phân trang phải tự căn giữa - để mặc định nó dính mép
+       trái, nhìn như rơi rớt lại chứ không ra một hàng điều khiển. */
+    .sk2-list .jv-pager{justify-content:center}
     .sk-usage{font-size:11px;color:var(--text3);margin-left:8px}
     .sk-stale{opacity:.75;font-style:italic;cursor:help}
     /* ===== Mobile (<=860px) ===== xep DOC: nhom thanh dai chip cuon ngang o tren, danh sach
@@ -886,42 +1011,58 @@
     renderSkillList();
   }
 
+  const SK_MOI_TRANG = 20;   // brain dùng lâu có cả trăm skill: đổ hết ra là cuộn mãi không hết
+
   function renderSkillList() {
     const box = document.getElementById("skList"); if (!box) return;
     const list = _skFiltered();
     datSoLuong(document.getElementById("panel-skills"), list.length + " skill");
     if (!list.length) { box.innerHTML = `<div class="empty">${esc(t("studio.sk_no_match"))}</div>`; return; }
-    box.innerHTML = "";
-    list.forEach(s => {
-      const on = s.enabled !== false;
-      const div = document.createElement("div"); div.className = "sk2-card" + (on ? "" : " off");
-      const sysBadge = s.system ? ` <span class="sysb" title="${esc(t("studio.sys_title"))}">${esc(t("studio.sys"))}</span>` : "";
-      // Telemetry: use_count là tín hiệu DƯƠNG một chiều. Skill nạp native qua .claude/skills
-      // không đi qua bộ đếm, nên "chưa thấy dùng" là tham khảo, KHÔNG phải phán quyết.
-      let usageHtml = "";
-      if (s.use_count > 0) {
-        const when = s.last_used_at ? new Date(s.last_used_at * 1000).toLocaleDateString(LOC()) : "";
-        usageHtml = ` · <span class="sk-usage">${esc(t("studio.used", { n: s.use_count }))}${when ? ", " + esc(t("studio.last_used")) + " " + when : ""}</span>`;
-      } else if (s.stale) {
-        usageHtml = ` · <span class="sk-usage sk-stale" title="${esc(t("studio.unused_title"))}">${esc(t("studio.unused"))}</span>`;
-      }
-      div.innerHTML = `<input type="checkbox" class="sk2-tog" ${on ? "checked" : ""} title="${esc(on ? t("studio.tog_on") : t("studio.tog_off"))}">
-        <div class="sk2-info"><div class="nm">${ic("puzzle")} ${esc(s.name)}${sysBadge}</div><div class="ds">${esc(s.description || "")}</div><div class="gp">${ic("folder-open")} ${esc(s.group || "Chung")} · ${esc(s.slug)}${s.source === ".agents" ? " · .agents" : ""}${usageHtml}</div></div>
-        <div class="sk2-act">${s.system ? "" : `<label class="sk2-selwrap" title="${esc(t("studio.sel_one"))}"><input type="checkbox" class="sk2-sel" data-slug="${esc(s.slug)}"> ${esc(t("studio.pick"))}</label>`}<button class="edit">${esc(t("common.edit"))}</button>${s.system ? "" : `<button class="exp" title="${esc(t("studio.export_title"))}">${esc(t("studio.export"))}</button><button class="del danger">${esc(t("common.delete"))}</button>`}</div>`;
-      div.querySelector(".sk2-tog").onchange = (e) => toggleSkill(s, e.target.checked);
-      const selBox = div.querySelector(".sk2-sel");
-      if (selBox) noiSel("skill", "skDl", selBox, s.slug);
-      div.querySelector(".edit").onclick = () => openSkillForm(s.slug);
-      const expBtn = div.querySelector(".exp");
-      if (expBtn) expBtn.onclick = () => exportItem("skill", s.slug);
-      const delBtn = div.querySelector(".del");
-      if (delBtn) delBtn.onclick = () => deleteSkill(s.slug, s.name);
-      box.appendChild(div);
-    });
+    // Phân trang bằng pager() dùng chung của console.js. Đổi nhóm hoặc gõ ô tìm thì hàm này
+    // chạy lại từ đầu nên tự về trang 1 - đúng cái người dùng mong, vì danh sách đã khác.
+    const veTrang = (phan) => {
+      const fr = document.createDocumentFragment();
+      phan.forEach(s => fr.appendChild(theSkill(s)));
+      return fr;
+    };
+    if (typeof window.JavisPager === "function") {
+      window.JavisPager(box, list, SK_MOI_TRANG, veTrang);
+    } else {
+      box.innerHTML = ""; box.appendChild(veTrang(list));
+    }
+  }
+
+  // Một thẻ skill. Tách khỏi renderSkillList để phân trang gọi lại được từng trang một.
+  function theSkill(s) {
+    const on = s.enabled !== false;
+    const div = document.createElement("div"); div.className = "sk2-card" + (on ? "" : " off");
+    const sysBadge = s.system ? ` <span class="sysb" title="${esc(t("studio.sys_title"))}">${esc(t("studio.sys"))}</span>` : "";
+    // Telemetry: use_count là tín hiệu DƯƠNG một chiều. Skill nạp native qua .claude/skills
+    // không đi qua bộ đếm, nên "chưa thấy dùng" là tham khảo, KHÔNG phải phán quyết.
+    let usageHtml = "";
+    if (s.use_count > 0) {
+      const when = s.last_used_at ? new Date(s.last_used_at * 1000).toLocaleDateString(LOC()) : "";
+      usageHtml = ` · <span class="sk-usage">${esc(t("studio.used", { n: s.use_count }))}${when ? ", " + esc(t("studio.last_used")) + " " + when : ""}</span>`;
+    } else if (s.stale) {
+      usageHtml = ` · <span class="sk-usage sk-stale" title="${esc(t("studio.unused_title"))}">${esc(t("studio.unused"))}</span>`;
+    }
+    div.innerHTML = `<input type="checkbox" class="sk2-tog" ${on ? "checked" : ""} title="${esc(on ? t("studio.tog_on") : t("studio.tog_off"))}">
+      <div class="sk2-info"><div class="nm">${ic("puzzle")} ${esc(s.name)}${sysBadge}</div><div class="ds">${esc(s.description || "")}</div><div class="gp">${ic("folder-open")} ${esc(s.group || "Chung")} · ${esc(s.slug)}${s.source === ".agents" ? " · .agents" : ""}${usageHtml}</div></div>
+      <div class="sk2-act">${s.system ? "" : `<label class="sk2-selwrap" title="${esc(t("studio.sel_one"))}"><input type="checkbox" class="sk2-sel" data-slug="${esc(s.slug)}"> ${esc(t("studio.pick"))}</label>`}<button class="edit">${esc(t("common.edit"))}</button>${s.system ? "" : `<button class="exp" title="${esc(t("studio.export_title"))}">${esc(t("studio.export"))}</button><button class="del danger">${esc(t("common.delete"))}</button>`}</div>`;
+    div.querySelector(".sk2-tog").onchange = (e) => toggleSkill(s, e.target.checked);
+    const selBox = div.querySelector(".sk2-sel");
+    if (selBox) noiSel("skill", "skDl", selBox, s.slug);
+    div.querySelector(".edit").onclick = () => openSkillForm(s.slug);
+    const expBtn = div.querySelector(".exp");
+    if (expBtn) expBtn.onclick = () => exportItem("skill", s.slug);
+    const delBtn = div.querySelector(".del");
+    if (delBtn) delBtn.onclick = () => deleteSkill(s.slug, s.name);
+    return div;
   }
 
   async function toggleSkill(s, enabled) {
     const r = await api("/skills/toggle", { method: "POST", body: fd({ slug: s.slug, enabled: enabled ? "1" : "0", brain: brain() }) });
+    quenForm();   // danh sách skill của form trợ lý vừa đổi
     if (r && r.error) { alert(t("studio.toggle_err") + " " + r.error); }
     s.enabled = enabled;
     renderSkillUI(); refreshStats();
@@ -950,6 +1091,7 @@
         name, group: panel.querySelector("#skGroup").value.trim() || "Chung",
         description: panel.querySelector("#skDesc").value, body: panel.querySelector("#skBody").value,
         slug: sk.slug || "", brain: brain() }) });
+      quenForm();
       loadSkills();
     };
   }
@@ -957,6 +1099,7 @@
   async function deleteSkill(slug, name) {
     if (!confirm(t("studio.del_sk", { ten: name, slug }))) return;
     await api("/skills/delete", { method: "POST", body: fd({ slug, brain: brain() }) });
+    quenForm();
     loadSkills();
   }
 })();

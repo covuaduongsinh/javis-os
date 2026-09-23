@@ -31,6 +31,18 @@ MARKER = "JAVIS_ASK_MAIN:"
 # không phải đánh thức bộ não chính (xem parse_ui).
 UI_MARKER = "JAVIS_UI:"
 UI_ACTIONS = ("open_page", "open_group", "sidebar", "scroll")
+# Dòng ĐẦU của mọi câu trả lời: câu người dùng đã DIỄN GIẢI (máy nghe chép sai từ tiếng Anh,
+# bộ não giọng viết lại đúng ý). Server bóc dòng này ra: thay tin người dùng trong kho phiên
+# và trong khung chat, không bao giờ đọc ra loa (xem parse_nghe, split_speakable).
+NGHE_MARKER = "JAVIS_NGHE:"
+# CỬA TẠP ÂM: mic bật liên tục nên tiếng TV, người khác trong phòng hay tiếng lẩm bẩm cũng
+# được chép thành chữ rồi chốt thành một lượt. Bộ não giọng đã đọc mọi lượt để viết dòng
+# JAVIS_NGHE, nên nó xét luôn: cắt phần tạp âm ngay trong dòng ấy, còn cả lượt không có gì
+# nói với Javis thì trả đúng một dòng này. Server bỏ lượt, không đọc loa, không để lại bong
+# bóng (xem run_voice_turn trong main.py).
+BO_QUA_MARKER = "JAVIS_BO_QUA:"
+# Mọi dòng lệnh: không bao giờ ra loa (split_speakable), luôn bị bóc khỏi câu trả lời.
+MARKERS = (MARKER, UI_MARKER, NGHE_MARKER, BO_QUA_MARKER)
 IDLE_S = 300.0
 TURN_TIMEOUT_S = 90.0
 HISTORY_N = 10
@@ -98,10 +110,87 @@ SYSTEM_PROMPT = (
     "ngầm, tạm dừng tìm kiếm ngầm, huỷ tác vụ...), TUYỆT ĐỐI KHÔNG giao việc mới. Giao việc để đi "
     "dừng một việc khác là đẻ thêm đúng thứ họ đang muốn bỏ. Chỉ trả lời một câu ngắn xác nhận, "
     "không kèm dòng lệnh nào; hệ thống đã tự huỷ trước khi bạn kịp nói.\n"
-    "Chuyện trò thường, hỏi ý kiến, giải thích khái niệm, tính nhẩm, chuyển ngữ: trả lời thẳng."
+    "Chuyện trò thường, hỏi ý kiến, giải thích khái niệm, tính nhẩm, chuyển ngữ: trả lời thẳng.\n"
+    "QUAN TRỌNG, làm ở MỌI lượt: câu của người dùng đến từ MÁY NGHE GIỌNG NÓI, và họ hay nói lẫn "
+    "tiếng Việt với tiếng Anh, nên từ tiếng Anh thường bị chép sai thành từ gần âm: tên bạn thành "
+    "'David', 'Jarvis', 'Gia vít'; từ tiếng Anh, tên công cụ, tên dự án thành một từ nghe na ná. "
+    "Vì thế DÒNG ĐẦU TIÊN của mọi câu trả lời LUÔN là " + NGHE_MARKER + " theo sau là câu người "
+    "dùng ĐÚNG NHƯ HỌ ĐỊNH NÓI trên một dòng: chép lại nguyên văn, chỉ thay từ nghe sai bằng từ đúng "
+    "(từ tiếng Anh viết đúng chính tả tiếng Anh), giữ nguyên tiếng Việt, cách xưng hô, thứ tự và "
+    "độ dài; không dịch, không tóm tắt, không thêm bớt ý; không có gì sai thì chép y nguyên. Người "
+    "dùng nhìn dòng này để biết bạn đã hiểu đúng chưa, nên không được bỏ. Từ dòng thứ hai trở đi "
+    "mới là câu trả lời (câu xác nhận và dòng " + MARKER + " hay " + UI_MARKER + " nếu cần cũng nằm "
+    "từ đây), và trả lời theo câu đã sửa đó: không bám nghĩa đen của từ nghe sai, không hỏi lại "
+    "'David là ai', không bình luận về từ nghe sai.\n"
+    "CŨNG Ở DÒNG " + NGHE_MARKER + " ĐÓ, lọc TẠP ÂM: mic bật liên tục nên chữ máy nghe chép về có "
+    "thể lẫn thứ KHÔNG nói với bạn, chẳng hạn tiếng TV hay video đang phát, người khác trong phòng "
+    "nói chuyện với nhau, người dùng lẩm bẩm một mình hay gọi ai đó. Dấu hiệu: câu đứt đoạn không "
+    "thành ý, đổi chủ đề liên tục, ngôn ngữ lạ chen vào giữa, nội dung chẳng liên quan gì tới cuộc "
+    "nói chuyện đang diễn ra. Gặp thế thì dòng " + NGHE_MARKER + " chỉ chép PHẦN THỰC SỰ NÓI VỚI "
+    "BẠN và bỏ phần còn lại, rồi trả lời đúng phần đó.\n"
+    "Cả lượt KHÔNG có câu nào nói với bạn thì trả đúng MỘT dòng duy nhất, không kèm gì khác, không "
+    "kèm cả dòng " + NGHE_MARKER + ":\n"
+    "  " + BO_QUA_MARKER + " <lý do thật ngắn, ví dụ: tiếng TV trong phòng>\n"
+    "DÈ DẶT khi dùng dòng này: bỏ nhầm thì người dùng nói mà không được trả lời, tệ hơn nhiều so "
+    "với trả lời một câu thừa. Chỉ bỏ khi CHẮC CHẮN không có gì gửi tới bạn. Nghi ngờ thì GIỮ và trả "
+    "lời bình thường. Câu cụt, câu trống không, câu chỉ vài từ, câu nói tiếp ý lượt trước, câu chỉ "
+    "đáp 'ừ' hay 'không' đều là nói với bạn, KHÔNG phải tạp âm."
+)
+
+# Câu dặn thêm cho lượt khi người dùng TẮT ô lọc tạp âm ở trang Cài đặt. Đi kèm câu nói (như
+# pending_note) thay vì đổi SYSTEM_PROMPT, vì prompt được nướng vào bộ não lúc dựng: đổi theo
+# cài đặt thì mỗi lần gạt ô lại phải giết và dựng lại tiến trình agy đang sống.
+GHI_CHU_TAT_LOC = (
+    "[GHI CHÚ HỆ THỐNG: người dùng đã TẮT lọc tạp âm cho lượt này. Chép NGUYÊN VĂN câu họ nói ở "
+    "dòng " + NGHE_MARKER + ", không cắt bỏ phần nào, và TUYỆT ĐỐI không dùng dòng "
+    + BO_QUA_MARKER + ".]"
 )
 
 _MARK_RE = re.compile(r"^[ \t]*" + re.escape(MARKER) + r"[ \t]*(.+?)[ \t]*$", re.M)
+_NGHE_RE = re.compile(r"^[ \t]*" + re.escape(NGHE_MARKER) + r"[ \t]*(.*?)[ \t]*(?:\n|$)", re.M)
+
+
+def parse_nghe(text: str):
+    """(phần còn lại, câu đã diễn giải | None) cho dòng `JAVIS_NGHE:` (dòng ĐẦU TIÊN chỉ được
+    tìm ở bất kỳ đâu vì model nhỏ có khi đặt nó sau câu xác nhận). Bóc cả dòng khỏi phần còn
+    lại, kể cả dấu xuống dòng của nó. Câu diễn giải rỗng thì coi như không có."""
+    t = str(text or "")
+    m = _NGHE_RE.search(t)
+    if not m:
+        return t, None
+    rest = t[:m.start()] + t[m.end():]
+    nghe = m.group(1).strip()
+    return rest, (nghe or None)
+
+
+_BO_QUA_RE = re.compile(r"^[ \t]*" + re.escape(BO_QUA_MARKER) + r"[ \t]*(.*?)[ \t]*$", re.M)
+
+
+def parse_bo_qua(text: str):
+    """Lý do bỏ lượt (chuỗi, có thể rỗng) nếu bộ não giọng ra dòng `JAVIS_BO_QUA:`, không thì None.
+
+    Tìm ở BẤT KỲ đâu chứ không chỉ dòng đầu: model nhỏ có khi viết dòng JAVIS_NGHE trước rồi mới
+    chốt bỏ. Lý do rỗng vẫn là bỏ - dòng lệnh có mặt đã là quyết định, lý do chỉ để ghi log.
+
+    Không trả phần còn lại như parse_nghe/parse_marker: lượt bị bỏ thì cả câu trả lời bị vứt,
+    không có gì để đọc ra loa hay lưu vào phiên.
+    """
+    m = _BO_QUA_RE.search(str(text or ""))
+    return None if not m else m.group(1).strip()
+
+
+def tach_nghe_dau(text: str):
+    """Như parse_nghe nhưng CHỈ xét dòng đầu tiên đã khép (có xuống dòng), dùng giữa lúc stream:
+    gọi khi text vừa có dấu xuống dòng đầu tiên. Dòng đầu không phải marker thì trả y nguyên."""
+    t = str(text or "")
+    nl = t.find("\n")
+    if nl < 0:
+        return t, None
+    dau = t[:nl]
+    if not dau.lstrip().startswith(NGHE_MARKER):
+        return t, None
+    nghe = dau.lstrip()[len(NGHE_MARKER):].strip()
+    return t[nl + 1:], (nghe or None)
 _UI_RE = re.compile(r"^[ \t]*" + re.escape(UI_MARKER) + r"[ \t]*(.+?)[ \t]*$", re.M)
 
 
@@ -161,9 +250,9 @@ def split_speakable(text: str, start: int, final: bool = False):
         if nl < 0:
             line = text[line_start:]
             if not final and any(mk.startswith(line.lstrip()) or line.lstrip().startswith(mk)
-                                 for mk in (MARKER, UI_MARKER)):
+                                 for mk in MARKERS):
                 break                          # chưa biết có phải marker: đợi thêm
-            if line.lstrip().startswith((MARKER, UI_MARKER)):
+            if line.lstrip().startswith(MARKERS):
                 start = len(text)              # final: dòng marker, bỏ
                 break
             partial = text[start:]
@@ -190,7 +279,7 @@ def split_speakable(text: str, start: int, final: bool = False):
         chunk = text[start:nl + 1]
         line = text[line_start:nl + 1]
         start = nl + 1
-        if line.lstrip().startswith((MARKER, UI_MARKER)):
+        if line.lstrip().startswith(MARKERS):
             continue
         if chunk.strip():
             out.append(chunk)
@@ -705,6 +794,60 @@ def pending_note(session_id: str, now: Optional[float] = None) -> str:
 
 
 # ============================================================
+# Lỗi gần nhất của làn nhanh - để NÓI RA, không chỉ in stderr
+# ============================================================
+# Vì sao có (0.59.23): khi bộ não giọng hỏng (chưa cài CLI, hết key, hết hạn mức, mất mạng),
+# run_voice_turn rơi về bộ não chính để lượt không câm. Đúng, nhưng trước đây cú rơi đó chỉ để
+# lại một dòng stderr và một status bị dòng "Javis đang suy nghĩ..." của bộ não chính đè lên
+# trong vài mili giây. Người dùng chỉ thấy: bật mic, nói, rồi chờ hàng chục giây như chưa từng
+# có làn nhanh - và không có cách nào biết vì sao (chủ dự án gặp 16/09 sau vài bản cập nhật).
+# Nên giữ lại lỗi gần nhất ở đây: khung chat nói ra ngay lượt đó, và thẻ Giọng nói ở trang
+# Cài đặt hiện lại cho tới khi một lượt làn nhanh chạy trót lọt.
+LOI_GAN_NHAT: Dict[str, object] = {}
+_LOI_MAX_CHU = 300
+
+
+def ten_bo_nao(provider: str) -> str:
+    """Nhãn người dùng nhìn thấy ở thẻ cài đặt, để câu báo lỗi gọi đúng tên họ đã chọn."""
+    p = BRAIN_PROVIDERS.get(str(provider or "").strip().lower())
+    return (p or {}).get("label") or str(provider or "bộ não giọng")
+
+
+def ghi_loi_lan_nhanh(provider: str, err, now: Optional[float] = None) -> dict:
+    """Nhớ cú rơi về bộ não chính vừa xảy ra. Trả về bản ghi (để test và để gửi đi)."""
+    LOI_GAN_NHAT.clear()
+    LOI_GAN_NHAT.update({
+        "provider": str(provider or ""),
+        "label": ten_bo_nao(provider),
+        "error": re.sub(r"\s+", " ", str(err or "").strip())[:_LOI_MAX_CHU],
+        "at": float(now or time.time()),
+    })
+    return dict(LOI_GAN_NHAT)
+
+
+def xoa_loi_lan_nhanh() -> None:
+    """Một lượt làn nhanh vừa chạy trót lọt: lỗi cũ không còn đúng nữa, thôi khoe."""
+    LOI_GAN_NHAT.clear()
+
+
+def loi_lan_nhanh_gan_nhat() -> dict:
+    return dict(LOI_GAN_NHAT)
+
+
+def cau_roi_ve_bo_nao_chinh(provider: str, err) -> str:
+    """Câu hiện TRONG KHUNG CHAT khi làn nhanh rơi về bộ não chính.
+
+    Nói đủ ba ý, không dài hơn: rơi vì cái gì (tên bộ não giọng và lời báo lỗi thật), hệ quả là
+    gì (lượt này chậm hơn vì đi bộ não chính), và sửa ở đâu (Cài đặt → Giọng nói). Không dùng
+    gạch dài (luật của chủ dự án) và không đổ lỗi cho người dùng.
+    """
+    loi = re.sub(r"\s+", " ", str(err or "").strip())[:_LOI_MAX_CHU] or "không rõ lỗi"
+    return (f"Làn nhanh không chạy được: bộ não giọng {ten_bo_nao(provider)} báo \"{loi}\". "
+            f"Lượt này đi bộ não chính nên chậm hơn bình thường. "
+            f"Kiểm tra bộ não giọng ở Cài đặt, mục Giọng nói, hoặc chọn bộ não khác ở đó.")
+
+
+# ============================================================
 # Sổ phiên
 # ============================================================
 _BRAINS: Dict[str, VoiceBrain] = {}
@@ -718,7 +861,10 @@ def config_from_settings(cfg: dict) -> dict:
     kf = (BRAIN_PROVIDERS.get(prov) or {}).get("key_field") or ""
     return {"mode": str(v.get("mode") or "standard"), "provider": prov,
             "model": str(v.get("brain_model") or "").strip(),
-            "api_key": str(m.get(kf, "")) if kf else ""}
+            "api_key": str(m.get(kf, "")) if kf else "",
+            # Lọc tạp âm MẶC ĐỊNH BẬT: brain cũ chưa có khoá này trong settings.json vẫn được lọc,
+            # nên phải hỏi `is False` chứ không phải `or True` (giá trị False hợp lệ).
+            "loc_tap_am": v.get("loc_tap_am") is not False}
 
 
 def _make(conf: dict) -> VoiceBrain:
