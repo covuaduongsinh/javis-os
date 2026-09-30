@@ -377,7 +377,14 @@ def _conv_public(r: dict) -> dict:
     d["metadata"] = _loads(d.pop("metadata_json", "{}"), {})
     d["channel_label"] = KENH_NHAN.get(d.get("channel") or "", d.get("channel") or "")
     if not d.get("title"):
-        d["title"] = d.get("customer_name") or d.get("external_chat_id") or ""
+        if d.get("chat_type") == "group":
+            # KHÔNG mượn tên khách: khách gắn với cuộc chat là NGƯỜI NHẮN ĐẦU TIÊN, nên nhóm
+            # chưa biết tên hiện thành tên một người trong nhóm (chủ thấy nhóm "Test Bot Zalo"
+            # hiện là "Minh Quý"). Đuôi id đủ để phân biệt các nhóm chưa rõ tên với nhau.
+            cid = str(d.get("external_chat_id") or "")
+            d["title"] = f"Nhóm …{cid[-6:]}" if cid else "Nhóm chưa rõ tên"
+        else:
+            d["title"] = d.get("customer_name") or d.get("external_chat_id") or ""
     return d
 
 
@@ -415,6 +422,12 @@ def danh_sach(channel: str = "", bot_id: str = "", account_id: str = "", q: str 
     with _lock:
         rows = _conn().execute(sql, args).fetchall()
     return [_conv_public(_row(r)) for r in rows]
+
+
+def cuoc_chat_cua_tai_khoan(channel: str, account_id: str, q: str = "", limit: int = 80) -> List[dict]:
+    """Các cuộc chat ĐÃ BIẾT của một tài khoản kênh (theo id NGOÀI của tài khoản, như
+    `channel_accounts` giữ), mới nhất trước. Cho ô chọn người/nhóm của form bot."""
+    return danh_sach(account_id=_tai_khoan_id(channel, account_id), q=q, limit=limit)
 
 
 def chi_tiet(conversation_id: int) -> Optional[dict]:
@@ -473,7 +486,28 @@ def dat_che_do(conversation_id: int, mode: str) -> tuple[bool, str]:
         cur = db.execute("UPDATE conversations SET mode=?, updated_at=? WHERE id=?",
                          (m, _now(), int(conversation_id)))
         db.commit()
+    if cur.rowcount > 0 and m == "human":
+        _bao_tiep_quan(conversation_id)
     return (cur.rowcount > 0), ("" if cur.rowcount > 0 else "không có hội thoại nào id đó")
+
+
+def _bao_tiep_quan(conversation_id: int) -> None:
+    """Chủ vừa Tiếp quản một cuộc chat của bot: báo bộ phán xử hội thoại nhóm (0.65.0). Những lần bot TỰ nói
+    (không ai gọi) ngay trước đó bị coi là chen nhầm. Chỉ chạm kho khi nó đã tồn tại; lỗi gì cũng nuốt vì
+    việc Tiếp quản của chủ không được hỏng theo một tính năng học."""
+    try:
+        c = chi_tiet(conversation_id) or {}
+        bot_id, chat = str(c.get("bot_id") or ""), str(c.get("external_chat_id") or "")
+        if not (bot_id and chat):
+            return
+        import chatbot_reply_policy as rp
+        import chatbot_reply_policy_store as rps
+        import chatbot_store
+        cfg = chatbot_store.get_bot(bot_id)
+        if cfg and rps.db_path().exists():
+            rp.note_takeover(rps, rp.BotProfile.from_bot(cfg), chat)
+    except Exception:      # noqa: BLE001
+        pass
 
 
 def che_do(channel: str, account_id: str, external_chat_id: str) -> str:

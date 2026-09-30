@@ -65,7 +65,7 @@ _DEFAULT = {
         "brain_provider": "",          # "" = bộ não chính | antigravity | groq | gemini | openai | openrouter
         "brain_model": "",             # rỗng = mặc định của provider (antigravity: gemini flash low)
         "stt_provider": "browser",     # browser (Web Speech) | groq (Whisper, key model.groq_api_key)
-        "stt_model": "",               # rỗng = whisper-large-v3-turbo
+        "stt_model": "",               # rỗng = whisper-large-v3 (stt.STT_MODEL_MAC_DINH)
         "live_provider": "gemini",     # gemini | openai (đều cần API key ở trang Models)
         "live_model": "",              # rỗng = gợi ý trong voice_live.PROVIDERS
         "live_voice": "",
@@ -124,6 +124,11 @@ _DEFAULT = {
         # trong khi phần đông người dùng Javis chạy nó trên VPS, nơi "localhost" là chính cái
         # container chứ không phải máy họ.
         "ollama_key": "",
+        # Provider 'openai-compat': MỘT endpoint bất kỳ nói chuẩn OpenAI Chat Completions
+        # (LiteLLM, vLLM, proxy tự dựng...). Base URL tính tới /v1, Javis tự nối /chat/completions
+        # và /models. Key có thể rỗng nếu endpoint không đòi xác thực.
+        "openai_compat_base": "",
+        "openai_compat_key": "",
         # --- Ollama chạy trên MÁY NHÀ (provider 'ollama-local') ---
         # Ca đặc biệt mà khối chú thích ngay trên vừa từ chối, nay mở ra nhưng KHÔNG bằng cách
         # giả định "localhost là máy người dùng". Cái Javis lưu là một ĐỊA CHỈ người dùng tự
@@ -152,9 +157,11 @@ _DEFAULT = {
             # Alias đứng trước vì alias luôn trỏ bản mới nhất của dòng; id đầy đủ đứng sau để
             # `_claude_api_model` dịch được alias sang tên thật.
             "claude": ["fable", "opus", "sonnet", "haiku",
-                       "claude-fable-5-1", "claude-opus-5", "claude-sonnet-5",
+                       "claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1",
+                       "claude-opus-5", "claude-sonnet-5",
                        "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5"],
-            "anthropic-api": ["claude-fable-5-1", "claude-opus-5", "claude-sonnet-5",
+            "anthropic-api": ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1",
+                              "claude-opus-5", "claude-sonnet-5",
                               "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5"],
             "openai": ["gpt-4o", "gpt-4o-mini", "o3-mini"],                        # OpenAI API
             "gemini": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],  # Google Gemini API (picker load động)
@@ -485,7 +492,7 @@ _SECRET_PATHS = (
     # được. Xem `_secret_keys`.
     "packs.tokens.*",
     "model.openrouter_key", "model.anthropic_api_key", "model.openai_api_key", "model.gemini_api_key",
-    "model.groq_api_key", "model.ollama_key", "model.ollama_local_key",
+    "model.groq_api_key", "model.ollama_key", "model.ollama_local_key", "model.openai_compat_key",
     "model.openai_oauth.access_token", "model.openai_oauth.refresh_token", "model.openai_oauth.id_token",
     # Gemini CLI (đăng nhập Google ngay trên dashboard). Refresh token ở đây mở được cả gói
     # Code Assist của tài khoản Google, nên nó ngang hàng mọi secret khác trong danh sách.
@@ -1200,56 +1207,11 @@ def note_token_failure(ip: str, thu: str = ""):
     except Exception:
         pass
 
-# ---- Setup token: chống CHIẾM ADMIN lần đầu trên public ----
-# Khi chạy public mà CHƯA có admin, /auth/setup PHẢI kèm token này - token chỉ in ra LOG server
-# lúc khởi động, nên chỉ chính chủ (xem được log/terminal) tạo được tài khoản. Kẻ chỉ-có-URL bó tay.
+# ---- Mã thiết lập (ĐÃ BỎ từ 0.64.47) ----
+# Trước đây chạy public mà chưa có admin thì /auth/setup đòi một mã chỉ in ra log server. Chủ
+# dự án chốt 24/09 bỏ đi: lần đầu chỉ cần tên + mật khẩu, bảo vệ tài khoản giao cho 2FA, và máy
+# cài bằng install.sh đã có admin sẵn từ .env. Chỉ còn lại hàm dọn file mã cũ lúc khởi động.
 _SETUP_TOKEN_PATH = STATE_DIR / ".setup_token"
-
-
-def setup_token_required():
-    return require_login() and not auth_enabled()
-
-
-def get_or_create_setup_token():
-    """Đọc/sinh token thiết lập 1 lần. None nếu không cần (local, hoặc đã có admin)."""
-    if not setup_token_required():
-        return None
-    try:
-        if _SETUP_TOKEN_PATH.exists():
-            t = _SETUP_TOKEN_PATH.read_text(encoding="utf-8").strip()
-            if t:
-                return t
-        t = secrets.token_urlsafe(24)
-        _SETUP_TOKEN_PATH.write_text(t + "\n", encoding="utf-8")  # xuống dòng → cat ra sạch, dễ copy
-        return t
-    except Exception:
-        return None
-
-
-def lam_sach_setup_token(raw):
-    """Gọt thứ người ta THẬT SỰ dán vào ô, về đúng chuỗi mã.
-
-    Mã in ra log nằm CÙNG DÒNG với nhãn: "      SETUP TOKEN:  abc123". Bôi đen một dòng trong
-    terminal là dính cả nhãn, và bản cũ so nguyên cục đó với mã thật rồi báo "sai mã" - đúng
-    thao tác tự nhiên nhất lại là thao tác hỏng. Gọt nhãn KHÔNG nới lỏng bảo mật: phần còn lại
-    vẫn phải khớp tuyệt đối, vẫn so bằng compare_digest.
-    """
-    t = (raw or "").strip()
-    for nhan in ("SETUP TOKEN:", "SETUP_TOKEN:", "setup token:", "MÃ THIẾT LẬP:"):
-        if t.upper().startswith(nhan.upper()):
-            t = t[len(nhan):].strip()
-            break
-    return t.strip().strip("'\"`").strip()
-
-
-def check_setup_token(provided):
-    try:
-        if not _SETUP_TOKEN_PATH.exists():
-            return False
-        real = _SETUP_TOKEN_PATH.read_text(encoding="utf-8").strip()
-        return bool(real) and secrets.compare_digest(real, lam_sach_setup_token(provided))
-    except Exception:
-        return False
 
 
 def clear_setup_token():

@@ -36,8 +36,7 @@ function check(name, cond, extra) {
 // ---- 1. Đua trạng thái: lệnh dừng tới trước khi phiên kịp mở ----
 check("startListening đánh dấu _starting trước khi gọi recognition.start()",
   /this\._starting = true;\s*\n\s*this\.recognition\.start\(\);/.test(voice));
-check("startListening xoá nợ dừng cũ (_stopPending = false)",
-  /this\._stopPending = false;[\s\S]{0,80}this\.recognition\.start\(\);/.test(voice));
+// Opening-state and deferred-stop behavior execute in test_voice_capture_lifecycle.js.
 check("stopListening ghi nợ khi phiên đang mở dở",
   /else if \(this\._starting\) \{[\s\S]{0,400}this\._stopPending = true;/.test(voice));
 check("onstart trả nợ: abort ngay, không báo onStart",
@@ -60,9 +59,8 @@ check("_startBargeMonitor thoát sớm khi KHÔNG trong cuộc nói chuyện b�
   /_startBargeMonitor\(\) \{[\s\S]{0,1800}if \(!this\._resumeAfterTTS && !this\.handsFree\) return;/.test(voice));
 check("app.js đồng bộ handsFree sang voice.js (và tắt ngay khi mic hỏng)",
   /voice\.handsFree = handsFree && voiceMode !== "live";/.test(app)
-  && /function tatRanhTay\(\) \{[\s\S]{0,200}voice\.handsFree = false;/.test(app));
-check("_muteRecognition vẫn là chỗ duy nhất bật _resumeAfterTTS khi đang nghe",
-  /_muteRecognition\(\) \{\s*\n\s*if \(!this\.recognition \|\| !this\.isListening\) return;\s*\n\s*this\._resumeAfterTTS = true;/.test(voice));
+  && /function tatRanhTay\(\) \{[\s\S]{0,700}voice\.handsFree = false;/.test(app));
+// TTS abort during opening/listening is covered by test_voice_capture_lifecycle.js.
 
 // ---- 3. CANARY: mic vẫn là đường TỰ GỬI, nên hai chốt trên phải còn ----
 // Không đổi hành vi này (rảnh tay và bấm-giữ-Space đều cần gửi ngay), chỉ ghi lại cho rõ:
@@ -77,14 +75,13 @@ check("onTranscript vẫn gửi thẳng, không qua bước xác nhận",
 // Chỗ thứ 7 (0.58.2) VẪN là hoãn: mất WebSocket thì câu được giữ lại rồi gửi khi nối lại
 // (guiTinDutMang). Trước đó chỗ này vứt tin lặng lẽ - trên iPhone là câu nói bốc hơi.
 const goiGui = (app.match(/(?<!function )\bsendMessage\(/g) || []).length;
-check("chỉ có 8 chỗ gọi sendMessage (giọng nói, thử lại, Enter, nút gửi, sau khi tải file xong, sau khi dừng lượt cũ, sau khi nối lại mạng, sau khi mở agent/workflow)",
-  goiGui === 8, goiGui);
-check("chỗ thứ 7 là hàng đợi mất mạng, chỉ gửi sau khi socket nối lại",
-  /function guiTinDutMang\(\)[\s\S]{0,400}setTimeout\(\(\) => sendMessage\(t\)/.test(app));
+check("có 9 chỗ (thêm adaptive commit) gọi sendMessage (giọng nói, thử lại, Enter, nút gửi, sau khi tải file xong, sau khi dừng lượt cũ, sau khi nối lại mạng, sau khi mở agent/workflow)",
+  goiGui === 9, goiGui);
+// Reconnect sends and cancellation across chats execute in test_voice_app_session.js.
 check("chỗ thứ 5 nằm TRONG sendMessage và chỉ chạy sau Promise.all của file đang tải",
   /Promise\.all\(dangTai\.map\(a => a\.xong[\s\S]{0,300}sendMessage\(text, opts\);/.test(app));
 check("chỗ thứ 6 là tin hoãn, chỉ gửi sau khi lượt cũ đã dừng",
-  /function guiTinCho\(\) \{[\s\S]{0,300}if \(t\) sendMessage\(t\);/.test(app)
+  /function guiTinCho\(\) \{[\s\S]{0,550}if \(t\) sendMessage\(t,opts\);/.test(app)
   && /if \(isActive && _tinChoLuot\) guiTinCho\(\);/.test(app));
 
 // ---- 4. Server không tự nhập liệu: việc nền luôn là tin của Javis ----
@@ -98,7 +95,12 @@ check("push_to_chat ghi vai assistant, không bao giờ là user",
 // Con số này nhích lên là có đường mới đẻ ra tin của người dùng - phải đọc lại xem nó đến từ
 // đâu trước khi sửa test.
 const ghiUser = (server.match(/append_message\([^)]*"user"/g) || []).length;
-check("chỉ 5 chỗ ghi vai user (web + bot + 2 Live + duyệt quy trình)", ghiUser === 5, ghiUser);
+// 0.64.66 thêm chỗ thứ sáu: lượt nối tiếp sau khi việc chạy nền xong (_start_followup_turn)
+// ghi tin mở lượt, có đánh dấu "[Việc chạy nền đã xong]", để mở lại hội thoại vẫn hiểu vì sao
+// Javis tự nói tiếp. Không phải chữ của mic nên không đụng luật "mic không tự gửi".
+check("chỉ 6 chỗ ghi vai user (web + bot + 2 Live + duyệt quy trình + nối tiếp việc nền)", ghiUser === 6, ghiUser);
+check("chỗ thứ sáu nằm TRONG _start_followup_turn",
+  /async def _start_followup_turn[\s\S]{0,1600}store\.append_message\(conv_sid, "user", text\)/.test(server));
 const approvalBody = server.slice(server.indexOf('if action == "wf_resume":'), server.indexOf('if action == "resume_now":'));
 check("đường ghi thứ năm chỉ thuộc thao tác duyệt quy trình",
   (approvalBody.match(/append_message\([^)]*"user"/g) || []).length === 1
@@ -117,4 +119,3 @@ if (fails.length) {
   process.exit(1);
 }
 console.log("OK - test_mic_khong_tu_gui: tat ca pass");
-

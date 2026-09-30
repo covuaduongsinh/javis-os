@@ -17,7 +17,7 @@
   let pinBroken = false;   // phiên có ghim nhưng ghim HỎNG (provider mất key) - server đang chạy mặc định chung
   let pinSid = null;       // phiên mà sessionPin đang nói về (chống vẽ nhầm khi đổi phiên nhanh)
   let pendingPin = null;   // model chọn khi CHƯA có phiên (chat trống) - áp ngay khi mint id
-  let expanded = null;     // provider đang mở rộng trong popover
+  let expanded = null;     // provider đang mở rộng trong popover; "" = đã thu hết (bấm lại tên nhà)
   let filter = "";
 
   const short = (m) => (m || "").split("/").pop().replace(/^(claude-|gpt-)/, "").slice(0, 26) || window.t("models.mp_default");
@@ -88,36 +88,107 @@
     if (et) et.textContent = "Effort: " + window.t((EFFORT.find((e) => e[0] === state.reasoning) || EFFORT[0])[1]);
   }
 
+  // Màn cảm ứng (điện thoại, máy tính bảng): focus một ô nhập là bật bàn phím ảo.
+  const camUng = () => { try { return window.matchMedia("(pointer: coarse)").matches; } catch (e) { return false; } };
+  let luotVe = 0;   // chỉ lượt vẽ MỚI NHẤT được ghi vào popup (lượt chờ mạng về muộn thì bỏ)
+
   async function renderPop() {
     const pop = $("mbPop");
     if (!pop) return;
-    if (!expanded) expanded = state.main.provider || "anthropic-cli";
+    if (expanded == null) expanded = state.main.provider || "anthropic-cli";
+    const luot = ++luotVe;
+    // Nhà nào chưa có danh sách thì vẽ khung + dòng "đang tải" NGAY, rồi vẽ lại khi mạng về
+    // (o.cho). Trước đây popup mở ra trống trơn trong lúc chờ (Codex mất vài giây).
+    const o = {
     // Thân bảng (ô tìm + nhà + model + hàng khoá) dựng bởi model-list.js, dùng CHUNG với ô
     // Model của trợ lý bên Studio. Ở đây chỉ nối thêm hàng Effort - thứ duy nhất riêng của
     // thanh chat.
-    let html = await window.JavisModelList.render({
       providers: state.providers,
       expanded, filter,
       selected: effective(),
       searchId: "mbSearch",
       short,
       mark: (p) => (p.is_main ? " " + ic("check", { cls: "ic-ok" }) : ""),
-    });
+      noWait: true,
+    };
+    let html = await window.JavisModelList.render(o);
+    if (luot !== luotVe || pop.hidden) return;
     html += `<div class="mb-eff-row"><span class="lbl">Effort</span>` +
       EFFORT.map(([v, l]) => `<button class="mb-eff-btn ${state.reasoning === v ? "cur" : ""}" data-eff="${v}">${window.t(l)}</button>`).join("") +
       `</div>`;
+    // Ô tìm đang được gõ thì giữ con trỏ ở đó sau khi vẽ lại. Mới MỞ bảng thì chỉ tự focus
+    // trên máy có bàn phím thật: trên điện thoại focus là bật bàn phím ảo che nửa bảng, người
+    // dùng chỉ muốn bấm chọn model (chủ repo báo 27/09 "tự nhảy lên bàn phím").
+    const dangGo = document.activeElement && document.activeElement.id === "mbSearch";
     pop.innerHTML = html;
     const se = $("mbSearch");
     if (se) {
       se.oninput = () => { filter = se.value; renderPop(); };
-      // giữ con trỏ ở ô tìm khi gõ lại
-      se.focus(); se.selectionStart = se.selectionEnd = se.value.length;
+      if (dangGo || !camUng()) { se.focus(); se.selectionStart = se.selectionEnd = se.value.length; }
+    }
+    if (o.cho.length) {
+      await Promise.all(o.cho);
+      if (luot === luotVe && !pop.hidden) renderPop();
     }
   }
 
-  function open() { const pop = $("mbPop"); if (pop) { pop.hidden = false; renderPop(); } }
+  function open() {
+    const pop = $("mbPop");
+    if (!pop) return;
+    // Đang gõ trong ô chat mà bấm chip model: hạ bàn phím xuống trước, kẻo bàn phím che bảng.
+    if (camUng()) {
+      const a = document.activeElement;
+      if (a && a !== document.body && typeof a.blur === "function") a.blur();
+    }
+    pop.hidden = false; renderPop();
+  }
   function close() { const pop = $("mbPop"); if (pop) pop.hidden = true; }
   function isOpen() { const pop = $("mbPop"); return pop && !pop.hidden; }
+
+  // Chọn một model: ghi mặc định chung (chat mới sau này theo cái vừa chọn) + GHIM cho phiên
+  // đang mở (phiên này giữ đúng model kể cả khi mặc định chung bị đổi ở chỗ khác). Dùng chung
+  // cho cú bấm trong bảng chọn và lệnh `/model <tên>` của khung chat.
+  async function chonModel(prov, model) {
+    await saveModel({ main: { provider: prov, model: model } });
+    const sid = curSid();
+    if (sid) {
+      sessionPin = { provider: prov, model: model };
+      pinBroken = false;   // ghim mới đè ghim hỏng cũ
+      pinSid = sid;
+      await pinToSession(sid, prov, model);
+    } else {
+      // Chat trống chưa mint id: nhớ lựa chọn, app.js gọi claimPending(sid) lúc gửi
+      // tin đầu để phiên mới sinh ra đã mang đúng ghim.
+      pendingPin = { provider: prov, model: model };
+      sessionPin = null;
+    }
+    await loadState(); renderBar();
+  }
+
+  // `/model <tên>`: tìm trong model của các nhà ĐÃ KẾT NỐI. Khớp NGUYÊN id thì thắng ngay; nếu
+  // không thì khớp một phần, và chỉ đổi khi ra ĐÚNG MỘT model - đoán bừa giữa hai nhà là đổi
+  // nhầm bộ não. Trả {kind: "one"|"many"|"none", prov, model, ds}.
+  async function timModel(query) {
+    const q = String(query || "").trim().toLowerCase();
+    if (!q) return { kind: "none" };
+    const nhaOk = state.providers.filter((p) => p.configured);
+    const dem = await Promise.all(nhaOk.map(async (p) => {
+      let ids = [];
+      try { ids = (window.JavisModelList ? await window.JavisModelList.models(p.id) : p.models) || []; }
+      catch (e) { ids = p.models || []; }
+      return { p, ids: ids.map((m) => (typeof m === "string" ? m : (m && (m.id || m.name)) || "")).filter(Boolean) };
+    }));
+    const dung = [], gan = [];
+    dem.forEach(({ p, ids }) => ids.forEach((id) => {
+      const k = id.toLowerCase();
+      if (k === q) dung.push({ prov: p.id, model: id, label: p.label });
+      else if (k.includes(q)) gan.push({ prov: p.id, model: id, label: p.label });
+    }));
+    const kq = dung.length ? dung : gan;
+    if (kq.length === 1) return { kind: "one", prov: kq[0].prov, model: kq[0].model, label: kq[0].label };
+    if (kq.length > 1) return { kind: "many", ds: kq.slice(0, 6).map((x) => (provShort(x.label) + " " + x.model)) };
+    return { kind: "none" };
+  }
 
   document.addEventListener("click", async (e) => {
     if (e.target.closest("#mbOpen")) { isOpen() ? close() : open(); return; }
@@ -131,22 +202,8 @@
     }
     const item = e.target.closest(".mb-item");
     if (item) {
-      // Ghi mặc định chung (chat mới sau này theo cái vừa chọn) + GHIM cho phiên đang
-      // mở (phiên này giữ đúng model kể cả khi mặc định chung bị đổi ở chỗ khác).
-      await saveModel({ main: { provider: item.dataset.prov, model: item.dataset.model } });
-      const sid = curSid();
-      if (sid) {
-        sessionPin = { provider: item.dataset.prov, model: item.dataset.model };
-        pinBroken = false;   // ghim mới đè ghim hỏng cũ
-        pinSid = sid;
-        await pinToSession(sid, item.dataset.prov, item.dataset.model);
-      } else {
-        // Chat trống chưa mint id: nhớ lựa chọn, app.js gọi claimPending(sid) lúc gửi
-        // tin đầu để phiên mới sinh ra đã mang đúng ghim.
-        pendingPin = { provider: item.dataset.prov, model: item.dataset.model };
-        sessionPin = null;
-      }
-      await loadState(); renderBar(); close();
+      await chonModel(item.dataset.prov, item.dataset.model);
+      close();
       return;
     }
     const eff = e.target.closest(".mb-eff-btn");
@@ -157,12 +214,21 @@
       return;
     }
     const prov = e.target.closest(".mb-prov");
-    if (prov && prov.dataset.prov) { expanded = prov.dataset.prov; renderPop(); return; }
+    // Bấm lại tên nhà đang mở là THU lại: OpenRouter hơn 300 model, không thu được thì phải
+    // cuộn hết mới sang được nhà khác (chủ repo báo 27/09).
+    if (prov && prov.dataset.prov) {
+      expanded = expanded === prov.dataset.prov ? "" : prov.dataset.prov;
+      renderPop(); return;
+    }
   });
 
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && isOpen()) close(); });
 
-  window.initModelBar = async function () { await loadState(); await loadSessionPin(); renderBar(); };
+  window.initModelBar = async function () {
+    await loadState(); await loadSessionPin(); renderBar();
+    // Tải sẵn danh sách của nhà đang dùng lúc rảnh, để lần bấm chip đầu tiên mở ra có ngay.
+    try { const pid = state.main.provider; if (pid && window.JavisModelList) window.JavisModelList.models(pid); } catch (e) {}
+  };
 
   // Phiên mới mint id xong (app.js gọi ngay lúc gửi tin đầu): model đã chọn khi khung
   // còn trống đi theo phiên vừa sinh, không bị phiên khác đổi mặc định chung đè mất.
@@ -173,6 +239,19 @@
       pinToSession(sid, pendingPin.provider, pendingPin.model);
       pendingPin = null;
       renderBar();
+    },
+    // Lệnh `/model` của khung chat (chat-lenh.js): mở bảng chọn, đổi theo tên, hoặc cho biết model hiện tại.
+    // Trả true nếu bảng chọn có mặt để mở (thanh model ẩn thì false, chỗ gọi tự nói model hiện tại).
+    open: function () { if (!$("mbPop")) return false; open(); return true; },
+    chon: async function (query) {
+      const r = await timModel(query);
+      if (r.kind === "one") { await chonModel(r.prov, r.model); return { kind: "one", label: provShort(r.label), model: r.model }; }
+      return r;
+    },
+    hienTai: function () {
+      const eff = effective();
+      const p = state.providers.find((x) => x.id === eff.provider);
+      return { label: p ? provShort(p.label) : eff.provider, model: eff.model || "" };
     },
     // app.js gọi mỗi lần GỬI TIN: server đóng dấu model đang chạy cho phiên ngay lượt
     // đầu, nên bar phải chuyển sang "ghim" tại chỗ - không chờ tới lần đổi phiên mới

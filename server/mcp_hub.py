@@ -20,6 +20,7 @@ import time
 from collections import deque
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import quote, unquote
 
 from fastapi.responses import JSONResponse, Response
 
@@ -882,6 +883,12 @@ def _hidden_hint(hidden, only_ns=None):
               "ĐỪNG kết luận là nguồn không làm được hay kết nối hỏng.")
 
 
+# Kết quả tìm tool (chế độ lazy): mấy kết quả đầu giữ mô tả đầy đủ, còn lại cắt gọn.
+_SO_KQ_DAY_DU = 3
+_MO_TA_DAY_DU = 4000
+_MO_TA_GON = 400
+
+
 def _lazy_tools_and_route(visible_tools, visible_route, pool, full_route, top_k, ambient=None,
                           hidden=None):
     """Dựng (tools_spec, route) chế độ lazy: builtins/plugin hiện trực tiếp + 2 meta-tool.
@@ -906,9 +913,15 @@ def _lazy_tools_and_route(visible_tools, visible_route, pool, full_route, top_k,
         if hint:
             payload["luu_y_quyen"] = hint
         if hits:
-            payload["tools"] = [{"name": t.get("fn"), "description": (t.get("description") or "")[:400],
+            # Mô tả ĐẦY ĐỦ cho vài kết quả đầu, gọn cho phần còn lại. Cắt đồng loạt 400 ký tự
+            # từng nuốt mất thông tin sống còn: mô tả COMPOSIO_SEARCH_TOOLS ghi "User has
+            # manually connected the apps: gmail, googlecalendar..." ở quãng ký tự 1000, nên
+            # model không bao giờ biết người dùng đã nối những app nào (vụ 24/09).
+            payload["tools"] = [{"name": t.get("fn"),
+                                 "description": (t.get("description") or "")[
+                                     :(_MO_TA_DAY_DU if i < _SO_KQ_DAY_DU else _MO_TA_GON)],
                                  "schema": t.get("schema") or {"type": "object", "properties": {}}}
-                                for t in hits]
+                                for i, t in enumerate(hits)]
             payload["goi_the_nao"] = f"Gọi tool bằng {_LAZY_RUN}(name=<name>, args={{...}})."
         if amb:
             # Connector tài khoản Claude: tool native đã có sẵn trong danh sách tool của engine.
@@ -1061,7 +1074,8 @@ async def discover_all(mode="full", vault_root=None, include_plugins=True, inclu
         # phân loại tĩnh theo tool_meta/heuristic.
         rules = (connector or {}).get("arg_rules") or {}
         props = ((t.get("schema") or {}).get("properties") or {})
-        multiplexed = bool(rules.get("param") and rules["param"] in props)
+        multiplexed = (bool(rules.get("param") and rules["param"] in props)
+                       or mcp_catalog.call_rule(connector, raw["tool"]) is not None)
         cls = "read" if multiplexed else mcp_catalog.classify(connector, raw["tool"], None)
         # Lọc lúc LIST: readonly ẩn tool ghi/nguy hiểm tĩnh; safe ẩn tool nguy hiểm tĩnh.
         if (eff == "readonly" and cls in ("write", "danger")) or (eff == "safe" and cls == "danger"):
@@ -1237,12 +1251,21 @@ def resolve_vault(raw_vault):
     raw = (raw_vault or "").strip()
     header_hong = ""
     if raw:
+        # Ba cách đọc, nguyên văn trước: đường dẫn ASCII như cũ; dạng mã hoá phần trăm (Codex
+        # gửi brain tên có dấu như vậy, xem `ma_hoa_vault`); và UTF-8 thô mà Starlette đã giải
+        # thành latin-1, trường hợp một client khác gửi thẳng byte UTF-8 trong header.
+        ung = [raw, unquote(raw)]
         try:
-            p = Path(raw).expanduser().resolve()
-            if p.is_dir():
-                return str(p), "header", ""
+            ung.append(raw.encode("latin-1").decode("utf-8"))
         except Exception:
             pass
+        for thu in dict.fromkeys(ung):
+            try:
+                p = Path(thu).expanduser().resolve()
+                if p.is_dir():
+                    return str(p), "header", ""
+            except Exception:
+                pass
         header_hong = raw
     root, nguon = _brain_dang_mo()
     return (root or None), (nguon if root else ""), header_hong
@@ -1360,7 +1383,7 @@ async def tra_loi_jsonrpc(request, mode, include_plugins=True, include_ambient=F
                           raw_vault=None):
     """Đọc thân JSON-RPC của `request`, chạy qua hub, trả Response. KHÔNG xác thực gì cả.
 
-    Tách khỏi `handle_http` để một cửa khác (ChatGPT qua OAuth, xem chatgpt_connector.py) đi
+    Tách khỏi `handle_http` để một cửa khác (ví dụ plugin tự lo OAuth qua `register_http`) đi
     ĐÚNG đường này - cùng danh sách tool, cùng mức quyền ép ở lớp cứng, cùng chú thích brain -
     và chỉ khác lớp xác thực phía trước. Hai bản chép của cùng một vòng xử lý là hai chỗ để
     lệch nhau.
@@ -1524,6 +1547,23 @@ def codex_profile(mode="full"):
         return None
 
 
+# Tiền tố của override brain. KHÔNG được bọc tên header trong dấu nháy: Codex tách khoá của
+# `-c` bằng `path.split('.')` (codex-rs/config/src/overrides.rs, apply_toml_override) và giữ
+# NGUYÊN dấu nháy, nên `http_headers."X-Javis-Vault"` thành header tên `"X-Javis-Vault"` - có
+# cả hai dấu nháy. Đó không phải tên header HTTP hợp lệ, và rmcp-client của Codex bỏ qua nó
+# với đúng một dòng warn (rmcp-client/src/utils.rs, build_default_headers). Hub không bao giờ
+# nhận được brain, rơi về "phiên cập nhật gần nhất" của CẢ MÁY - sự cố 27/09/2026: dashboard
+# đang ở My Bullet Journal mà lệnh tạo đơn TTS chạy trên brain Ngọc Thu Phạm.
+CODEX_VAULT_KEY = "mcp_servers.javis.http_headers.X-Javis-Vault"
+
+
+def ma_hoa_vault(vault: str) -> str:
+    """Giá trị header CHỈ được là ASCII: rmcp-client dựng header bằng `HeaderValue::from_str`,
+    hàm này từ chối ký tự ngoài ASCII, và brain tên tiếng Việt ("Ngọc Thu Phạm") thì đường
+    dẫn có dấu. Mã hoá phần trăm; hub thử nguyên văn trước rồi mới giải mã (`resolve_vault`)."""
+    return vault if vault.isascii() else quote(vault, safe="/:\\ ")
+
+
 def codex_vault_override(vault_root):
     """Override `-c` theo từng tiến trình Codex để hub nhận đúng brain mà không ghi đè profile chung.
 
@@ -1536,7 +1576,21 @@ def codex_vault_override(vault_root):
         vault = str(Path(vault_root).expanduser().resolve())
     except Exception:
         vault = str(vault_root)
-    return f'mcp_servers.javis.http_headers."X-Javis-Vault"={_toml_str(vault)}'
+    return f"{CODEX_VAULT_KEY}={_toml_str(ma_hoa_vault(vault))}"
+
+
+def dat_codex_vault(extra_config, vault_root):
+    """Gắn override brain vào danh sách `-c` của MỘT CodexCLI, THAY override brain cũ nếu có.
+
+    Engine Telegram giữ nguyên một CodexCLI qua nhiều lượt. Chỉ nối thêm khi chuỗi chưa có thì
+    đổi brain A -> B -> A để lại cả [A, B] trong argv, và Codex lấy giá trị đứng sau: lượt đang
+    ở A vẫn chạy trên B. Bỏ cả dạng cũ có dấu nháy để bản vá này không để lại rác."""
+    cu = (CODEX_VAULT_KEY + "=", 'mcp_servers.javis.http_headers."X-Javis-Vault"=')
+    extra_config[:] = [x for x in extra_config if not str(x).startswith(cu)]
+    override = codex_vault_override(vault_root)
+    if override:
+        extra_config.append(override)
+    return extra_config
 
 
 # ============================================================
@@ -1700,6 +1754,11 @@ async def validate_connection(conn_id):
         spec["headers"].update(await mcp_client._oauth_headers(conn))
         tools = await mcp_client.pool.list_tools(spec)
     except Exception as e:
+        if conn.get("connector_id") == "composio":
+            import connect_health
+            kind, msg = connect_health.classify_error(f"{type(e).__name__}: {e}", conn)
+            if kind == "auth":
+                return {"ok": False, "label": "", "tools": 0, "error": msg}
         # Kèm nội dung lỗi thật: chỉ tên loại (vd "ValueError") thì không lần ra manh mối.
         # Giữ ĐUÔI chứ không giữ đầu: traceback Python để nguyên nhân ở dòng CUỐI, mà một
         # dòng "File .../.cache/uv/..." đã ~135 ký tự nên cắt [:160] từ đầu là NUỐT đúng

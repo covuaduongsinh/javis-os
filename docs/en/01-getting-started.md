@@ -26,8 +26,8 @@ Once setup is done, the related items sit on the navigation rail on the left. Th
 | Group | Item | Used for |
 |---|---|---|
 | Connections | **Models** | Change the main model, sign providers in and out (see [Models & engines](../10-models-va-engine.md)) |
-| System | **Settings** | Four collapsible config groups: system status, interface & brain, voice/branding, start with Windows |
-| System | **Updates** | The running version, the update button, progress and the version changelog |
+| System | **Settings** | Five tabs: General, Voice, Mascot, Usage, Updates |
+| System | **Share links** | View, copy and revoke public links |
 | System | **Account** | Change the password, sign out, disable login (see [Security & accounts](../14-bao-mat-tai-khoan.md)) |
 
 ## Step by step
@@ -36,19 +36,19 @@ Once setup is done, the related items sit on the navigation rail on the left. Th
 
 Open `http://localhost:7777` (or your VPS address). If this is the first run and no account exists, Javis shows a **Welcome to Javis** window with three numbered sections.
 
-On a personal machine (localhost), the password and SETUP TOKEN fields are optional and can be left empty. When running publicly (VPS/Docker), Javis requires both a password and a SETUP TOKEN before letting you through; a prompt then appears under the button explaining that an account, a password of at least 8 characters and the SETUP TOKEN are needed to protect Javis on a public server.
+On a personal machine (localhost), the password field is optional and can be left empty. When running publicly (VPS/Docker), Javis requires a username and password before letting you through; the prompt "Set a username and password (at least 8 characters) to protect Javis on a public server. Once inside, turning on 2FA is recommended." then appears under the button.
 
 ### Step 2: Name the workspace
 
 Under **1. Workspace**, type a display name in the **Display name** box (your shop name or your own name, for instance). Left empty, Javis uses "Javis OS". It is only a label and can be changed at any time.
 
-### Step 3: Create the admin account (and the SETUP TOKEN if needed)
+### Step 3: Create the admin account
 
 Under **2. Admin account**:
 
 1. Type a username in the **Username** box (it suggests `admin`).
 2. Type a password in the **Password** box. It must be at least 8 characters.
-3. If Javis is running publicly, a **Setup token** box appears. Paste the SETUP TOKEN there (see "When you need a SETUP TOKEN" below for how to get one).
+3. If Javis is running publicly, do this step **right after deploying**, then turn on two-factor authentication (2FA) on the **Account** page (see "Public server: create the admin early and turn on 2FA" below).
 
 On a personal machine, leaving the password empty means Javis creates no account and anyone who can open the link on this machine can use it. Only do that when you are the only person on the machine.
 
@@ -98,11 +98,11 @@ Background work runs on API providers too, not just Claude. The real difference 
 
 Full detail on each provider and model: [Models & engines](../10-models-va-engine.md).
 
-## The Settings page: four config groups
+## The Settings page: five tabs
 
-Open **Settings** (**System** group on the rail). The page splits into four collapsible groups; click a heading to open or close it.
+Open **Settings** (**System** group on the rail). The page has five tabs: **General**, **Voice**, **Mascot**, **Usage**, **Updates**. Share links and Account remain separate System menu items. On a phone, swipe the tab row horizontally to reach the remaining tabs.
 
-### Group 1: System
+### General tab: System
 
 Subtitle: "Current status and shortcuts into the deeper groups". Four status boxes:
 
@@ -113,9 +113,9 @@ Subtitle: "Current status and shortcuts into the deeper groups". Four status box
 | **Workspace** | The workspace name you set in the wizard |
 | **Telegram** | "On" or "Off" (see [Telegram](../11-telegram.md)) |
 
-Below are four shortcuts that jump straight to the matching page: **Models**, **Channels**, **Account**, **Updates**.
+Below are two shortcuts: **Models** and **Channels**.
 
-### Group 2: Interface & Brain
+### General tab: Interface & Brain
 
 Subtitle: "Graph performance and data structure". Three cards.
 
@@ -136,9 +136,9 @@ It is safe: it only moves when the destination does not exist, it never overwrit
 - Press **Strip the mark** and new images no longer carry it, so platforms usually stop showing the label. Images generated earlier are unchanged.
 - Either way the `javisos.com` author tag stays, and you remain responsible for disclosing AI content under the law and the terms of whatever platform you post to.
 
-### Group 3: Voice, branding & access
+### Voice tab and branding in General
 
-Subtitle: "TTS, avatar and custom domain". This holds the **⚙ QUICK SETTINGS** block:
+The **Voice** tab contains speech, conversation modes and microphone controls. Interface language, avatar and domain settings live in **General**:
 
 - The **🔊 Read answers aloud** switch.
 - The **VOICE PROVIDER** block: choose "Edge TTS - free (default)", "OpenAI - smooth, multilingual" or "ElevenLabs - most natural", paste the matching key and press **Save provider**. A paid provider that errors falls back to Edge.
@@ -148,7 +148,7 @@ Subtitle: "TTS, avatar and custom domain". This holds the **⚙ QUICK SETTINGS**
 
 Detail: [Chat & voice](../02-tro-chuyen-va-giong-noi.md) and [Branding & domains](../15-thuong-hieu-ten-mien.md).
 
-### Group 4: Start with Windows
+### General tab: Start with Windows
 
 This group **only appears on the Windows build**; the Docker/Linux build hides it entirely. The **Auto-start Javis** card shows the state ("On" or "Off") and has a single button: **Enable auto-start** or **Disable auto-start**. When on, Javis runs in the background as soon as you sign in to Windows, and `localhost:7777` is ready.
 
@@ -166,7 +166,7 @@ For the Second Brain (memory, Wiki, vault structure), see [Second Brain: memory,
 
 ## Updating the version
 
-This lives under **Updates** (**System** group). The Javis OS panel at the top shows the running version and whether a newer one exists on GitHub.
+This lives under **System → Settings → Updates**. The Javis OS panel at the top shows the running version and whether a newer one exists on GitHub.
 
 - A new version: "🆕 New version **v...** available (running v...)" with an environment label (`Windows`, `Linux`, `macOS` or `Docker / VPS`), and a "What's new" block listing up to the two most recent releases.
 - Already current: "✅ Running the latest version (v...)".
@@ -218,22 +218,13 @@ Javis keeps a way back and will not strand you on a broken build:
 
 Below the update panel is the version changelog: what each release added, paginated, with the installed version marked.
 
-## When you need a SETUP TOKEN, and where to get it
+## Public server: create the admin early and turn on 2FA
 
-A **SETUP TOKEN** only appears when Javis runs publicly (listening on `0.0.0.0`, i.e. VPS/Docker/Hostinger) and has no admin account yet. Because the brain runs with full rights on the machine at that point, Javis will not let anyone who merely has the link create the admin account. The SETUP TOKEN is a secret string printed only to the server log/terminal, so only someone with server access can read it.
+When Javis runs publicly (listening on `0.0.0.0`, i.e. VPS/Docker/Hostinger) with no admin account yet, the first-run screen only asks for a username and password. That means **whoever opens the link before an admin exists can create it**, and the brain runs with full rights on the machine. So:
 
-On a personal machine (localhost), Javis never asks for it.
-
-How to get it:
-
-| Situation | Command |
-|---|---|
-| Hostinger, in the App terminal (inside the `javis` container) | `cat /data/state/.setup_token` |
-| SSH into the Docker host | `docker compose logs javis`, then look for the `SETUP TOKEN` line |
-
-Paste it into the **Setup token** box in the wizard and press **Start using Javis →**. The token is single-use; Javis deletes it once the account is created.
-
-**How to skip the token entirely:** set the environment variables `JAVIS_ADMIN_USER` and `JAVIS_ADMIN_PASSWORD` at deploy time. Javis creates the admin at startup, and opening the app gives you a sign-in screen with no token prompt. Details: [.env configuration](../16-cau-hinh-env.md).
+- **Recommended:** set the environment variables `JAVIS_ADMIN_USER` and `JAVIS_ADMIN_PASSWORD` at deploy time (`install.sh` already asks for both). Javis creates the admin at startup and opening the app gives you a sign-in screen, with no gap at all. Details: [.env configuration](../16-cau-hinh-env.md).
+- **Without the env vars:** open the app and create the account right after deploying; do not leave a public server without an admin.
+- **After the first sign-in:** turn on two-factor authentication (2FA) on the **Account** page. See [Security & accounts](../14-bao-mat-tai-khoan.md).
 
 ## Quick reference: buttons and states
 
@@ -258,14 +249,12 @@ Paste it into the **Setup token** box in the wizard and press **Start using Javi
 
 - If you only run this on a personal machine and are not worried about strangers, leave the wizard password empty for a fast entry. You can set one later on the **Account** page.
 - If the app reports Claude is not signed in after you get in, go back to **Models** and press **Sign in to Claude** once.
-- Avatar, domain, voice and speed live under **Settings → Voice, branding & access**, not in the first-run wizard.
+- Avatar and domain live under **Settings → General**; voice and speed under **Settings → Voice**.
 - If the interface does not change after a version update, press Ctrl+Shift+R for a clean reload.
 - Pick a cheap **Background-work model** from the start: loops, Kanban work, reminders, self-learning and source ingestion run a lot, and leaving them on an expensive model burns quota fast. Watch the real figures on the [Usage](../23-muc-dung-token.md) page.
 
 ## Common problems
 
-- **The app wants a SETUP TOKEN and you do not know where to get it:** in the App terminal (Hostinger) run `cat /data/state/.setup_token`, or on the host run `docker compose logs javis` and look for `SETUP TOKEN`. Or preset `JAVIS_ADMIN_PASSWORD` so no token is needed.
-- **"Wrong or missing SETUP TOKEN":** the pasted token is wrong or absent. Fetch the correct one from the server log and paste again, watching for stray whitespace.
 - **"Password must be at least 8 characters":** use a password of 8 characters or more.
 - **"An account already exists - please sign in":** an admin was created earlier (through env vars, for instance). Use the sign-in screen with those credentials.
 - **Claude reports it is not signed in:** go to **Models**, press **Sign in to Claude**, open the link, paste the code if asked. Or run `claude auth login --claudeai` in the server terminal.

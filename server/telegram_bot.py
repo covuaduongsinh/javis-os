@@ -58,6 +58,10 @@ BOT_COMMANDS = [
     {"command": "model", "description": "Xem hoặc đổi model"},
     {"command": "brain", "description": "Xem hoặc đổi brain (vault) của phiên này"},
     {"command": "retry", "description": "Gửi lại câu hỏi gần nhất"},
+    {"command": "usage", "description": "Token và chi phí đã dùng"},
+    {"command": "tasks", "description": "Việc nền đang chạy hoặc xếp hàng"},
+    {"command": "memory", "description": "Mục lục bộ nhớ dài hạn của brain"},
+    {"command": "plan", "description": "Chỉ lập kế hoạch, chưa làm gì ra ngoài"},
     {"command": "stop", "description": "Dừng câu đang trả lời"},
     {"command": "reset", "description": "Bắt đầu hội thoại mới"},
     {"command": "cli", "description": "Engine Claude Code (MCP Javis + lệnh máy)"},
@@ -730,7 +734,10 @@ class TelegramBot(HangLuot):
                 return
             _last[0] = now
             await self._typing(client, chat)
-            await self._edit_status(client, chat, status_mid, "⏳ " + (txt or "Đang xử lý…"))
+            # Chuỗi nói về công cụ thì hiện NHÃN đã rút gọn, không hiện nguyên chuỗi engine gửi
+            # (Codex từng gửi cả câu lệnh shell dài vài dòng làm "tên").
+            await self._edit_status(client, chat, status_mid,
+                                    "⏳ " + (f"⚙ {ten}…" if ten else (txt or "Đang xử lý…")))
 
         try:
             try:

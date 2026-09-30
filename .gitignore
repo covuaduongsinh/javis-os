@@ -31,8 +31,8 @@ server/.mcp_config.json
 server/.mcp_hub_*.json
 server/.secret_key
 server/.hub_token
-# Mã thiết lập lần đầu (in ra log server, dùng để tạo tài khoản admin). Nó chỉ sinh ra
-# trên máy chạy thật nên dễ lọt vào `git add -A` mà không ai để ý.
+# Tàn dư từ bản cũ (trước 0.64.47, tính năng đã bỏ; server tự xoá file này lúc boot).
+# Giữ dòng ignore để file sót lại trên máy cũ không lọt vào `git add -A`.
 server/.setup_token
 # Token API của CLI: file chứa bản BĂM + tên token, vẫn là bí mật vận hành, không vào repo.
 server/.api_tokens.json
@@ -62,6 +62,7 @@ server/memory_index.db*
 # STATE_DIR mặc định là chính thư mục server/, nên không che thì mỗi lần chạy app là
 # cây git bẩn thêm một file, và `git add -A` commit đường dẫn máy người khác.
 server/bin_paths.json
+server/claude-update.json
 server/antigravity-duong-prompt.json
 server/usage-marks.jsonl*
 server/conversations.db
@@ -69,6 +70,8 @@ server/conversations.db.bak-*
 server/md_hong_da_soi.json
 server/conversations.db-wal
 server/conversations.db-shm
+# Kho hội thoại khách (Hộp thư bot). Dữ liệu của người dùng, không bao giờ lên git.
+server/customer_conversations.sqlite3*
 server/runtime.db
 server/runtime.db-wal
 server/runtime.db-shm
@@ -165,3 +168,8 @@ server/.mcp_agy_*.json
 server/settings.json.bak*
 # File ngữ cảnh Antigravity CLI sinh ra mỗi lượt chạy (rác của máy đang chạy, không phải mã)
 server/.javis-agy/
+# Bộ phán xử hội thoại nhóm (0.65.0): kho quyết định + ca đã học chứa CHỮ CHAT CỦA KHÁCH, không bao giờ lên git.
+server/chatbot_reply_policy.sqlite3*
+server/reply_policy_cwd/
+# Tài khoản kênh của bot (token đã mã hoá) là dữ liệu chạy, không phải mã nguồn.
+server/channel_accounts.json

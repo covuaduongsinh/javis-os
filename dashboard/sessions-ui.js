@@ -1444,7 +1444,7 @@
     var b = brain(), p = kenhLoc ? "" : curProject();
     var r = await fetch("/sessions?brain=" + encodeURIComponent(b) + "&limit=" + (shown + 1) +
                         (p ? "&project=" + encodeURIComponent(p) : "") +
-                        (kenhLoc ? "&channel=" + encodeURIComponent(kenhLoc) : ""));
+                        (kenhLoc ? "&channel=" + encodeURIComponent(kenhLoc) + (kenhLoc.indexOf("agent:") === 0 ? "&bots=1" : "") : ""));
     var data = await r.json();
     // `kenh` nằm trong khoá cache: thiếu nó thì lần mở trang Cộng sự kế tiếp vẽ tạm bằng danh
     // sách hội thoại thường của trang Trò chuyện, rồi mới thay - một nhịp nháy nội dung sai.
@@ -1476,10 +1476,10 @@
       side.classList.add("cside-gon");
       side.innerHTML =
         '<div class="cside-pane on" data-pane="chat">' +
-          '<button class="cside-new" type="button">' + esc(window.t("sess.new_chat")) + '</button>' +
+          '<button class="cside-new" type="button" data-i18n="sess.new_chat">' + esc(window.t("sess.new_chat")) + '</button>' +
           // Câu mời khác của trang Trò chuyện: ở đây ô tìm CHỈ soi hội thoại của cộng sự đang
           // mở, hứa "mọi hội thoại" là hứa sai.
-          '<input class="cside-search" placeholder="' + esc(window.t("sess.search_ph_kenh")) + '">' +
+          '<input class="cside-search" data-i18n-ph="sess.search_ph_kenh" placeholder="' + esc(window.t("sess.search_ph_kenh")) + '">' +
           '<div class="cside-list"></div>' +
         '</div>';
       listEl = side.querySelector(".cside-list");
@@ -1497,13 +1497,13 @@
         // phải đọc mới biết đang ở đâu. Dùng đúng icon rail đang dùng cho hai thứ đó
         // (message-circle cho Trò chuyện, folder-tree cho Tệp tin) để cả app nói cùng một
         // ngôn ngữ hình, chứ không đặt icon mới chỉ riêng chỗ này.
-        '<button class="cside-tab" data-tab="chat" type="button">' + ic("message-circle") + ' ' + esc(window.t("sess.tab_chat")) + '</button>' +
-        '<button class="cside-tab" data-tab="files" type="button">' + ic("folder-tree") + ' ' + esc(window.t("sess.tab_files")) + '</button>' +
+        '<button class="cside-tab" data-tab="chat" type="button">' + ic("message-circle") + ' <span data-i18n="sess.tab_chat">' + esc(window.t("sess.tab_chat")) + '</span></button>' +
+        '<button class="cside-tab" data-tab="files" type="button">' + ic("folder-tree") + ' <span data-i18n="sess.tab_files">' + esc(window.t("sess.tab_files")) + '</span></button>' +
       '</div>' +
       '<div class="cside-pane" data-pane="chat">' +
-        '<button class="cside-new" type="button">' + esc(window.t("sess.new_chat")) + '</button>' +
+        '<button class="cside-new" type="button" data-i18n="sess.new_chat">' + esc(window.t("sess.new_chat")) + '</button>' +
         '<div class="cside-proj"></div>' +
-        '<input class="cside-search" placeholder="' + esc(window.t("sess.search_ph")) + '">' +
+        '<input class="cside-search" data-i18n-ph="sess.search_ph" placeholder="' + esc(window.t("sess.search_ph")) + '">' +
         '<div class="cside-list"></div>' +
       '</div>' +
       '<div class="cside-pane" data-pane="files"></div>';
@@ -1638,8 +1638,12 @@
       // khỏi lẫn với cuộc tự mở trên dashboard.
       // Đang LỌC theo kênh thì nhãn kênh là thừa: mọi hàng đều cùng một kênh, in ra chỉ tổ
       // chiếm chỗ của giờ và số tin trong một cột hẹp ("agent:ng" trên từng dòng).
+      // Lịch sử của một Agent gồm cả hội thoại của bot chuyên trách với khách (kênh `bot:<tên>`, 0.65.0):
+      // ở đó nhãn kênh KHÔNG thừa, vì nó phân biệt cuộc khách nhắn với cuộc chủ tự chat với Agent.
+      var laBot = (s.channel || "").toString().indexOf("bot:") === 0;
       var ch = kenhLoc ? "" : (s.channel || "").toString();
-      var chLabel = ch === "telegram" ? "TG" : (ch && ch !== "web" ? ch.slice(0, 8) : "");
+      var chLabel = (kenhLoc && laBot) ? window.t("sess.bot_badge")
+        : (ch === "telegram" ? "TG" : (ch && ch !== "web" ? ch.slice(0, 8) : ""));
       var isRun = !!(window.JavisRunning && window.JavisRunning.has(s.id));
       // KHÔNG có icon riêng cho từng hội thoại. Hàng nào cũng là một cuộc trò chuyện nên icon
       // ở đây không phân loại được gì, chỉ thêm một nút phải bấm và một hàng nút chật thêm.
@@ -1702,7 +1706,7 @@
     listEl.innerHTML = '<div class="cside-empty">' + esc(window.t("sess.searching")) + '</div>';
     try {
       var r = await fetch("/sessions/search?q=" + encodeURIComponent(q) + "&brain=" + encodeURIComponent(brain()) +
-                          (kenhLoc ? "&channel=" + encodeURIComponent(kenhLoc) : "") + "&limit=40");
+                          (kenhLoc ? "&channel=" + encodeURIComponent(kenhLoc) + (kenhLoc.indexOf("agent:") === 0 ? "&bots=1" : "") : "") + "&limit=40");
       var data = await r.json();
       var hits = data.results || [];
       if (!hits.length) { listEl.innerHTML = '<div class="cside-empty">' + esc(window.t("sess.no_result")) + '</div>'; return; }
@@ -1813,6 +1817,14 @@
   // Đổi ngôn ngữ giao diện: phần khung dựng MỘT lần (nút đóng, nút đổi tên) không tự vẽ lại
   // như thân khung, nên bỏ hẳn node đi để lần mở sau dựng lại bằng từ điển mới.
   window.addEventListener("javis:i18n", function () {
+    // Sidebar có thể đã dựng trước khi từ điển tải xong. Các nhãn cố định mang data-i18n
+    // được applyDom cập nhật; project và danh sách là dữ liệu động nên vẽ lại tại đây.
+    if (side) {
+      renderProjBar();
+      var q = searchEl && searchEl.value.trim();
+      if (q) doSearch(q);
+      else loadList();
+    }
     var dangMo = !!(pdEl && pdEl.classList.contains("on"));
     var laCuoc = pdLaCuoc();
     var ag = pdLaAgent() ? { slug: (agentTS || {}).slug, name: (agentTS || {}).name } : null;

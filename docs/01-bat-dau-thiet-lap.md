@@ -26,8 +26,8 @@ Sau khi thiết lập xong, các mục liên quan nằm trên rail điều hư�
 | Nhóm | Mục | Dùng để |
 |---|---|---|
 | Kết nối | **Models** | Đổi model chính, đăng nhập/ngắt các nhà cung cấp (xem [Models & engine](10-models-va-engine.md)) |
-| Hệ thống | **Cài đặt** | Bốn nhóm cấu hình gập/mở: trạng thái hệ thống, giao diện & brain, giọng nói/thương hiệu, khởi động cùng Windows |
-| Hệ thống | **Cập nhật** | Phiên bản đang chạy, nút cập nhật, tiến trình và nhật ký phiên bản |
+| Hệ thống | **Cài đặt** | Năm tab: Chung, Giọng nói, Linh vật, Mức dùng, Cập nhật |
+| Hệ thống | **Link chia sẻ** | Xem, sao chép và thu hồi liên kết công khai |
 | Hệ thống | **Tài khoản** | Đổi mật khẩu, đăng xuất, tắt đăng nhập (xem [Bảo mật & tài khoản](14-bao-mat-tai-khoan.md)) |
 
 ## Cách dùng (từng bước)
@@ -36,19 +36,19 @@ Sau khi thiết lập xong, các mục liên quan nằm trên rail điều hư�
 
 Mở `http://localhost:7777` (hoặc địa chỉ VPS của bạn). Nếu đây là lần đầu và chưa có tài khoản, Javis hiện cửa sổ **Chào mừng tới Javis** với 3 mục đánh số sẵn.
 
-Nếu bạn chạy trên máy cá nhân (localhost), mục mật khẩu và MÃ THIẾT LẬP là tùy chọn, có thể bỏ trống. Nếu bạn chạy công khai (VPS/Docker), Javis bắt buộc bạn đặt mật khẩu và nhập MÃ THIẾT LẬP mới cho qua; lúc đó dòng nhắc "Đặt tài khoản + mật khẩu (≥8 ký tự) + MÃ THIẾT LẬP để bảo vệ Javis trên server công khai." hiện ngay dưới nút.
+Nếu bạn chạy trên máy cá nhân (localhost), mục mật khẩu là tùy chọn, có thể bỏ trống. Nếu bạn chạy công khai (VPS/Docker), Javis bắt buộc bạn đặt tên đăng nhập và mật khẩu mới cho qua; lúc đó dòng nhắc "Đặt tên đăng nhập và mật khẩu (tối thiểu 8 ký tự) để bảo vệ Javis trên server công khai. Sau khi vào, nên bật thêm 2FA." hiện ngay dưới nút.
 
 ### Bước 2: Đặt tên Workspace
 
 Ở mục **1. Workspace**, gõ tên hiển thị vào ô **Tên hiển thị** (ví dụ tên cửa hàng hoặc tên bạn). Bỏ trống thì Javis dùng mặc định là "Javis OS". Đây chỉ là nhãn hiển thị, đổi lại bất cứ lúc nào.
 
-### Bước 3: Tạo tài khoản admin (và MÃ THIẾT LẬP nếu cần)
+### Bước 3: Tạo tài khoản admin
 
 Ở mục **2. Tài khoản admin**:
 
 1. Gõ tên tài khoản vào ô **Tài khoản** (mặc định gợi ý là `admin`).
 2. Gõ mật khẩu vào ô **Mật khẩu**. Mật khẩu phải dài tối thiểu 8 ký tự.
-3. Nếu Javis chạy công khai, một ô **Mã thiết lập** sẽ hiện ra. Dán MÃ THIẾT LẬP vào đây (cách lấy xem mục "Khi nào cần MÃ THIẾT LẬP" bên dưới).
+3. Nếu Javis chạy công khai, làm bước này **ngay sau khi deploy** rồi bật xác thực 2 lớp (2FA) ở trang **Tài khoản** (xem mục "Server công khai: tạo admin sớm và bật 2FA" bên dưới).
 
 Trên máy cá nhân, nếu bạn để trống mật khẩu thì Javis không đặt tài khoản và ai mở link máy này cũng dùng được. Chỉ nên bỏ trống khi máy chỉ mình bạn dùng.
 
@@ -98,11 +98,11 @@ Việc nền chạy được bằng cả nhà cung cấp API, không riêng Clau
 
 Chi tiết đầy đủ về từng nhà cung cấp và model xem [Models & engine](10-models-va-engine.md).
 
-## Trang Cài đặt: bốn nhóm cấu hình
+## Trang Cài đặt: năm tab
 
-Mở **Cài đặt** (nhóm **Hệ thống** trên rail). Trang chia thành bốn nhóm gập/mở, bấm tiêu đề nhóm để đóng hoặc mở.
+Mở **Cài đặt** (nhóm **Hệ thống** trên rail). Trang có năm tab: **Chung**, **Giọng nói**, **Linh vật**, **Mức dùng**, **Cập nhật**. Link chia sẻ và Tài khoản là hai mục riêng trên menu Hệ thống. Trên điện thoại, vuốt ngang hàng tab để xem các tab phía sau.
 
-### Nhóm 1: Hệ thống
+### Tab Chung: Hệ thống
 
 Phụ đề: "Trạng thái hiện tại và lối tắt tới các nhóm chuyên sâu". Gồm bốn ô trạng thái:
 
@@ -113,9 +113,9 @@ Phụ đề: "Trạng thái hiện tại và lối tắt tới các nhóm chuyê
 | **Workspace** | Tên workspace bạn đặt ở wizard |
 | **Telegram** | "Đang bật" hoặc "Đang tắt" (xem [Kênh Telegram](11-telegram.md)) |
 
-Bên dưới là bốn lối tắt bấm là nhảy thẳng sang trang tương ứng: **Models**, **Kênh**, **Tài khoản**, **Cập nhật**.
+Bên dưới có hai lối tắt: **Models** và **Kênh**.
 
-### Nhóm 2: Giao diện & Brain
+### Tab Chung: Giao diện & Brain
 
 Phụ đề: "Hiệu năng đồ thị và cấu trúc dữ liệu". Gồm ba thẻ.
 
@@ -136,9 +136,9 @@ Thao tác này an toàn: chỉ di chuyển khi thư mục đích chưa có, khô
 - Bấm **Gỡ dấu** thì ảnh mới tạo không còn dấu, nhãn trên nền tảng thường không hiện nữa. Ảnh đã tạo trước đó không đổi.
 - Dù bật hay tắt, nhãn tác giả `javisos.com` vẫn được giữ, và bạn vẫn phải tự chịu trách nhiệm công bố nội dung AI theo luật và điều khoản của nền tảng nơi bạn đăng.
 
-### Nhóm 3: Giọng nói, thương hiệu & truy cập
+### Tab Giọng nói và phần thương hiệu trong tab Chung
 
-Phụ đề: "TTS, avatar và tên miền riêng". Đây là nơi chứa bộ **⚙ CÀI ĐẶT NHANH**:
+Tab **Giọng nói** chứa giọng đọc, chế độ trò chuyện và micro. Ngôn ngữ giao diện, ảnh đại diện và tên miền nằm trong tab **Chung**:
 
 - Công tắc **🔊 Đọc trả lời bằng giọng**.
 - Khối **NHÀ CUNG CẤP GIỌNG ĐỌC**: chọn "Edge TTS - miễn phí (mặc định)", "OpenAI - mượt, đa ngôn ngữ" hoặc "ElevenLabs - tự nhiên nhất", dán key tương ứng rồi bấm **Lưu nhà cung cấp**. Provider trả phí lỗi sẽ tự về Edge.
@@ -148,7 +148,7 @@ Phụ đề: "TTS, avatar và tên miền riêng". Đây là nơi chứa bộ **
 
 Chi tiết xem [Trò chuyện & giọng nói](02-tro-chuyen-va-giong-noi.md) và [Thương hiệu & tên miền](15-thuong-hieu-ten-mien.md).
 
-### Nhóm 4: Khởi động cùng Windows
+### Tab Chung: Khởi động cùng Windows
 
 Nhóm này **chỉ hiện trên bản chạy Windows**; bản Docker/Linux ẩn hẳn. Thẻ **Tự bật Javis** cho biết trạng thái ("Bật" hoặc "Tắt") và có một nút duy nhất: **Bật tự khởi động** hoặc **Tắt tự khởi động**. Khi bật, Javis tự chạy nền lúc bạn đăng nhập Windows, mở `localhost:7777` là dùng được.
 
@@ -166,7 +166,7 @@ Về Second Brain (bộ nhớ, Wiki, cấu trúc vault), xem [Second Brain: bộ
 
 ## Cập nhật phiên bản
 
-Phần này nằm ở mục **Cập nhật** (nhóm **Hệ thống**). Khung Javis OS trên cùng hiển thị phiên bản đang chạy và cho biết có bản mới trên GitHub hay không.
+Phần này nằm ở **Hệ thống → Cài đặt → Cập nhật**. Khung Javis OS trên cùng hiển thị phiên bản đang chạy và cho biết có bản mới trên GitHub hay không.
 
 - Có bản mới: "🆕 Có bản mới **v...** (đang chạy v...)" kèm nhãn môi trường (`Windows`, `Linux`, `macOS` hoặc `Docker / VPS`), và khối "Bản mới có gì" liệt kê tối đa 2 bản gần nhất.
 - Đang mới nhất: "✅ Đang dùng bản mới nhất (v...)".
@@ -218,22 +218,13 @@ Javis có sẵn đường lùi, không bỏ bạn kẹt ở bản lỗi:
 
 Bên dưới khung cập nhật là nhật ký phiên bản: từng bản có gì mới, chia trang, bản đang cài được đánh dấu.
 
-## Khi nào cần MÃ THIẾT LẬP và lấy ở đâu
+## Server công khai: tạo admin sớm và bật 2FA
 
-**MÃ THIẾT LẬP (setup token)** chỉ xuất hiện khi Javis chạy công khai (nghe trên `0.0.0.0`, tức VPS/Docker/Hostinger) và chưa có tài khoản admin. Vì lúc này bộ não chạy với toàn quyền trên máy, Javis không cho phép bất kỳ ai chỉ có đường link cũng tạo được tài khoản admin. MÃ THIẾT LẬP là chuỗi bí mật chỉ in ra log/terminal của server, nên chỉ người có quyền xem server mới lấy được.
+Khi Javis chạy công khai (nghe trên `0.0.0.0`, tức VPS/Docker/Hostinger) mà chưa có tài khoản admin, màn chạy lần đầu chỉ hỏi tên đăng nhập và mật khẩu. Nghĩa là **ai mở link trước khi có admin sẽ tạo được admin**, mà bộ não lại chạy với toàn quyền trên máy. Vì vậy:
 
-Trên máy cá nhân (localhost), Javis không hỏi mã này.
-
-Cách lấy mã:
-
-| Tình huống | Lệnh chạy |
-|---|---|
-| Hostinger, vào App terminal (bên trong container `javis`) | `cat /data/state/.setup_token` |
-| SSH vào host chạy Docker | `docker compose logs javis` rồi tìm dòng `SETUP TOKEN` |
-
-Sau khi có mã, dán vào ô **Mã thiết lập** trong wizard rồi bấm **Bắt đầu dùng Javis →**. Mã được dùng một lần, sau khi tạo tài khoản thành công Javis xóa mã đi.
-
-**Cách khỏi cần mã:** khi deploy, đặt sẵn hai biến môi trường `JAVIS_ADMIN_USER` và `JAVIS_ADMIN_PASSWORD`. Javis tự tạo tài khoản admin lúc khởi động, mở app ra là màn đăng nhập luôn, không hỏi MÃ THIẾT LẬP. Chi tiết biến môi trường xem [Cấu hình .env](16-cau-hinh-env.md).
+- **Cách khuyến nghị:** khi deploy, đặt sẵn hai biến môi trường `JAVIS_ADMIN_USER` và `JAVIS_ADMIN_PASSWORD` (`install.sh` đã hỏi sẵn hai giá trị này). Javis tự tạo tài khoản admin lúc khởi động, mở app ra là màn đăng nhập luôn, không có khoảng trống nào. Chi tiết biến môi trường xem [Cấu hình .env](16-cau-hinh-env.md).
+- **Nếu không đặt env:** mở app và tạo tài khoản ngay sau khi deploy, đừng để server public trống admin.
+- **Sau lần đăng nhập đầu:** bật xác thực 2 lớp (2FA) ở trang **Tài khoản**. Xem [Bảo mật & tài khoản](14-bao-mat-tai-khoan.md).
 
 ## Bảng tra nhanh nút và trạng thái
 
@@ -258,14 +249,12 @@ Sau khi có mã, dán vào ô **Mã thiết lập** trong wizard rồi bấm **B
 
 - Nếu chỉ chạy máy cá nhân và không sợ người lạ, cứ để trống mật khẩu ở wizard để vào nhanh. Bạn có thể đặt mật khẩu sau ở trang **Tài khoản**.
 - Sau khi vào app, nếu thấy báo chưa đăng nhập Claude, quay lại **Models** bấm **Đăng nhập Claude** một lần là xong.
-- Đổi avatar, tên miền, giọng nói và tốc độ nằm ở **Cài đặt → Giọng nói, thương hiệu & truy cập**, không phải trong wizard lần đầu.
+- Đổi avatar và tên miền ở **Cài đặt → Chung**; giọng nói và tốc độ ở **Cài đặt → Giọng nói**.
 - Sau khi cập nhật phiên bản, nếu giao diện không đổi, nhấn Ctrl+Shift+R để tải lại trang sạch.
 - Chọn một model rẻ ở **Model việc nền** ngay từ đầu: loop, việc Kanban, nhắc hẹn, tự học và tiêu hoá nguồn chạy khá nhiều, để chung model đắt là tốn hạn mức nhanh. Theo dõi con số thật ở trang [Mức dùng](23-muc-dung-token.md).
 
 ## Sự cố thường gặp
 
-- **Mở app báo cần MÃ THIẾT LẬP nhưng không biết lấy đâu:** vào App terminal (Hostinger) chạy `cat /data/state/.setup_token`, hoặc trên host chạy `docker compose logs javis` tìm dòng `SETUP TOKEN`. Hoặc đặt sẵn env `JAVIS_ADMIN_PASSWORD` để khỏi cần mã.
-- **Báo "Sai hoặc thiếu MÃ THIẾT LẬP":** mã dán vào sai hoặc thiếu. Lấy lại mã đúng từ log server rồi dán lại, chú ý không dính khoảng trắng thừa.
 - **Báo "Mật khẩu tối thiểu 8 ký tự":** đặt mật khẩu dài từ 8 ký tự trở lên.
 - **Báo "Đã có tài khoản - hãy đăng nhập":** admin đã được tạo trước đó (ví dụ qua env). Dùng màn đăng nhập với tài khoản/mật khẩu đã đặt.
 - **Claude báo chưa đăng nhập:** vào **Models**, bấm **Đăng nhập Claude**, mở link, dán code nếu được hỏi. Hoặc chạy `claude auth login --claudeai` trong terminal server.

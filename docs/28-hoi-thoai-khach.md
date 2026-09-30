@@ -80,7 +80,7 @@ Zalo cá nhân (`kind: account`) không bị lọc: nó là một kết nối �
 
 - **Mặc định tắt.** Bật là giữ phiên Zalo của bạn sống liên tục qua API không chính thức, tức tài khoản đăng nhập 24/7 trên máy chạy Javis. Đó là lựa chọn của bạn, không phải của Javis. Nên dùng tài khoản phụ.
 - **Chỉ lưu từ lúc bật.** Không kéo lịch sử cũ. Tin do chính bạn gửi từ điện thoại hiện là tin "Bạn".
-- **Không có bot trực.** Trả lời từ Hòm thư bot là gửi dưới tên bạn; bot tự trả lời qua kênh này là chuyện phải cân nhắc riêng.
+- **Không có bot trực.** Trả lời từ Hòm thư bot là gửi dưới tên bạn. Muốn nick này tự trả lời khách thì tạo một Bot chuyên trách và chọn kênh Zalo cá nhân (chat riêng từ 0.64.80, nhóm và chế độ Tự đánh giá từ 0.64.82), xem [Chatbot](25-chatbot.md).
 
 ## Dữ liệu lưu ở đâu, giữ gì
 

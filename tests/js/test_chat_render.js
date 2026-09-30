@@ -1,7 +1,7 @@
 /* Test autolink URL tran trong mdToHtml. Chay tay / CI:
        node dashboard/test_chat_render.js
    KHONG can trinh duyet: chi test ham thuan mdToHtml(). */
-const { mdToHtml, appFilePath } = require("../../dashboard/chat-render.js");
+const { mdToHtml, appFilePath, visibleMarkdown } = require("../../dashboard/chat-render.js");
 
 let fails = [];
 function check(name, cond) {
@@ -192,6 +192,34 @@ h = mdToHtml("[note](notes/ke-hoach.md)");
 check("note md: van mo editor noi bo", has(h, 'class="jv-floc"') && !has(h, "jv-fdownload"));
 h = mdToHtml("[website](https://example.com/demo.html)");
 check("URL ngoai duoi html: van mo tab moi", has(h, 'target="_blank"') && !has(h, "jv-fdownload"));
+
+// ---- 28. Rê chuột lên link trong câu trả lời thấy đúng đích sẽ mở ----
+h = mdToHtml("[Nguồn](https://example.com/a?x=1&y=2)");
+check("link web: tooltip hiện URL đầy đủ và escape an toàn",
+  has(h, 'href="https://example.com/a?x=1&amp;y=2" title="https://example.com/a?x=1&amp;y=2"'));
+h = mdToHtml("Xem https://example.com/b nhe");
+check("URL trần: tooltip hiện địa chỉ", has(h, 'title="https://example.com/b"'));
+h = mdToHtml("[Ghi chú](notes/ghi-chu.md)");
+check("file nội bộ: tooltip giữ thao tác và hiện đường dẫn",
+  /class="jv-floc" title="[^"]+notes\/ghi-chu\.md"/.test(h));
+h = mdToHtml("[[notes/abc|Ghi chú đẹp]]");
+check("wikilink có tên đẹp: tooltip hiện đường dẫn gốc",
+  /class="jv-wikilink" title="[^"]+\nnotes\/abc"/.test(h));
+h = mdToHtml("[Tải PDF](reports/bao-cao.pdf)");
+check("file tải xuống: tooltip hiện đường dẫn",
+  /class="jv-fdownload"[^>]*title="[^"]+reports\/bao-cao\.pdf"/.test(h));
+
+h = mdToHtml("| Trái | Giữa | Phải |\n| :--- | :---: | ---: |\n| a | b | c |");
+check("bảng markdown giữ căn giữa ở tiêu đề và ô dữ liệu",
+  has(h, '<th style="text-align:center">Giữa</th>') &&
+  has(h, '<td style="text-align:center">b</td>'));
+check("bảng markdown giữ căn phải ở tiêu đề và ô dữ liệu",
+  has(h, '<th style="text-align:right">Phải</th>') &&
+  has(h, '<td style="text-align:right">c</td>'));
+check("copy giữa stream bỏ metadata đã đóng",
+  visibleMarkdown("Nội dung\n<!-- JAVIS_ASK: {hidden} -->\nTiếp") === "Nội dung\n\nTiếp");
+check("copy giữa stream bỏ metadata chưa đóng",
+  visibleMarkdown("Nội dung\n<!-- JAVIS_METRICS: {") === "Nội dung\n");
 
 if (fails.length) {
   console.log("\nFAIL - " + fails.length + " test: " + fails.join(", "));

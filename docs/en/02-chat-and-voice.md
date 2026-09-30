@@ -92,7 +92,7 @@ Turning speech on and off has **3 places** that do the same thing, always in syn
 
 - The **speaker** button in the top right corner (tooltip: "Toggle Javis voice"). When muted, the button dims noticeably.
 - The **speaker** button on the chat input bar (tooltip "Mute voice" / "Unmute voice"). When muted, the button turns red with a slash through it. This button is hidden on phones.
-- **Settings → Voice, branding & access**, toggle **"🔊 Read answers aloud"**.
+- **Settings → Voice**, toggle **"🔊 Read answers aloud"**.
 
 ### Step 5 - Stop Javis mid-answer
 
@@ -116,13 +116,13 @@ Three session commands lead the list:
 
 On the web build, `/new` and `/reset` both open a new conversation.
 
-Below those three sit **all skills of the selected brain**, each row showing `/slug`, the skill name and a one-line description.
+Right below are **twelve system commands** (see the next section), followed by **all skills of the selected brain**, each row showing `/slug`, the skill name and a one-line description.
 
 Controlling the menu:
 
 - Keep typing to narrow the list. Slug matches rank ahead of name matches.
 - **Arrow up / down** to move, **Enter** or **Tab** to confirm, **Esc** to close. Clicking a row works too.
-- Picking a **session command** runs it immediately, no Enter needed.
+- Picking a **session command**, or a **system command that needs no extra text**, runs it immediately, no Enter needed. `/plan` and `/goal` need you to type more, so picking them only fills in `/plan ` or `/goal `.
 - Picking a **skill** inserts `/slug ` **exactly at the cursor**, keeping the text on both sides; keep typing, then press Enter to send.
 
 When you send a skill command, Javis turns it into a prompt: "Use the skill `<slug>` for this request: ... If no skill by that name exists, just handle my request normally."
@@ -136,9 +136,62 @@ A few rules so nothing is misread as a command:
 - The `/` must sit **at the start of the message or right after a space**. That is why `https://example.com/notes` and `3/4 of a cake` are never read as commands.
 - Mid-sentence, the command name must be a **real skill** in the selected brain. `/home/user/notes` or `/does-not-exist` go through as plain text.
 - With several commands in one message, the **last one** wins (your latest intent). A command at the very start of the box always takes absolute priority.
-- **The three session commands (`/new`, `/reset`, `/stop`) only run at the start of the box**, and the menu does not suggest them mid-sentence: writing half a message and accidentally hitting `/reset`, losing all the context, hurts more than it helps.
+- **The three session commands (`/new`, `/reset`, `/stop`) and the twelve system commands only run at the start of the box**, and the menu does not suggest them mid-sentence: writing half a message and accidentally hitting `/reset`, losing all the context, hurts more than it helps. If a skill happens to share a name with a system command, the command wins at the start of the box, while mid-sentence the skill can still be called as before.
 
 Skill details are in [Skills](06-skills.md).
+
+### System commands
+
+These are handled by **Javis itself**, not borrowed from Claude Code, so they behave the same whichever brain you use (Claude Code, ChatGPT, Grok, Antigravity or an API engine). The result shows up as a tinted bubble right in the chat; that bubble lives only on your screen, is not sent to the model and is not saved into the conversation.
+
+| Command | What it does |
+|---|---|
+| `/help` | Lists the session and system commands |
+| `/status` | The engine and model running for this conversation (pinned to it or following the main model), the brain, message count, latest context size, whether it is answering, the version |
+| `/model` | Opens the model picker. Type `/model model-name` to switch directly: an exact match switches at once, several matches are listed for you to choose from instead of guessing |
+| `/brain` | Lists the brains. Type `/brain name` to switch (if the name matches several brains, Javis asks again) |
+| `/retry` | Sends your last message again |
+| `/usage` | Tokens and cost Javis has measured today and all time, plus the OpenRouter balance when a key is set |
+| `/tasks` | Background tasks that are running, waiting for review, blocked or queued. Warns you when "Auto-run" is off (tasks then just sit and wait) |
+| `/compact` | Compacts a long conversation right now, see below |
+| `/plan the-task` | One read-only turn that proposes a plan and does nothing outside |
+| `/memory` | Index of the selected brain's long-term memory, with clickable entries |
+| `/export` | Downloads this conversation as a markdown file |
+| `/goal the-target` | Javis keeps working on its own until the target is met, see below |
+
+#### `/compact` - compacting a conversation
+
+The longer a conversation grows, the more each turn costs and the more it blurs. Javis already compacts by itself past a large threshold; `/compact` lets you do it **now**. How it works depends on the conversation's brain, and Javis always says what it actually did:
+
+- **API engines** (OpenRouter, OpenAI, Claude API, Gemini, Groq): older messages are folded into a summary, and only the last two question-and-answer turns are kept as they are. From the next turn Javis sends the summary instead of the whole history.
+- **Engines on a subscription plan** (Claude Code, ChatGPT/Codex, Grok): the bulk sits in the thread the engine keeps itself (tool results, its inner loop), not in the history Javis stores. `/compact` drops that thread; on the next turn Javis opens a fresh one and reloads the saved history. There is no summary step because a subscription has no API key to make a separate summary request.
+- Under 4 messages, or when the brain keeps no thread of its own (Antigravity rebuilds from history every turn), Javis says plainly that there is nothing to compact.
+- It is refused while the conversation is answering: compacting mid-turn would change the history under a turn that is reading it.
+
+#### `/plan` - plan only
+
+Type `/plan tidy the warehouse at month end`: Javis reads the data it needs, then gives a short plan (goal, steps, what needs your approval, main risks) and asks whether you want to go ahead. That turn is **not allowed** to write files, send messages, post, create orders, change ads, queue background tasks or set reminders. Only when you agree in the next message does Javis do it for real.
+
+The strength of the block differs by brain, so to be exact: with **Claude Code, Grok and Antigravity**, the `/plan` turn runs at the `suggest` permission level, so the tool gate really blocks any outside action. With **ChatGPT (Codex) and the API engines**, there is currently only the instruction inside the message, not a per-turn gate.
+
+#### `/goal` - work until it is met
+
+Type `/goal every order from today is reconciled`. Javis does one round, checks with real data whether the target now holds, and if not it **sends the next round itself** without you nudging it. Each round leaves a short note saying what is still missing.
+
+Javis proposes "done or not", but **whether to keep going is decided by code**, so a target that can never be met does not become an endless token-burning loop. The automatic rounds stop when:
+
+- the target is met;
+- **8 rounds** have run without meeting it;
+- two rounds in a row report exactly the same thing missing (no progress);
+- Javis asks you a question that needs your decision;
+- a round fails, or Javis does not say whether the target was met;
+- **you type a new message, press Stop, open another conversation or type `/goal clear`** - your words always come first.
+
+It runs inside the **chat tab that is open**: closing the tab or reloading the page stops it. Unlike `/plan`, `/goal` does real work (within the permissions you gave Javis), so write a concrete target that can be checked.
+
+#### On Telegram
+
+Telegram already had `/status`, `/model`, `/brain`, `/retry`, `/skills`, `/agents`, `/workflows`, `/reset` and `/stop`. It now also has `/usage`, `/tasks`, `/memory` and `/plan the-task`, working the same way with plain-text replies. On Telegram `/plan` is only an instruction (no gate at the hub); `/compact`, `/goal` and `/export` are web-only.
 
 ## When Javis asks back with buttons
 
@@ -302,7 +355,7 @@ Plain-text channels are stricter because they cannot render: **Telegram** and **
 
 ## Voice: provider, voice, speed
 
-Everything about the voice lives in **Settings → Voice, branding & access**.
+Everything about the voice lives in **Settings → Voice**.
 
 ### Choosing a voice provider
 
@@ -314,7 +367,7 @@ The **VOICE PROVIDER** block has three options:
 | OpenAI - smooth, multilingual | An OpenAI API key (shared with chat) plus one of 11 voices: alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer, verse |
 | ElevenLabs - most natural | An ElevenLabs API key plus a **Voice ID** (from ElevenLabs → Voices) |
 
-Pick one and click **Save provider**. The status line underneath says which one is active. If a paid provider fails (quota exhausted, wrong key, network down), Javis **falls back to Edge TTS** automatically so the voice never goes silent.
+After selecting a provider, save the setting. If the selected voice fails, Javis reports the error so you can retry or select another voice. It does not switch voices automatically.
 
 When you pick OpenAI or ElevenLabs, the Edge voices (Hoài My, Nam Minh and the 5 multilingual ones) hide themselves, because the voice is then chosen inside the provider's own block.
 
@@ -322,7 +375,7 @@ When you pick OpenAI or ElevenLabs, the Edge voices (Hoài My, Nam Minh and the 
 
 | Option | Value | Note |
 |---|---|---|
-| Voice | **Hoài My** | Female, natural and warm (default; Edge code `vi-VN-HoaiMyNeural`) |
+| Voice | **Emma Multilingual** | Female, multilingual (default; Edge code `en-US-EmmaMultilingualNeural`) |
 | Voice | **Nam Minh** | Male, deeper (Edge code `vi-VN-NamMinhNeural`) |
 | Voice | **Ava, Emma** (female), **Andrew, Brian, William** (male) | Edge's 5 newer multilingual voices: they detect Vietnamese on their own and sound smoother than the two above, but may slur a few words. Preview before choosing. |
 | Speed | Slider from 0.70× to 1.80× | Default 1.10× |
@@ -441,3 +494,18 @@ Keyboard shortcuts:
 - [Telegram channel](11-telegram.md) and [Zalo](12-zalo-agent-mcp.md) - chat with Javis outside the dashboard.
 
 Still stuck? See [Troubleshooting & FAQ](17-troubleshooting.md).
+
+In Standard/Fast mode, the displayed transcript is kept when the utterance ends. Optional Groq recognition reports differences without rewriting sent messages. Emma is the default for new browser preferences; saved voice choices survive updates.
+
+From 0.64.34, conversation settings prioritize voice, speed, conversation mode and focus. Open **Advanced** for model, secondary recognition, hints and microphone settings. Open **Provider and connection** to configure an API and save the provider. Controls that do not affect the selected mode are hidden; recognition language remains available in Live for the Javis wake listener.
+
+
+## Experimental conversation timing (0.64.35)
+
+Settings → Conversation → Advanced → Conversation timing offers Fixed wait (default), Observe for testing, and Natural. Natural applies only to Standard/Fast with a compatible server and requires no extra API. Choose Fast/Balanced/Patient. Observe calculates metadata in memory without changing endpoint behavior.
+
+Incomplete phrases are retained as drafts after 10 seconds. Explicit requests to wait hold the floor for up to 90 seconds. Send, Continue and Discard controls keep the text available; saying Javis can resume a saved draft. Drafts pause at 120 seconds or 4,000 characters without silently truncating words.
+
+Acknowledgement-only replies are deliberately narrow: the server must know the previous explanation is complete, and the utterance must be an unambiguous closing. Unknown intent still gets a normal response. Saved acknowledgements have a Request an answer button in history.
+
+Diagnostics exports at most 200 in-memory timing/state events, with no transcript, audio or credentials. Physical tablet/phone acoustic testing remains necessary before making Natural the default.

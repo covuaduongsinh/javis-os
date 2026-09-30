@@ -544,7 +544,8 @@ check("studio.js editAgent nhan host + onSaved", /function editAgent\(a, opts\)/
   check("sessions-ui: mount nhan tuy chon loc theo kenh", /function mount\(container, opts\)/.test(sess));
   check("sessions-ui: danh sach va o tim deu loc theo kenh",
     /kenhLoc \? "&channel=" \+ encodeURIComponent\(kenhLoc\)/.test(sess)
-    && /kenhLoc \? "&channel=" \+ encodeURIComponent\(kenhLoc\) : ""\) \+ "&limit=40"/.test(sess));
+    // 0.65.0: với kênh agent:<slug> cả hai còn xin gộp hội thoại của bot chuyên trách (bots=1).
+    && /kenhLoc \? "&channel=" \+ encodeURIComponent\(kenhLoc\)( \+ \(kenhLoc\.indexOf\("agent:"\) === 0 \? "&bots=1" : ""\))? : ""\) \+ "&limit=40"/.test(sess));
   const mainPy = fs.readFileSync(path.join(root, "server", "main.py"), "utf8");
   check("server: /sessions/search nhan channel", /async def sessions_search[\s\S]{0,200}channel: str = Query\(""\)/.test(mainPy));
   const css2 = fs.readFileSync(path.join(root, "dashboard", "console.css"), "utf8");
@@ -557,17 +558,13 @@ check("studio.js editAgent nhan host + onSaved", /function editAgent\(a, opts\)/
 // ============================================================
 // Lỗi thật chủ dự án chụp lại trên iPhone: nút mở danh sách, "File & link", "Hội thoại mới" và
 // nút mở cột phải chen hết một dòng, ô tên cộng sự bị bóp còn ĐÚNG MỘT CHỮ CÁI ("C" và "C.").
-// Dòng trên phải là khuôn mặt cùng tên cộng sự, dòng dưới mới là các nút.
+// Hàng nút ở trên; tên và icon nhỏ ở hàng riêng phía dưới.
 {
   const css = fs.readFileSync(path.join(root, "dashboard", "console.css"), "utf8");
   const i = css.indexOf("@media (max-width:600px) {");
   check("tim duoc khoi man dien thoai cua trang Cong su", i !== -1);
   const khoi = css.slice(i, i + 900);
   check("thanh dau trang duoc phep xuong dong", /\.ws-bar \{[^}]*flex-wrap:\s*wrap/.test(khoi));
-  check("o ten chiem het be ngang, thanh mot dong rieng",
-    /\.ws-id \{[^}]*flex:\s*1 0 100%/.test(khoi));
-  check("o ten duoc keo len dong TREN du DOM de sau nut mo danh sach",
-    /\.ws-id \{[^}]*order:\s*-1/.test(khoi));
   check("CANARY: khong con bop chu 'Hoi thoai moi' cho vua mot dong",
     !/#wsNewChat \{[^}]*max-width:\s*110px/.test(khoi));
   check("nut mo cot phai dat ve mep phai cua dong duoi",
@@ -575,7 +572,7 @@ check("studio.js editAgent nhan host + onSaved", /function editAgent\(a, opts\)/
   // veLoi() nhoi cau bao loi va nut Thu lai vao CHINH o ten, nen o ten cung phai xuong dong
   // duoc, khong thi cau loi bi cat giua chu va chu tren nut be lam hai dong.
   check("cau bao loi va nut Thu lai xuong dong rieng trong o ten",
-    /\.ws-id \{[^}]*flex-wrap:\s*wrap/.test(khoi) && /\.ws-id \.ws-err \{[^}]*flex:\s*1 0 100%/.test(khoi));
+    /\.ws-id:has\(\.ws-err\) \{[^}]*flex-wrap:\s*wrap/.test(css) && /\.ws-id \.ws-err \{[^}]*flex:\s*1 0 100%/.test(khoi));
 }
 
 // ============================================================
@@ -683,7 +680,8 @@ check("studio.js editAgent nhan host + onSaved", /function editAgent\(a, opts\)/
                   current() { return this._cur; },
                   new() { this._goi.push("new"); this._cur = null; },
                   open(id) { this._goi.push("open:" + id); this._cur = id; } };
-    const c = { S: { sessionCuaPhien: sessionCuaPhien }, window: { JavisSessions: kho }, kho };
+    const c = { S: { sessionCuaPhien: sessionCuaPhien }, window: { JavisSessions: kho }, kho,
+                docViTri: () => null };
     vm2.createContext(c); vm2.runInContext(doan2, c);
     return c;
   };

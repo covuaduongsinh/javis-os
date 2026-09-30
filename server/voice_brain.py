@@ -17,6 +17,7 @@ Sổ phiên: mỗi phiên chat web một bộ não, đóng sau IDLE_S giây khô
 from __future__ import annotations
 
 import asyncio
+import difflib
 import json
 import os
 import re
@@ -25,6 +26,8 @@ import time
 from typing import AsyncIterator, Callable, Dict, List, Optional
 
 import winproc         # lệnh con câm lặng trên Windows (canary test_windows_no_console)
+import nghe_sua
+import phien_am
 
 MARKER = "JAVIS_ASK_MAIN:"
 # Đường TẮT cho việc chỉ đụng tới giao diện: bộ não giọng tự phát, server gọi thẳng dashboard,
@@ -77,19 +80,25 @@ PROVIDERS = tuple(k for k, p in BRAIN_PROVIDERS.items() if p["key_field"])
 SYSTEM_PROMPT = (
     "Bạn là Javis, trợ lý cá nhân, đang NÓI CHUYỆN BẰNG GIỌNG với người dùng. Trả lời như người "
     "đang nói: ngắn (1 đến 3 câu), tự nhiên, không markdown, không gạch đầu dòng, không emoji, "
-    "không dấu gạch dài. Trả lời bằng đúng ngôn ngữ người dùng vừa dùng, và XƯNG HÔ theo đúng cách "
+    "không dấu gạch dài. Mặc định trả lời bằng tiếng Việt. Chỉ đổi ngôn ngữ khi người dùng nói "
+    "rõ một câu có nghĩa bằng ngôn ngữ khác hoặc yêu cầu đổi; câu chép âm thanh pha tiếng lạ "
+    "vô nghĩa thì xin nhắc lại bằng tiếng Việt. XƯNG HÔ theo đúng cách "
     "người dùng đang xưng hô với bạn (họ xưng thế nào thì đáp lại cho khớp), không tự đổi sang cách "
     "khác.\n"
-    "Bạn KHÔNG có tool và KHÔNG biết dữ liệu sống. Khi câu hỏi cần bất kỳ thứ nào sau đây: số liệu "
-    "kinh doanh, lịch, email, file hay ghi chú trong brain, ký ức dài hạn, giao việc, nhắc hẹn, mở "
-    "trang hay mở app, gửi tin, hay bất cứ hành động nào ra ngoài, thì KHÔNG đoán và KHÔNG bịa. Thay "
-    "vào đó trả lời đúng khuôn này: MỘT câu xác nhận ngắn, tự nhiên ở dòng đầu (kiểu 'Ừ, để xem "
+    "Bạn KHÔNG có tool và KHÔNG biết dữ liệu sống. Khi người dùng HỎI hoặc YÊU CẦU RÕ một thứ cần: số "
+    "liệu kinh doanh, lịch, email, file hay ghi chú trong brain, ký ức dài hạn, tạo việc trên trang "
+    "Việc, nhắc hẹn, mở app, gửi tin, hay bất cứ hành động nào ra ngoài, thì KHÔNG đoán và KHÔNG bịa. "
+    "CHỈ GIAO khi câu đó thật sự là lời nhờ làm hay hỏi dữ liệu. Nhắc tới chữ 'việc', 'công việc', "
+    "'task', kể chuyện công việc, than thở, bàn kế hoạch, suy nghĩ thành tiếng, hỏi ý kiến: đều KHÔNG "
+    "phải lời nhờ, trả lời thẳng. Không chắc họ muốn làm ngay hay chỉ đang nói chuyện thì HỎI LẠI một "
+    "câu ngắn (ví dụ 'Anh muốn em làm luôn không?'), đừng giao. Khi giao, trả lời đúng khuôn này: MỘT câu xác nhận ngắn, tự nhiên ở dòng đầu (kiểu 'Ừ, để xem "
     "ngay.', 'Rồi, kiểm tra ngay đây.', xưng hô theo người dùng), rồi một dòng riêng bắt đầu bằng "
     + MARKER + " theo sau là "
     "yêu cầu ĐẦY ĐỦ, tự đứng được (bộ não chính không nghe cuộc nói chuyện này) để bộ não chính của "
     "Javis thực hiện. Không viết gì sau dòng đó. Việc đó chạy NỀN như một việc riêng: kết quả tự "
-    "hiện trong khung chat khi xong, còn bạn vẫn trò chuyện tiếp bình thường; có thể giao nhiều việc "
-    "nền liên tiếp. Người dùng hỏi tiến độ thì nói việc đang chạy, KHÔNG bịa kết quả.\n"
+    "hiện trong khung chat khi xong, còn bạn vẫn trò chuyện tiếp bình thường. Mỗi lời nhờ chỉ giao "
+    "MỘT lần: câu nói tiếp, câu nhắc lại, câu hỏi tiến độ hay câu cảm ơn về một việc đã giao thì "
+    "KHÔNG giao lại. Người dùng hỏi tiến độ thì nói việc đang chạy, KHÔNG bịa kết quả.\n"
     "NGOẠI LỆ, làm NGAY không nhờ bộ não chính: khi người dùng chỉ bảo ĐIỀU KHIỂN MÀN HÌNH, hãy "
     "trả lời một câu ngắn xác nhận rồi xuống dòng ghi " + UI_MARKER + " kèm lệnh:\n"
     "  " + UI_MARKER + " open_page <id trang>   (mở một tab. Viết ID tiếng Anh; trong ngoặc là nhãn "
@@ -111,43 +120,180 @@ SYSTEM_PROMPT = (
     "dừng một việc khác là đẻ thêm đúng thứ họ đang muốn bỏ. Chỉ trả lời một câu ngắn xác nhận, "
     "không kèm dòng lệnh nào; hệ thống đã tự huỷ trước khi bạn kịp nói.\n"
     "Chuyện trò thường, hỏi ý kiến, giải thích khái niệm, tính nhẩm, chuyển ngữ: trả lời thẳng.\n"
-    "QUAN TRỌNG, làm ở MỌI lượt: câu của người dùng đến từ MÁY NGHE GIỌNG NÓI, và họ hay nói lẫn "
-    "tiếng Việt với tiếng Anh, nên từ tiếng Anh thường bị chép sai thành từ gần âm: tên bạn thành "
-    "'David', 'Jarvis', 'Gia vít'; từ tiếng Anh, tên công cụ, tên dự án thành một từ nghe na ná. "
-    "Vì thế DÒNG ĐẦU TIÊN của mọi câu trả lời LUÔN là " + NGHE_MARKER + " theo sau là câu người "
-    "dùng ĐÚNG NHƯ HỌ ĐỊNH NÓI trên một dòng: chép lại nguyên văn, chỉ thay từ nghe sai bằng từ đúng "
-    "(từ tiếng Anh viết đúng chính tả tiếng Anh), giữ nguyên tiếng Việt, cách xưng hô, thứ tự và "
-    "độ dài; không dịch, không tóm tắt, không thêm bớt ý; không có gì sai thì chép y nguyên. Người "
-    "dùng nhìn dòng này để biết bạn đã hiểu đúng chưa, nên không được bỏ. Từ dòng thứ hai trở đi "
-    "mới là câu trả lời (câu xác nhận và dòng " + MARKER + " hay " + UI_MARKER + " nếu cần cũng nằm "
-    "từ đây), và trả lời theo câu đã sửa đó: không bám nghĩa đen của từ nghe sai, không hỏi lại "
-    "'David là ai', không bình luận về từ nghe sai.\n"
-    "CŨNG Ở DÒNG " + NGHE_MARKER + " ĐÓ, lọc TẠP ÂM: mic bật liên tục nên chữ máy nghe chép về có "
-    "thể lẫn thứ KHÔNG nói với bạn, chẳng hạn tiếng TV hay video đang phát, người khác trong phòng "
-    "nói chuyện với nhau, người dùng lẩm bẩm một mình hay gọi ai đó. Dấu hiệu: câu đứt đoạn không "
-    "thành ý, đổi chủ đề liên tục, ngôn ngữ lạ chen vào giữa, nội dung chẳng liên quan gì tới cuộc "
-    "nói chuyện đang diễn ra. Gặp thế thì dòng " + NGHE_MARKER + " chỉ chép PHẦN THỰC SỰ NÓI VỚI "
-    "BẠN và bỏ phần còn lại, rồi trả lời đúng phần đó.\n"
-    "Cả lượt KHÔNG có câu nào nói với bạn thì trả đúng MỘT dòng duy nhất, không kèm gì khác, không "
-    "kèm cả dòng " + NGHE_MARKER + ":\n"
-    "  " + BO_QUA_MARKER + " <lý do thật ngắn, ví dụ: tiếng TV trong phòng>\n"
-    "DÈ DẶT khi dùng dòng này: bỏ nhầm thì người dùng nói mà không được trả lời, tệ hơn nhiều so "
-    "với trả lời một câu thừa. Chỉ bỏ khi CHẮC CHẮN không có gì gửi tới bạn. Nghi ngờ thì GIỮ và trả "
-    "lời bình thường. Câu cụt, câu trống không, câu chỉ vài từ, câu nói tiếp ý lượt trước, câu chỉ "
-    "đáp 'ừ' hay 'không' đều là nói với bạn, KHÔNG phải tạp âm."
+    "Câu của người dùng đến từ MÁY NGHE GIỌNG NÓI, và họ hay nói lẫn tiếng Việt với tiếng "
+    "Anh, nên từ hay bị chép thành từ GẦN ÂM: tên bạn (Javis) thành 'David', 'Jarvis', 'Gia "
+    "vít'; từ tiếng Anh, tên công cụ, tên dự án, tên sản phẩm thành một từ nghe na ná. Hãy "
+    "HIỂU CÂU THEO NGỮ CẢNH cuộc trò chuyện. DÒNG ĐẦU TIÊN luôn là " + NGHE_MARKER + " rồi "
+    "câu người dùng ĐÚNG NHƯ HỌ ĐỊNH NÓI trên một dòng, bỏ khối ngữ cảnh giao diện nếu có: "
+    "chép lại nguyên văn, CHỈ thay từ nghe sai bằng từ gần âm đúng với ngữ cảnh (từ tiếng Anh "
+    "viết đúng chính tả tiếng Anh, ví dụ 'huyết áp Action', 'khít half action' là 'GitHub "
+    "Actions', 'mô đồ' là 'Models'); giữ nguyên tiếng Việt, xưng hô, thứ tự, số, từ phủ định; "
+    "không dịch, không tóm tắt, không thêm bớt ý; không chắc thì chép y nguyên. Hệ thống tự "
+    "kiểm lại dòng này, sửa quá tay thì bị bỏ. Từ dòng thứ hai mới trả lời hoặc dùng "
+    + MARKER + " hay " + UI_MARKER + ", và trả lời theo câu đã hiểu đó: không bám nghĩa đen "
+    "của từ nghe sai, không nói người dùng đã nói 'David', không bình luận về từ nghe sai. "
+    "Câu vẫn không rõ nghĩa thì hỏi lại ngắn bằng tiếng Việt, không tự đoán tên người khác hay đổi "
+    "giọng đọc. Người dùng nói dùng 'vâng' thay 'ừ' là yêu cầu cách đáp lễ phép; không suy "
+    "thành đổi danh tính sang người tên Vân. Ưu tiên xưng em, gọi người dùng là anh và đáp vâng.\n"
+    "Bạn chỉ có bản chép chữ, không có bằng chứng ai nói hay tiếng nào là tạp âm. "
+    "Không đoán tiếng TV, không cắt hoặc bỏ lượt vì câu ngắn, đổi chủ đề hay lẫn ngôn ngữ. "
+    "Giữ nguyên lời đã nhận; thiếu ý thì hỏi lại ngắn bằng tiếng Việt."
 )
 
-# Câu dặn thêm cho lượt khi người dùng TẮT ô lọc tạp âm ở trang Cài đặt. Đi kèm câu nói (như
-# pending_note) thay vì đổi SYSTEM_PROMPT, vì prompt được nướng vào bộ não lúc dựng: đổi theo
-# cài đặt thì mỗi lần gạt ô lại phải giết và dựng lại tiến trình agy đang sống.
+# Luôn gửi cả với bộ não đang sống dùng prompt cũ: không cho nó xoá lời đã được nhận.
 GHI_CHU_TAT_LOC = (
-    "[GHI CHÚ HỆ THỐNG: người dùng đã TẮT lọc tạp âm cho lượt này. Chép NGUYÊN VĂN câu họ nói ở "
-    "dòng " + NGHE_MARKER + ", không cắt bỏ phần nào, và TUYỆT ĐỐI không dùng dòng "
+    "[GHI CHÚ HỆ THỐNG: lượt này đã được nhận vào hội thoại. Chép ĐỦ câu họ nói ở dòng "
+    + NGHE_MARKER + " (chỉ được thay từ nghe nhầm gần âm), không cắt bỏ phần nào, không suy "
+    "đoán tạp âm từ chữ và không dùng "
     + BO_QUA_MARKER + ".]"
+)
+
+# Dặn bộ não CHÍNH khi câu diễn giải của bộ não giọng bị rào chặn và lượt quay về câu gốc
+# (main.run_voice_turn._giu_cau_goc). Chủ dự án 27/09: câu nghe "cave của clap Play" đi thẳng
+# sang bộ não chính, nó trả lời mở đầu bằng "Em hiểu 'cave' là KV của Cloudflare..." - đúng ý
+# nhưng thừa, người nghe chỉ cần câu trả lời. CỐ Ý không kèm câu bộ não giọng hiểu: rào chặn
+# chính là vì câu đó có thể đổi nghĩa ("không gửi" thành "có gửi").
+GHI_CHU_CAU_NGHE = (
+    "[GHI CHÚ HỆ THỐNG: câu trên đến từ MÁY NGHE giọng nói, từ tiếng Anh hay bị chép thành từ "
+    "gần âm (\"cave\" là KV, \"clap Play\" là Cloudflare). Tự hiểu theo nghĩa hợp ngữ cảnh "
+    "nhất rồi TRẢ LỜI THẲNG vào việc, KHÔNG giải thích hay bình luận chuyện nghe nhầm (đừng nói "
+    "\"em hiểu X là Y\"). Chỉ hỏi lại khi thật sự không đoán được. Việc tác động ra ngoài (gửi "
+    "tin, đăng bài, tiêu tiền, xoá) vẫn nói lại ngắn điều sắp làm và hỏi xác nhận trước.]"
 )
 
 _MARK_RE = re.compile(r"^[ \t]*" + re.escape(MARKER) + r"[ \t]*(.+?)[ \t]*$", re.M)
 _NGHE_RE = re.compile(r"^[ \t]*" + re.escape(NGHE_MARKER) + r"[ \t]*(.*?)[ \t]*(?:\n|$)", re.M)
+_TRANSCRIPT_WORDS = re.compile(r"[+−-]?\d+(?:[.,:/-]\d+)*%?|[^\W\d_]+(?:['’][^\W\d_]+)?", re.U)
+
+
+# Rào cho câu bộ não giọng diễn giải (0.64.38). Đo trên cặp thật: "mô đồ"/Models 0,6,
+# "web kếch"/Webcake 0,77, "com pô si ô"/Composio 1,0 (4 tiếng); còn cặp đổi nghĩa như
+# "trả lời"/"trở thành" 0,4, "khách"/"sếp" 0,33, "email"/"Zalo" 0,25. Từ ngắn trùng hẳn âm
+# ("vâng"/"Vân") vẫn bị chặn bởi nghe_sua.KHOA_MIN_MO. Không đoán được thì bộ não chính nhận
+# nguyên văn và tự hiểu theo ngữ cảnh.
+NGUONG_DIEN_GIAI = 0.6
+MAX_GHEP_DIEN_GIAI = 4
+# Tổng số từ được thay khi chỗ sửa là THUẬT NGỮ tiếng Anh: nửa câu, tối thiểu 4, để câu ngắn
+# vẫn sửa được một cụm tên bị nghe thành 3 tiếng ("anh hỏi về khít half action"). Sửa bằng
+# từ tiếng Việt vẫn giữ trần cũ, xem safe_transcript_rewrite.
+MAX_SUA_TOI_THIEU = 4
+# Cụm thay bằng thuật ngữ tiếng Anh được dài tới chừng này tiếng (0.64.72).
+MAX_GHEP_ANH = 6
+# Từ ngắn (dưới nghe_sua.KHOA_MIN_MO) được thay bằng từ tiếng Anh khi CÁCH ĐỌC kiểu Việt giống
+# từ mức này: "cave" (đọc "cây") -> "KV" (đọc "cây vi") là 0,67.
+NGUONG_TU_NGAN_ANH = 0.65
+
+
+def _doc_trung(cu: list, moi: list) -> bool:
+    """Từ ngắn chỉ được sửa khi từ mới là TIẾNG ANH và người Việt đọc nó y hệt chữ máy nghe
+    ("mên" -> "main"). Giữ nguyên rào cũ cho từ tiếng Việt: "vâng" không thành "Vân"."""
+    try:
+        if not moi or not all(phien_am.la_tu_tieng_anh(w) for w in moi):
+            return False
+        a = nghe_sua.bo_dau("".join(" ".join(cu).split()))
+        b = nghe_sua.bo_dau("".join(phien_am.doc_cum(" ".join(moi)).split()))
+        return bool(a) and a == b
+    except Exception:
+        return False
+
+
+def _giong_doc(cu: list, moi: list) -> float:
+    """Độ giống âm CHỈ theo cách đọc kiểu Việt (phien_am), cho từ ngắn."""
+    try:
+        a = nghe_sua.khoa_am("".join(phien_am.doc_cum(" ".join(cu)).split()))
+        b = nghe_sua.khoa_am("".join(phien_am.doc_cum(" ".join(moi)).split()))
+        return nghe_sua.do_giong(a, b)
+    except Exception:
+        return 0.0
+
+
+def _giong_am(cu: list, moi: list) -> float:
+    """Độ giống âm giữa cụm máy nghe và cụm bộ não sửa, lấy cách so CAO HƠN trong hai:
+      - theo mặt chữ (nghe_sua.khoa_am) như trước: "David" với "Javis";
+      - theo cách người Việt ĐỌC từ tiếng Anh (phien_am): "action" viết một đằng đọc một
+        nẻo, so mặt chữ "huyết áp Action" với "GitHub Actions" chỉ được 0,6 và bị chặn,
+        còn so cách đọc ("ghít hắp ác sừn") thì khớp (0.64.68).
+    """
+    a, b = nghe_sua.khoa_am("".join(cu)), nghe_sua.khoa_am("".join(moi))
+    d = nghe_sua.do_giong(a, b)
+    try:
+        # Chữ cũ là tiếng Việt, chữ mới là tiếng Anh: so MẶT CHỮ là so hai thứ khác loại
+        # ("việc" với chính tả "Webhook" được 0,67 và từng lọt, đổi hẳn trang cần mở). Khi đó
+        # chỉ tin cách ĐỌC ("việc" với "quép húc" 0,44). Hai bên cùng tiếng Anh ("David" ->
+        # "Javis") hay cùng tiếng Việt thì mặt chữ vẫn có nghĩa, lấy điểm cao hơn.
+        anh_moi = all(phien_am.la_tu_tieng_anh(w) for w in moi)
+        anh_cu = all(phien_am.la_tu_tieng_anh(w) for w in cu)
+        doc = _giong_doc(cu, moi)
+        return doc if (anh_moi and not anh_cu) else max(d, doc)
+    except Exception:
+        return d
+
+
+def safe_transcript_rewrite(original: str, proposed: str) -> str:
+    """Accept local spelling repairs, retaining the source on semantic or lossy edits.
+
+    This is deliberately conservative: a model cannot establish which audio was noise
+    from text alone. Whole-turn noise handling is separate. The UI prefix is context,
+    not speech, and always belongs to the original message.
+    """
+    original = str(original or "")
+    prefix, speech = nghe_sua.split_ui_context(original)
+    candidate_prefix, candidate = nghe_sua.split_ui_context(str(proposed or "").strip())
+    if candidate_prefix and candidate_prefix.strip() != prefix.strip():
+        return original
+    if not candidate or any(marker in candidate for marker in MARKERS):
+        return original
+    # Literal paths, email addresses, numeric separators and identifiers are not names
+    # inferred from audio. Keep them exact, including punctuation.
+    if nghe_sua.VERBATIM.findall(speech) != nghe_sua.VERBATIM.findall(candidate):
+        return original
+    before_raw = _TRANSCRIPT_WORDS.findall(speech)
+    after_raw = _TRANSCRIPT_WORDS.findall(candidate)
+    before = [w.casefold() for w in before_raw]
+    after = [w.casefold() for w in after_raw]
+    if not before or not after:
+        return original
+    changed = changed_en = 0
+    for kind, i, j, k, l in difflib.SequenceMatcher(None, before, after, autojunk=False).get_opcodes():
+        if kind == "equal":
+            continue
+        # No dropped/added words, even when the remaining transcript is still long.
+        if kind != "replace":
+            return original
+        old, new = before[i:j], after[k:l]
+        # Thay bằng THUẬT NGỮ tiếng Anh: một tên 3 chữ có thể bị nghe thành 5, 6 tiếng Việt
+        # ("Quốc cơ ford plat form" -> "Workers for Platforms"), nên cụm được dài hơn.
+        la_anh = all(phien_am.la_tu_tieng_anh(w) for w in after_raw[k:l])
+        if max(j - i, l - k) > (MAX_GHEP_ANH if la_anh else MAX_GHEP_DIEN_GIAI):
+            return original
+        if "".join(old) == "".join(new):
+            # Allow compound proper names (Open Router -> OpenRouter), not merged
+            # command/negation words. Lowercase brand repairs still use explicit hotwords.
+            proper_name = (all(re.fullmatch(r"[A-Z][a-zA-Z]*", w) for w in before_raw[i:j])
+                           and all(re.fullmatch(r"[A-Z][a-z]+[A-Z][a-zA-Z]*", w) for w in after_raw[k:l]))
+            if proper_name or not any(w in nghe_sua.PROTECTED_WORDS for w in old + new):
+                continue
+        if any(w in nghe_sua.PROTECTED_WORDS or any(c.isdigit() for c in w) for w in old + new):
+            return original
+        a, b = nghe_sua.khoa_am("".join(old)), nghe_sua.khoa_am("".join(new))
+        if (min(len(a), len(b)) < nghe_sua.KHOA_MIN_MO and not _doc_trung(before_raw[i:j], after_raw[k:l])
+                and not (la_anh and _giong_doc(before_raw[i:j], after_raw[k:l]) >= NGUONG_TU_NGAN_ANH)):
+            return original
+        if _giong_am(before_raw[i:j], after_raw[k:l]) < NGUONG_DIEN_GIAI:
+            return original
+        if la_anh:
+            changed_en += len(new)
+        else:
+            changed += max(len(old), len(new))
+    # Hai trần riêng: sửa bằng từ tiếng Việt giữ trần cũ (một phần ba câu, tối thiểu 2) vì đó
+    # là chỗ đổi nghĩa ("trả lời vâng" -> "trở thành Vân"); sửa bằng THUẬT NGỮ tiếng Anh được
+    # rộng hơn (nửa câu, tối thiểu 4, đếm theo số chữ tiếng Anh thay vào) vì một cụm tên bị
+    # nghe thành nhiều tiếng Việt là chuyện thường ("khít half action" -> "GitHub Actions").
+    if changed > max(2, len(before) // 3):
+        return original
+    if changed + changed_en > max(MAX_SUA_TOI_THIEU, len(before) // 2):
+        return original
+    return prefix + candidate
 
 
 def parse_nghe(text: str):
@@ -761,22 +907,70 @@ _DUNG_TU = (
     "dừng", "tạm dừng", "ngừng", "huỷ", "hủy", "bỏ", "tắt", "thôi", "dẹp", "khoan làm",
     "stop", "cancel", "abort", "kill", "halt",
 )
+# Cụm chỉ ĐÍCH DANH việc chạy nền. 0.64.48 bỏ các từ đơn "nền", "nen", "đang chạy", "task",
+# "job": chúng làm câu hỏi thường bị nuốt thành lệnh dừng. Chủ repo báo 24/09, dò lại thấy
+# "Thôi được rồi, quảng cáo đang chạy thế nào?", "tắt nhạc nền đi", "bỏ qua chuyện đó, nền
+# tảng nào bán tốt" đều bị coi là lệnh: câu hỏi mất, Javis đáp "không có việc nền nào".
 _VIEC_TU = (
     "việc nền", "viec nen", "việc ngầm", "viec ngam", "chạy nền", "chay nen", "chạy ngầm",
-    "ngầm", "ngam", "nền", "nen", "tác vụ", "tac vu", "đang chạy", "dang chay",
-    "background", "task", "job",
+    "chay ngam", "tác vụ", "tac vu", "background",
 )
+# "ngầm" đứng riêng thì vẫn là việc nền ("dừng tìm kiếm ngầm"), nhưng phải là TỪ trọn vẹn.
+_NGAM_RE = re.compile(r"(?<!\w)(ngầm|ngam)(?!\w)")
+# "việc ... đang chạy" (nguyên văn chủ repo: "tắt việc tìm kiếm đang chạy").
+_VIEC_DANG_CHAY_RE = re.compile(r"(?<!\w)việc(?!\w).*(?<!\w)đang chạy(?!\w)")
+# Câu HỎI thì không phải lệnh, dù có đủ cặp từ ("thôi, việc ngầm đang chạy tới đâu rồi?").
+_HOI_RE = re.compile(r"\?\s*$|(?<!\w)(thế nào|ra sao|tới đâu|đến đâu|bao giờ|bao lâu|"
+                     r"xong chưa|chưa nhỉ|được chưa|có không|không nhỉ|how|what|when|status)(?!\w)")
 
 
 def la_lenh_dung_viec(text: str) -> bool:
-    """Câu này có phải là LỆNH dừng việc nền đang chạy không (thuần, test được)."""
+    """Câu này có phải là LỆNH dừng việc nền đang chạy không (thuần, test được).
+
+    Cần ĐỦ BA: một từ DỪNG (trọn từ), một cụm chỉ đích danh VIỆC CHẠY NỀN, và câu không phải
+    câu hỏi. Thiếu một là trả False, để câu đó đi đường thường: nhận nhầm một lệnh dừng thì
+    câu hỏi của người dùng bị nuốt, tệ hơn nhiều so với để model tự xử một câu dừng hiếm hoi.
+    """
     s = " " + re.sub(r"\s+", " ", str(text or "").lower().strip()) + " "
     if not s.strip():
         return False
-    co_dung = any((" " + t + " ") in s or s.startswith(" " + t + " ") for t in _DUNG_TU)
+    co_dung = any((" " + t + " ") in s or (" " + t + ",") in s for t in _DUNG_TU)
     if not co_dung:
         return False
-    return any(v in s for v in _VIEC_TU)
+    co_viec = (any(v in s for v in _VIEC_TU) or _NGAM_RE.search(s) is not None
+               or _VIEC_DANG_CHAY_RE.search(s) is not None)
+    if not co_viec:
+        return False
+    return _HOI_RE.search(s.strip()) is None
+
+
+# ---- Chốt ở MÁY CHỦ: không giao trùng, không giao dồn (0.64.48) ----
+# Trước đây "đừng giao lại việc trùng" chỉ là lời DẶN trong ghi chú gửi model. Model giọng là
+# model nhỏ, nghe người dùng nhắc lại hay hỏi tiến độ là giao thêm một việc giống hệt, và mỗi
+# lần giao là một thẻ trên trang Việc (chủ repo báo 24/09: tạo việc ngầm lung tung).
+VIEC_NEN_TOI_DA = 3        # việc nền giọng chạy song song tối đa trong một phiên nói
+NGUONG_TRUNG = 0.8         # độ giống (0..1) từ đây trở lên thì coi là cùng một việc
+
+
+def _chuan_viec(s: str) -> str:
+    return re.sub(r"[^\w]+", " ", str(s or "").lower()).strip()
+
+
+def viec_trung(session_id: str, request: str) -> Optional[str]:
+    """Việc nền ĐANG CHẠY giống yêu cầu này (trả yêu cầu cũ), không có thì None."""
+    moi = _chuan_viec(request)
+    if not moi:
+        return None
+    for it in pending_tasks(session_id):
+        cu = _chuan_viec(it.get("request"))
+        if cu and (cu == moi or difflib.SequenceMatcher(None, cu, moi).ratio() >= NGUONG_TRUNG):
+            return it.get("request")
+    return None
+
+
+def day_viec_nen(session_id: str) -> bool:
+    """Phiên nói này đã chạy đủ số việc nền tối đa chưa."""
+    return len(pending_tasks(session_id)) >= VIEC_NEN_TOI_DA
 
 
 def pending_note(session_id: str, now: Optional[float] = None) -> str:
@@ -864,7 +1058,7 @@ def config_from_settings(cfg: dict) -> dict:
             "api_key": str(m.get(kf, "")) if kf else "",
             # Lọc tạp âm MẶC ĐỊNH BẬT: brain cũ chưa có khoá này trong settings.json vẫn được lọc,
             # nên phải hỏi `is False` chứ không phải `or True` (giá trị False hợp lệ).
-            "loc_tap_am": v.get("loc_tap_am") is not False}
+            "loc_tap_am": False}
 
 
 def _make(conf: dict) -> VoiceBrain:

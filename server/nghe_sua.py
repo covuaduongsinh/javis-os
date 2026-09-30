@@ -41,6 +41,19 @@ import unicodedata
 TU_VUNG_GOC = ("Javis",)
 MAX_TU_VUNG = 60          # Whisper chỉ nhìn ~224 token cuối của prompt; hơn nữa là vô ích
 MAX_GHEP = 3              # ghép tối đa 3 tiếng liền nhau làm một ứng viên ("Gia vít", "Open Router")
+MAX_GOI_Y = 600           # trần độ dài prompt gửi Whisper (stt.groq_nghe cũng cắt ở mức này)
+
+# Từ tiếng Anh người Việt hay nói xen, CHỈ để mồi Whisper, không đưa vào lớp sửa mờ `sua` (sửa
+# mờ với cả chục từ thông dụng thì dễ đổi nhầm từ tiếng Việt). Vì sao cần (0.64.67): Whisper
+# được ép `language=vi`, gặp "GitHub Actions" nó viết theo âm Việt thành "huyết áp Action".
+# Prompt có sẵn vài từ tiếng Anh viết nguyên chính tả là tiền lệ để nó giữ chính tả tiếng Anh
+# cho cả những từ không có trong danh sách.
+TU_TIENG_ANH_MOI = (
+    "GitHub", "GitHub Actions", "commit", "push", "pull request", "merge", "deploy", "server",
+    "VPS", "API", "API key", "MCP", "workflow", "agent", "skill", "dashboard", "prompt",
+    "model", "token", "bug", "log", "Claude Code", "Codex", "Facebook Ads", "landing page",
+    "livestream", "inbox", "content", "marketing", "email",
+)
 
 # Trùng âm từ mức này trở lên: sửa ở mọi vị trí (thực tế là trùng khoá âm hoàn toàn).
 NGUONG_MOI_NOI = 0.95
@@ -64,6 +77,24 @@ to with for from named mr mrs ms miss
 # Ranh giới câu trong đoạn ngăn cách giữa hai từ.
 _RANH_CAU = re.compile(r"[.!?…\n,;:()\[\]\"“”]")
 _TU = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)?", re.U)   # một "tiếng": chữ cái, không số
+# Hotwords are spelling hints, never permission to change a command or amount.
+PROTECTED_WORDS = frozenset("""
+không chẳng chưa đừng chớ dừng hủy huỷ bật tắt mở đóng xóa xoá gửi chuyển
+thêm bớt tăng giảm mua bán đặt đọc ghi lưu sửa xong chỉ trừ trước sau
+một hai ba bốn tư năm sáu bảy tám chín mười mươi trăm nghìn ngàn triệu tỷ
+no not never don't stop cancel enable disable open close delete send transfer
+one two three four five six seven eight nine ten hundred thousand million
+""".split())
+_UI_CONTEXT = re.compile(r"\A\s*\[NGỮ CẢNH GIAO DIỆN:[^\]]*\]\s*")
+# Speech can contain literal identifiers. Do not rewrite pieces of paths, URLs or email.
+VERBATIM = re.compile(r"\S*(?:[/\\@:_]|\w\.\w)\S*")
+
+
+def split_ui_context(text):
+    """Return the exact dashboard prefix separately from the spoken words."""
+    s = str(text or "")
+    m = _UI_CONTEXT.match(s)
+    return (s[:m.end()], s[m.end():]) if m else ("", s)
 
 # Gộp những âm máy nghe hay lẫn. Chạy THEO THỨ TỰ: cặp chữ trước, chữ đơn sau.
 _AM_DOI = (("gi", "d"), ("ph", "f"), ("th", "t"), ("tr", "c"), ("ch", "c"), ("kh", "k"),
@@ -134,14 +165,22 @@ def tu_vung(cfg: dict) -> list:
     return ra[:MAX_TU_VUNG]
 
 
-def goi_y_whisper(tv) -> str:
+def goi_y_whisper(tv, ky_thuat=TU_TIENG_ANH_MOI) -> str:
     """Tham số `prompt` cho Whisper: một danh sách tên, ngăn bằng phẩy, khép bằng dấu chấm.
 
     Whisper coi prompt là "đoạn trước" của bản ghi và bắt chước cách viết trong đó, nên chỉ cần
     tên xuất hiện là nó ưu tiên chép đúng chính tả ấy. Cố ý KHÔNG viết thành câu ("Nói chuyện
     với Javis") vì gặp im lặng Whisper hay chép lại chính câu mồi.
+
+    `ky_thuat` (mặc định `TU_TIENG_ANH_MOI`) đứng TRƯỚC bộ từ vựng: Whisper chỉ giữ phần cuối
+    prompt, nên từ người dùng khai phải ở sát audio nhất; cắt độ dài thì bỏ từ mồi chung trước.
     """
     ds = [t for t in (tv or []) if t]
+    da = {t.lower() for t in ds}
+    moi = [t for t in (ky_thuat or ()) if t and t.lower() not in da]
+    while moi and len(", ".join(moi + ds)) + 1 > MAX_GOI_Y:
+        moi.pop()
+    ds = moi + ds
     return (", ".join(ds) + ".") if ds else ""
 
 
@@ -158,13 +197,12 @@ def _ung_vien(toks, i, n, s):
 def _o_vi_tri_goi_ten(toks, i, n, s) -> bool:
     truoc = toks[i - 1] if i > 0 else None
     sau = toks[i + n] if i + n < len(toks) else None
-    if truoc is None:
-        return True
-    khoang_truoc = s[truoc.end():toks[i].start()]
-    if _RANH_CAU.search(khoang_truoc) or bo_dau(truoc.group(0)) in {bo_dau(x) for x in _MO_DAU}:
-        return True
+    if truoc is not None:
+        khoang_truoc = s[truoc.end():toks[i].start()]
+        if bo_dau(truoc.group(0)) in {bo_dau(x) for x in _MO_DAU}:
+            return True
     if sau is None:
-        return True
+        return bool(_RANH_CAU.search(s[toks[i + n - 1].end():]))
     khoang_sau = s[toks[i + n - 1].end():sau.start()]
     if _RANH_CAU.search(khoang_sau):
         return True
@@ -194,6 +232,9 @@ def _ten_rieng_hai_chu(toks, i, n, s, term) -> bool:
 def sua(text, tv) -> str:
     """Sửa những từ nghe nhầm thành từ trong bộ từ vựng `tv`. Không có gì để sửa thì trả y nguyên."""
     s = str(text or "")
+    prefix, speech = split_ui_context(s)
+    if prefix:
+        return prefix + sua(speech, tv)
     ds = [(t, khoa_am(t), len(t.split())) for t in (tv or []) if t and khoa_am(t)]
     if not s or not ds:
         return s
@@ -201,6 +242,7 @@ def sua(text, tv) -> str:
     if not toks:
         return s
     dem = frozenset(bo_dau(x) for x in (_MO_DAU | _KET_GOI | _NGOI_THU_BA))
+    verbatim = [(m.start(), m.end()) for m in VERBATIM.finditer(s)]
 
     def _diem_don(j):
         """Điểm cao nhất của RIÊNG tiếng thứ j so với cả bộ từ vựng."""
@@ -217,6 +259,8 @@ def sua(text, tv) -> str:
             uv = _ung_vien(toks, i, n, s)
             if uv is None:
                 break
+            if any(a < toks[i + n - 1].end() and b > toks[i].start() for a, b in verbatim):
+                continue
             k = khoa_am(uv)
             if len(k) < 3:
                 continue
@@ -226,6 +270,9 @@ def sua(text, tv) -> str:
                 if any(bo_dau(toks[j].group(0)) in dem for j in range(i, i + n)):
                     continue
             for term, kt, so_tieng in ds:
+                if (any(toks[j].group(0).lower() in PROTECTED_WORDS for j in range(i, i + n))
+                        and "".join(uv.lower().split()) != "".join(term.lower().split())):
+                    continue
                 if n > so_tieng + 1:
                     continue           # không ghép quá số tiếng của từ vựng (+1 cho ca bị tách)
                 d = 1.0 if uv.lower() == term.lower() else do_giong(k, kt)
