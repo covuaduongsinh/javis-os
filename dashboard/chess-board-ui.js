@@ -24,19 +24,22 @@
     k: '<svg viewBox="0 0 45 45"><g fill="none" fill-rule="evenodd" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22.5 11.63V6M20 8h5" stroke-linejoin="miter"/><path d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5" fill="#333" stroke-linecap="butt"/><path d="M11.5 37c5.5 3.5 15.5 3.5 21 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V23v-2c-2.5-7.5-12-10.5-16-4-3 6 6 10.5 6 10.5v7z" fill="#333"/><path d="M11.5 30c5.5-3 15.5-3 21 0M11.5 33.5c5.5-3 15.5-3 21 0M11.5 37c5.5-3 15.5-3 21 0" stroke="#fff"/></g></svg>'
   };
 
-  // CSS Stylesheet tự động gắn cho bàn cờ
+  // CSS Stylesheet tự động gắn cho bàn cờ (Tối ưu bố cục gọn gàng, căn chỉnh chuẩn xác)
   var CHESS_CSS = `
     .jv-cb-wrap {
-      display: inline-block;
+      display: inline-flex;
+      flex-direction: column;
       margin: 12px 0;
       padding: 12px;
       background: var(--bg-card, #ffffff);
       border: 1px solid var(--border-color, #e2e8f0);
       border-radius: 12px;
       box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+      width: fit-content;
       max-width: 100%;
       font-family: inherit;
       box-sizing: border-box;
+      vertical-align: top;
     }
     .dark .jv-cb-wrap {
       background: #1e293b;
@@ -52,6 +55,8 @@
       font-weight: 600;
       color: var(--text-color, #1e293b);
       gap: 8px;
+      width: 100%;
+      box-sizing: border-box;
     }
     .dark .jv-cb-header { color: #f1f5f9; }
     .jv-cb-badge {
@@ -63,6 +68,7 @@
       border-radius: 6px;
       font-size: 12px;
       font-weight: 500;
+      white-space: nowrap;
     }
     .dark .jv-cb-badge { background: #334155; color: #cbd5e1; }
     .jv-cb-badge.edit-active {
@@ -75,14 +81,20 @@
       color: #fef08a;
     }
 
-    .jv-cb-board-container {
-      display: grid;
-      grid-template-columns: 20px auto;
-      grid-template-rows: auto 20px;
-      gap: 2px;
+    /* Bàn cờ và Tọa độ căn chỉnh hoàn hảo */
+    .jv-cb-board-box {
+      display: inline-flex;
+      flex-direction: column;
       user-select: none;
+      width: fit-content;
+      box-sizing: border-box;
+    }
+    .jv-cb-board-row {
+      display: flex;
+      align-items: stretch;
     }
     .jv-cb-ranks {
+      width: 18px;
       display: flex;
       flex-direction: column;
       justify-content: space-around;
@@ -90,25 +102,33 @@
       font-size: 11px;
       font-weight: bold;
       color: #64748b;
-    }
-    .jv-cb-files {
-      grid-column: 2;
-      display: flex;
-      justify-content: space-around;
-      font-size: 11px;
-      font-weight: bold;
-      color: #64748b;
-      padding-top: 2px;
+      padding-right: 4px;
+      box-sizing: border-box;
     }
     .jv-cb-grid {
-      grid-column: 2;
+      width: min(336px, calc(100vw - 72px));
+      height: min(336px, calc(100vw - 72px));
       display: grid;
-      grid-template-columns: repeat(8, minmax(28px, 42px));
-      grid-template-rows: repeat(8, minmax(28px, 42px));
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
       border: 2px solid #475569;
       border-radius: 4px;
       overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      box-sizing: border-box;
       aspect-ratio: 1 / 1;
+    }
+    .jv-cb-files {
+      margin-left: 18px;
+      width: min(336px, calc(100vw - 72px));
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      font-size: 11px;
+      font-weight: bold;
+      color: #64748b;
+      padding-top: 4px;
+      box-sizing: border-box;
     }
     .jv-cb-sq {
       display: flex;
@@ -117,6 +137,9 @@
       position: relative;
       user-select: none;
       transition: background-color 0.1s ease;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
     }
     .jv-cb-sq.light { background-color: #f0d9b5; }
     .jv-cb-sq.dark { background-color: #b58863; }
@@ -144,12 +167,14 @@
       gap: 6px;
       margin-top: 10px;
       flex-wrap: wrap;
+      max-width: min(354px, calc(100vw - 54px));
+      box-sizing: border-box;
     }
     .jv-cb-btn {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 5px 10px;
+      padding: 5px 9px;
       background: var(--bg-subtle, #f1f5f9);
       border: 1px solid var(--border-color, #cbd5e1);
       border-radius: 6px;
@@ -158,6 +183,7 @@
       cursor: pointer;
       transition: all 0.15s ease;
       text-decoration: none;
+      white-space: nowrap;
     }
     .dark .jv-cb-btn {
       background: #334155;
@@ -195,6 +221,8 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      max-width: min(354px, calc(100vw - 54px));
+      box-sizing: border-box;
     }
     .dark .jv-cb-fen-drawer {
       background: #0f172a;
@@ -206,6 +234,7 @@
     }
     .jv-cb-fen-input {
       flex: 1;
+      min-width: 0;
       padding: 5px 8px;
       font-family: monospace, Consolas, sans-serif;
       font-size: 11px;
@@ -235,6 +264,8 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      max-width: min(354px, calc(100vw - 54px));
+      box-sizing: border-box;
     }
     .dark .jv-cb-palette-wrap {
       background: #0f172a;
@@ -251,11 +282,11 @@
       font-weight: bold;
       color: #64748b;
       margin-right: 4px;
-      min-width: 45px;
+      min-width: 38px;
     }
     .jv-cb-tool-btn {
-      width: 32px;
-      height: 32px;
+      width: 30px;
+      height: 30px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -265,6 +296,7 @@
       cursor: pointer;
       padding: 2px;
       transition: all 0.12s ease;
+      box-sizing: border-box;
     }
     .dark .jv-cb-tool-btn {
       background: #1e293b;
@@ -444,8 +476,11 @@
     wrap.appendChild(header);
 
     // Board Container (Coordinates + 8x8 Grid)
-    var boardContainer = document.createElement("div");
-    boardContainer.className = "jv-cb-board-container";
+    var boardBox = document.createElement("div");
+    boardBox.className = "jv-cb-board-box";
+
+    var boardRow = document.createElement("div");
+    boardRow.className = "jv-cb-board-row";
 
     // Ranks (1-8)
     var ranksDiv = document.createElement("div");
@@ -456,7 +491,7 @@
       s.textContent = rk;
       ranksDiv.appendChild(s);
     });
-    boardContainer.appendChild(ranksDiv);
+    boardRow.appendChild(ranksDiv);
 
     // 8x8 Squares Grid
     var gridDiv = document.createElement("div");
@@ -543,7 +578,8 @@
         gridDiv.appendChild(sq);
       });
     });
-    boardContainer.appendChild(gridDiv);
+    boardRow.appendChild(gridDiv);
+    boardBox.appendChild(boardRow);
 
     // Files (a-h)
     var filesDiv = document.createElement("div");
@@ -554,9 +590,9 @@
       s.textContent = fl;
       filesDiv.appendChild(s);
     });
-    boardContainer.appendChild(filesDiv);
+    boardBox.appendChild(filesDiv);
 
-    wrap.appendChild(boardContainer);
+    wrap.appendChild(boardBox);
 
     // Bảng chọn quân cờ khi ở Chế độ Xếp cờ (Piece Palette)
     if (isEditMode) {
@@ -631,7 +667,7 @@
       var btnMove = document.createElement("button");
       btnMove.type = "button";
       btnMove.className = "jv-cb-btn" + (selectedTool === "move" ? " active" : "");
-      btnMove.innerHTML = "✋ Di chuyển quân";
+      btnMove.innerHTML = "✋ Di chuyển";
       btnMove.title = "Bấm vào quân rồi bấm ô đích để chuyển";
       btnMove.addEventListener("click", function () {
         renderChessboard(container, null, perspective, {
@@ -686,7 +722,7 @@
       var btnStartPos = document.createElement("button");
       btnStartPos.type = "button";
       btnStartPos.className = "jv-cb-btn";
-      btnStartPos.innerHTML = "⚡ Thế ban đầu";
+      btnStartPos.innerHTML = "⚡ Ban đầu";
       btnStartPos.title = "Đặt lại bàn cờ thi đấu tiêu chuẩn";
       btnStartPos.addEventListener("click", function () {
         var def = parseFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
