@@ -1,0 +1,10 @@
+name: Sách Khai cuộc ECO (Chess Openings)
+slug: chess-openings
+version: 1.0.0
+description: Tra cứu bách khoa toàn thư khai cuộc ECO và dữ liệu ván đấu của các Đại kiện tướng (Lichess Masters Explorer).
+author: Cờ vua Dương Sinh
+enabled: true
+min_mode: readonly
+tools:
+  - chess_openings
+hooks: []

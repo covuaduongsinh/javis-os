@@ -7,11 +7,11 @@ Thư mục này dùng để lưu trữ toàn bộ các kế hoạch nâng cấp,
 - Định dạng: `YYYY-MM-DD-<ten-ke-hoach-ngan-gon>.md`
 - Ví dụ: `2026-09-23-dong-bo-upstream-v0-64-20.md`
 
-## Cấu trúc chuẩn của một kế hoạch
+## Danh mục kế hoạch
 
-Mỗi tài liệu kế hoạch cần tuân thủ cấu trúc:
-1. **Goal:** Mục tiêu rõ ràng trong 1 câu.
-2. **Architecture & Diagram:** Giải pháp kiến trúc và sơ đồ Mermaid.
-3. **Global Constraints:** Các ràng buộc và phạm vi an toàn dữ liệu.
-4. **Bite-sized Tasks:** Từng tác vụ chi tiết kèm checkbox `- [ ]`, code diff, lệnh test và commit tương ứng.
-5. **Verification Plan:** Kịch bản kiểm thử tự động và thủ công trước khi bàn giao.
+- [2026-10-02-ke-hoach-tinh-nang-chuyen-mon-co-vua.md](file:///D:/code/javis-os/docs/plans/2026-10-02-ke-hoach-tinh-nang-chuyen-mon-co-vua.md): Kế hoạch phát triển bộ tính năng chuyên môn Cờ Vua toàn diện (Javis Chess Studio) độc lập không xung đột upstream.
+- [2026-09-30-dong-bo-upstream-v0-65-2.md](file:///D:/code/javis-os/docs/plans/2026-09-30-dong-bo-upstream-v0-65-2.md): Đồng bộ 76 commits từ upstream v0.65.2.
+- [2026-09-30-deploy-vps-dokploy-v0-65-2.md](file:///D:/code/javis-os/docs/plans/2026-09-30-deploy-vps-dokploy-v0-65-2.md): Triển khai v0.65.2 lên Dokploy VPS.
+- [2026-09-23-dong-bo-upstream-v0-64-20.md](file:///D:/code/javis-os/docs/plans/2026-09-23-dong-bo-upstream-v0-64-20.md): Đồng bộ upstream v0.64.20.
+- [2026-09-23-deploy-vps-dokploy.md](file:///D:/code/javis-os/docs/plans/2026-09-23-deploy-vps-dokploy.md): Triển khai Dokploy ban đầu.
+

@@ -1,0 +1,10 @@
+name: Ngân hàng Bài tập & Thế cờ (Chess Puzzles)
+slug: chess-puzzles
+version: 1.0.0
+description: Tìm kiếm bài tập chiến thuật theo chủ đề/Elo và trích xuất bài tập sửa lỗi từ chính ván cờ sai sót của học viên.
+author: Cờ vua Dương Sinh
+enabled: true
+min_mode: readonly
+tools:
+  - chess_puzzles
+hooks: []

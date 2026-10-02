@@ -1,0 +1,10 @@
+name: Trinh sát Kỳ thủ & Đối thủ (Chess Scout)
+slug: chess-scout
+version: 1.0.0
+description: Lập hồ sơ trinh sát đối thủ trước trận đấu qua Lichess / Chess.com, phân tích thói quen khai cuộc khi cầm Trắng & Đen và điểm yếu chiến thuật.
+author: Cờ vua Dương Sinh
+enabled: true
+min_mode: readonly
+tools:
+  - chess_player_scout
+hooks: []

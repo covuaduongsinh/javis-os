@@ -1,0 +1,12 @@
+name: Đánh giá & Phân tích Thế cờ (Chess Engine)
+slug: chess-engine
+version: 1.0.0
+description: Đánh giá thế cờ chuyên sâu bằng Stockfish & Lichess Cloud Eval, phân tích toàn bộ ván cờ PGN phát hiện blunder, và tra cứu cờ tàn Syzygy 7 quân tuyệt đối.
+author: Cờ vua Dương Sinh
+enabled: true
+min_mode: readonly
+tools:
+  - chess_eval
+  - chess_game_analyze
+  - chess_tablebase
+hooks: []

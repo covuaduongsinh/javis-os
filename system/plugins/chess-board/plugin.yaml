@@ -1,0 +1,10 @@
+name: Bàn cờ Trực quan (Chess Board)
+slug: chess-board
+version: 1.0.0
+description: Hiển thị và vẽ hình ảnh bàn cờ cờ vua trực quan (ASCII, Markdown, SVG) từ mã FEN có tọa độ chuẩn FIDE.
+author: Cờ vua Dương Sinh
+enabled: true
+min_mode: readonly
+tools:
+  - chess_render_board
+hooks: []
