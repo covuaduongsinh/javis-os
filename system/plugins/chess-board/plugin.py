@@ -25,7 +25,13 @@ def _handle_render_board(args: dict, ctx) -> str:
         return svg_str
     
     board_text = render_board_ascii(fen, perspective=perspective)
-    return json.dumps({"fen": fen, "perspective": perspective, "board_display": board_text}, ensure_ascii=False)
+    fen_block = f"```fen\n{fen}\n```"
+    return json.dumps({
+        "fen": fen,
+        "perspective": perspective,
+        "fen_block": fen_block,
+        "board_display": board_text
+    }, ensure_ascii=False)
 
 
 def register(ctx):

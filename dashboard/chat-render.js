@@ -351,11 +351,18 @@
       '<div class="jv-dv-head"><span class="jv-dv-title">' + title + "</span></div>" +
       '<div class="jv-dv-body"><span class="jv-dv-wait">' + esc(tw("crender.dv_running")) + '</span></div></div>';
   }
+  function chessboardHtml(code) {
+    var raw = String(code || "").trim();
+    var lines = raw.split("\n");
+    var fen = lines[0].trim();
+    return '<div class="jv-chessboard" data-fen="' + esc(fen) + '" contenteditable="false"></div>';
+  }
   function renderFence(info, code, streaming) {
     var lang = (info || "").trim().split(/\s+/)[0] || "";
     code = code.replace(/\n$/, "");
     if (streaming) return codeBlockHtml(lang, code, true);   // fence chua dong: khoi code song, chua thanh artifact
     if (/^(dataview(js)?|tasks)$/i.test(lang)) return dataviewHtml(lang.toLowerCase(), code);
+    if (/^(fen|chess|chessboard)$/i.test(lang)) return chessboardHtml(code);
     var type = fenceType(lang, code);
     // Trong TRINH SUA: khoi code dai (type "code") giu nguyen hinh khoi code de con doc va
     // sua duoc tai cho. Thu no thanh the artifact la noi dung "bien mat" giua file - dung
