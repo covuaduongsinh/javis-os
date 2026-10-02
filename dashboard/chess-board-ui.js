@@ -1,6 +1,6 @@
-/* chess-board-ui.js - Component Bàn Cờ Trực Quan Sắc Nét cho Javis OS (Cờ Vua Dương Sinh)
-   Thuần SVG/CSS/JS, không phụ thuộc CDN, hỗ trợ Light/Dark mode, lật bàn cờ, copy FEN,
-   mở Lichess Analysis và phân tích trực tiếp với Javis.
+/* chess-board-ui.js - Component Bàn Cờ Trực Quan & Trình Xếp Cờ Sắc Nét cho Javis OS (Cờ Vua Dương Sinh)
+   Thuần SVG/CSS/JS, không phụ thuộc CDN, hỗ trợ Light/Dark mode, lật bàn cờ, xem & sửa FEN trực tiếp,
+   bảng xếp cờ (thêm/xóa/di chuyển quân), copy FEN chuẩn, mở Lichess Analysis đúng vị trí.
 */
 (function () {
   "use strict";
@@ -29,18 +29,19 @@
     .jv-cb-wrap {
       display: inline-block;
       margin: 12px 0;
-      padding: 10px;
+      padding: 12px;
       background: var(--bg-card, #ffffff);
       border: 1px solid var(--border-color, #e2e8f0);
       border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
       max-width: 100%;
       font-family: inherit;
+      box-sizing: border-box;
     }
     .dark .jv-cb-wrap {
       background: #1e293b;
       border-color: #334155;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.3);
     }
     .jv-cb-header {
       display: flex;
@@ -50,6 +51,7 @@
       font-size: 13px;
       font-weight: 600;
       color: var(--text-color, #1e293b);
+      gap: 8px;
     }
     .dark .jv-cb-header { color: #f1f5f9; }
     .jv-cb-badge {
@@ -60,13 +62,25 @@
       background: var(--bg-subtle, #f1f5f9);
       border-radius: 6px;
       font-size: 12px;
+      font-weight: 500;
     }
     .dark .jv-cb-badge { background: #334155; color: #cbd5e1; }
+    .jv-cb-badge.edit-active {
+      background: #fef08a;
+      color: #854d0e;
+      font-weight: bold;
+    }
+    .dark .jv-cb-badge.edit-active {
+      background: #854d0e;
+      color: #fef08a;
+    }
+
     .jv-cb-board-container {
       display: grid;
       grid-template-columns: 20px auto;
       grid-template-rows: auto 20px;
       gap: 2px;
+      user-select: none;
     }
     .jv-cb-ranks {
       display: flex;
@@ -102,14 +116,29 @@
       justify-content: center;
       position: relative;
       user-select: none;
+      transition: background-color 0.1s ease;
     }
     .jv-cb-sq.light { background-color: #f0d9b5; }
     .jv-cb-sq.dark { background-color: #b58863; }
+    .jv-cb-sq.selected {
+      outline: 3px solid #3b82f6 !important;
+      outline-offset: -3px;
+      background-color: #93c5fd !important;
+      z-index: 2;
+    }
+    .jv-cb-sq.editable {
+      cursor: pointer;
+    }
+    .jv-cb-sq.editable:hover {
+      filter: brightness(1.08);
+    }
     .jv-cb-sq svg {
       width: 85%;
       height: 85%;
-      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));
+      pointer-events: none;
     }
+
     .jv-cb-actions {
       display: flex;
       gap: 6px;
@@ -120,7 +149,7 @@
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 4px 10px;
+      padding: 5px 10px;
       background: var(--bg-subtle, #f1f5f9);
       border: 1px solid var(--border-color, #cbd5e1);
       border-radius: 6px;
@@ -128,6 +157,7 @@
       color: var(--text-color, #334155);
       cursor: pointer;
       transition: all 0.15s ease;
+      text-decoration: none;
     }
     .dark .jv-cb-btn {
       background: #334155;
@@ -138,6 +168,128 @@
       background: var(--primary-color, #2563eb);
       color: #ffffff;
       border-color: var(--primary-color, #2563eb);
+    }
+    .jv-cb-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #1d4ed8;
+      font-weight: 600;
+    }
+    .jv-cb-btn.btn-save {
+      background: #16a34a;
+      color: #ffffff;
+      border-color: #15803d;
+      font-weight: bold;
+    }
+    .jv-cb-btn.btn-save:hover {
+      background: #15803d;
+    }
+
+    /* Drawer xem & sửa FEN */
+    .jv-cb-fen-drawer {
+      margin-top: 10px;
+      padding: 8px;
+      background: var(--bg-subtle, #f8fafc);
+      border: 1px dashed var(--border-color, #cbd5e1);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .dark .jv-cb-fen-drawer {
+      background: #0f172a;
+      border-color: #475569;
+    }
+    .jv-cb-fen-input-row {
+      display: flex;
+      gap: 6px;
+    }
+    .jv-cb-fen-input {
+      flex: 1;
+      padding: 5px 8px;
+      font-family: monospace, Consolas, sans-serif;
+      font-size: 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #ffffff;
+      color: #0f172a;
+    }
+    .dark .jv-cb-fen-input {
+      background: #1e293b;
+      border-color: #475569;
+      color: #f8fafc;
+    }
+    .jv-cb-fen-err {
+      font-size: 11px;
+      color: #ef4444;
+      font-weight: 500;
+    }
+
+    /* Bảng chọn quân cờ (Piece Palette for Board Editor) */
+    .jv-cb-palette-wrap {
+      margin-top: 10px;
+      padding: 8px;
+      background: var(--bg-subtle, #f8fafc);
+      border: 1px solid var(--border-color, #cbd5e1);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .dark .jv-cb-palette-wrap {
+      background: #0f172a;
+      border-color: #334155;
+    }
+    .jv-cb-palette-row {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .jv-cb-palette-title {
+      font-size: 11px;
+      font-weight: bold;
+      color: #64748b;
+      margin-right: 4px;
+      min-width: 45px;
+    }
+    .jv-cb-tool-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-color, #cbd5e1);
+      border-radius: 6px;
+      cursor: pointer;
+      padding: 2px;
+      transition: all 0.12s ease;
+    }
+    .dark .jv-cb-tool-btn {
+      background: #1e293b;
+      border-color: #475569;
+    }
+    .jv-cb-tool-btn svg {
+      width: 100%;
+      height: 100%;
+    }
+    .jv-cb-tool-btn:hover {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+    .dark .jv-cb-tool-btn:hover {
+      background: #1e3a8a;
+    }
+    .jv-cb-tool-btn.active {
+      border-color: #2563eb;
+      background: #dbeafe;
+      box-shadow: 0 0 0 2px #3b82f6;
+    }
+    .dark .jv-cb-tool-btn.active {
+      background: #1e40af;
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 2px #60a5fa;
     }
   `;
 
@@ -160,6 +312,8 @@
     var turn = (parts[1] || "w").toLowerCase();
     var castling = parts[2] || "-";
     var ep = parts[3] || "-";
+    var halfmove = parts[4] || "0";
+    var fullmove = parts[5] || "1";
 
     var rows = boardPart.split("/");
     var grid = [];
@@ -188,28 +342,105 @@
       turn: turn,
       isWhiteTurn: turn === "w",
       castling: castling,
-      ep: ep
+      ep: ep,
+      halfmove: halfmove,
+      fullmove: fullmove
     };
   }
 
-  // Tạo cây DOM bàn cờ
-  function renderChessboard(container, fen, perspective) {
+  // Chuyển ma trận 8x8 ngược lại thành chuỗi FEN chuẩn
+  function buildFen(grid, turn, castling, ep, halfmove, fullmove) {
+    var rows = [];
+    for (var r = 0; r < 8; r++) {
+      var rowStr = "";
+      var emptyCount = 0;
+      for (var c = 0; c < 8; c++) {
+        var p = grid[r][c];
+        if (!p) {
+          emptyCount++;
+        } else {
+          if (emptyCount > 0) {
+            rowStr += emptyCount;
+            emptyCount = 0;
+          }
+          rowStr += p;
+        }
+      }
+      if (emptyCount > 0) rowStr += emptyCount;
+      rows.push(rowStr || "8");
+    }
+    var boardPart = rows.join("/");
+    var t = turn || "w";
+    var cstl = castling || "-";
+    var e = ep || "-";
+    var hm = halfmove || "0";
+    var fm = fullmove || "1";
+    return boardPart + " " + t + " " + cstl + " " + e + " " + hm + " " + fm;
+  }
+
+  // Kiểm tra tính hợp lệ của chuỗi FEN
+  function validateFen(fen) {
+    fen = String(fen || "").trim();
+    if (!fen) return { valid: false, error: "Chuỗi FEN rỗng" };
+    var parts = fen.split(/\s+/);
+    var rows = parts[0].split("/");
+    if (rows.length !== 8) {
+      return { valid: false, error: "FEN phải có đúng 8 hàng (ngăn cách bởi dấu /)" };
+    }
+    for (var i = 0; i < 8; i++) {
+      var row = rows[i];
+      var count = 0;
+      for (var j = 0; j < row.length; j++) {
+        var ch = row[j];
+        if (/[1-8]/.test(ch)) {
+          count += parseInt(ch, 10);
+        } else if (/[pnbrqkPNBRQK]/.test(ch)) {
+          count += 1;
+        } else {
+          return { valid: false, error: "Ký tự không hợp lệ '" + ch + "' ở hàng " + (8 - i) };
+        }
+      }
+      if (count !== 8) {
+        return { valid: false, error: "Hàng " + (8 - i) + " có tổng số ô là " + count + " (cần đúng 8 ô)" };
+      }
+    }
+    return { valid: true };
+  }
+
+  // Tạo cây DOM bàn cờ tương tác đầy đủ
+  function renderChessboard(container, fen, perspective, editState) {
     if (!container) return;
     perspective = perspective || container.getAttribute("data-perspective") || "white";
-    var data = parseFen(fen);
+    fen = (fen != null ? fen : container.getAttribute("data-fen")) || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+    var isEditMode = editState && editState.active;
+    var currentGrid = (editState && editState.grid) ? editState.grid : parseFen(fen).grid;
+    var currentTurn = (editState && editState.turn) ? editState.turn : parseFen(fen).turn;
+    var selectedTool = (editState && editState.selectedTool) ? editState.selectedTool : "move"; // 'move', 'erase', or piece 'P','N',etc.
+    var selectedSq = editState ? editState.selectedSq : null; // {r, c}
+    var showFenDrawer = editState ? !!editState.showFenDrawer : false;
+
+    var currentFen = isEditMode ? buildFen(currentGrid, currentTurn) : fen;
     var isWhite = perspective.toLowerCase() !== "black";
+    var isWhiteTurn = currentTurn === "w";
 
     var wrap = document.createElement("div");
     wrap.className = "jv-cb-wrap";
 
     // Header & Turn badge
-    var turnText = data.isWhiteTurn ? "⚪ Trắng đi (White)" : "⚫ Đen đi (Black)";
     var header = document.createElement("div");
     header.className = "jv-cb-header";
-    header.innerHTML = `
-      <span>♟ Bàn cờ Thế trận</span>
-      <span class="jv-cb-badge">${turnText}</span>
-    `;
+
+    var titleSpan = document.createElement("span");
+    titleSpan.innerHTML = isEditMode ? "✏️ <b>Trình Xếp & Sửa Thế Cờ</b>" : "♟ <b>Bàn cờ Thế trận</b>";
+    header.appendChild(titleSpan);
+
+    var badgeSpan = document.createElement("span");
+    badgeSpan.className = "jv-cb-badge" + (isEditMode ? " edit-active" : "");
+    badgeSpan.innerHTML = isEditMode
+      ? (isWhiteTurn ? "⚪ Chế độ Sửa (Trắng đi)" : "⚫ Chế độ Sửa (Đen đi)")
+      : (isWhiteTurn ? "⚪ Lượt Trắng đi" : "⚫ Lượt Đen đi");
+    header.appendChild(badgeSpan);
     wrap.appendChild(header);
 
     // Board Container (Coordinates + 8x8 Grid)
@@ -238,12 +469,77 @@
       cIndices.forEach(function (c) {
         var sq = document.createElement("div");
         var isLightSq = (r + c) % 2 === 0;
-        sq.className = "jv-cb-sq " + (isLightSq ? "light" : "dark");
+        var classes = ["jv-cb-sq", isLightSq ? "light" : "dark"];
+        if (isEditMode) classes.push("editable");
+        if (selectedSq && selectedSq.r === r && selectedSq.c === c) classes.push("selected");
+        sq.className = classes.join(" ");
 
-        var piece = data.grid[r][c];
+        var piece = currentGrid[r][c];
         if (piece && PIECES_SVG[piece]) {
           sq.innerHTML = PIECES_SVG[piece];
         }
+
+        // Xử lý Click trên ô cờ trong chế độ chỉnh sửa (Edit Mode)
+        if (isEditMode) {
+          sq.addEventListener("click", function () {
+            if (selectedTool === "erase") {
+              currentGrid[r][c] = null;
+              renderChessboard(container, null, perspective, {
+                active: true,
+                grid: currentGrid,
+                turn: currentTurn,
+                selectedTool: selectedTool,
+                selectedSq: null,
+                showFenDrawer: showFenDrawer
+              });
+            } else if (selectedTool === "move") {
+              if (selectedSq) {
+                if (selectedSq.r === r && selectedSq.c === c) {
+                  // Bỏ chọn nếu click lại chính ô đó
+                  selectedSq = null;
+                } else {
+                  // Di chuyển quân từ selectedSq sang ô mới
+                  var movingPiece = currentGrid[selectedSq.r][selectedSq.c];
+                  currentGrid[r][c] = movingPiece;
+                  currentGrid[selectedSq.r][selectedSq.c] = null;
+                  selectedSq = null;
+                }
+                renderChessboard(container, null, perspective, {
+                  active: true,
+                  grid: currentGrid,
+                  turn: currentTurn,
+                  selectedTool: selectedTool,
+                  selectedSq: selectedSq,
+                  showFenDrawer: showFenDrawer
+                });
+              } else {
+                if (currentGrid[r][c]) {
+                  // Chọn quân để di chuyển
+                  renderChessboard(container, null, perspective, {
+                    active: true,
+                    grid: currentGrid,
+                    turn: currentTurn,
+                    selectedTool: selectedTool,
+                    selectedSq: { r: r, c: c },
+                    showFenDrawer: showFenDrawer
+                  });
+                }
+              }
+            } else if (PIECES_SVG[selectedTool]) {
+              // Đặt quân cờ được chọn từ bảng Palette vào ô
+              currentGrid[r][c] = selectedTool;
+              renderChessboard(container, null, perspective, {
+                active: true,
+                grid: currentGrid,
+                turn: currentTurn,
+                selectedTool: selectedTool,
+                selectedSq: null,
+                showFenDrawer: showFenDrawer
+              });
+            }
+          });
+        }
+
         gridDiv.appendChild(sq);
       });
     });
@@ -262,49 +558,318 @@
 
     wrap.appendChild(boardContainer);
 
-    // Action Toolbar (Flip, Copy, Analyze, Lichess)
+    // Bảng chọn quân cờ khi ở Chế độ Xếp cờ (Piece Palette)
+    if (isEditMode) {
+      var paletteWrap = document.createElement("div");
+      paletteWrap.className = "jv-cb-palette-wrap";
+
+      // Hàng quân Trắng
+      var whiteRow = document.createElement("div");
+      whiteRow.className = "jv-cb-palette-row";
+      var whiteTitle = document.createElement("span");
+      whiteTitle.className = "jv-cb-palette-title";
+      whiteTitle.textContent = "Trắng:";
+      whiteRow.appendChild(whiteTitle);
+
+      ["K", "Q", "R", "B", "N", "P"].forEach(function (pc) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "jv-cb-tool-btn" + (selectedTool === pc ? " active" : "");
+        btn.innerHTML = PIECES_SVG[pc];
+        btn.title = "Đặt quân Trắng: " + pc;
+        btn.addEventListener("click", function () {
+          renderChessboard(container, null, perspective, {
+            active: true,
+            grid: currentGrid,
+            turn: currentTurn,
+            selectedTool: pc,
+            selectedSq: null,
+            showFenDrawer: showFenDrawer
+          });
+        });
+        whiteRow.appendChild(btn);
+      });
+      paletteWrap.appendChild(whiteRow);
+
+      // Hàng quân Đen
+      var blackRow = document.createElement("div");
+      blackRow.className = "jv-cb-palette-row";
+      var blackTitle = document.createElement("span");
+      blackTitle.className = "jv-cb-palette-title";
+      blackTitle.textContent = "Đen:";
+      blackRow.appendChild(blackTitle);
+
+      ["k", "q", "r", "b", "n", "p"].forEach(function (pc) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "jv-cb-tool-btn" + (selectedTool === pc ? " active" : "");
+        btn.innerHTML = PIECES_SVG[pc];
+        btn.title = "Đặt quân Đen: " + pc;
+        btn.addEventListener("click", function () {
+          renderChessboard(container, null, perspective, {
+            active: true,
+            grid: currentGrid,
+            turn: currentTurn,
+            selectedTool: pc,
+            selectedSq: null,
+            showFenDrawer: showFenDrawer
+          });
+        });
+        blackRow.appendChild(btn);
+      });
+      paletteWrap.appendChild(blackRow);
+
+      // Hàng Công cụ (Di chuyển, Xóa ô, Chọn lượt đi)
+      var toolsRow = document.createElement("div");
+      toolsRow.className = "jv-cb-palette-row";
+      var toolsTitle = document.createElement("span");
+      toolsTitle.className = "jv-cb-palette-title";
+      toolsTitle.textContent = "Công cụ:";
+      toolsRow.appendChild(toolsTitle);
+
+      // Nút Di chuyển
+      var btnMove = document.createElement("button");
+      btnMove.type = "button";
+      btnMove.className = "jv-cb-btn" + (selectedTool === "move" ? " active" : "");
+      btnMove.innerHTML = "✋ Di chuyển quân";
+      btnMove.title = "Bấm vào quân rồi bấm ô đích để chuyển";
+      btnMove.addEventListener("click", function () {
+        renderChessboard(container, null, perspective, {
+          active: true,
+          grid: currentGrid,
+          turn: currentTurn,
+          selectedTool: "move",
+          selectedSq: null,
+          showFenDrawer: showFenDrawer
+        });
+      });
+      toolsRow.appendChild(btnMove);
+
+      // Nút Xóa ô
+      var btnErase = document.createElement("button");
+      btnErase.type = "button";
+      btnErase.className = "jv-cb-btn" + (selectedTool === "erase" ? " active" : "");
+      btnErase.innerHTML = "🗑️ Xóa ô";
+      btnErase.title = "Bấm vào ô để xóa quân cờ";
+      btnErase.addEventListener("click", function () {
+        renderChessboard(container, null, perspective, {
+          active: true,
+          grid: currentGrid,
+          turn: currentTurn,
+          selectedTool: "erase",
+          selectedSq: null,
+          showFenDrawer: showFenDrawer
+        });
+      });
+      toolsRow.appendChild(btnErase);
+
+      // Đổi lượt đi (Trắng / Đen)
+      var btnToggleTurn = document.createElement("button");
+      btnToggleTurn.type = "button";
+      btnToggleTurn.className = "jv-cb-btn";
+      btnToggleTurn.innerHTML = isWhiteTurn ? "⚪ Lượt: Trắng" : "⚫ Lượt: Đen";
+      btnToggleTurn.title = "Đổi bên đi tiếp theo";
+      btnToggleTurn.addEventListener("click", function () {
+        var nextTurn = isWhiteTurn ? "b" : "w";
+        renderChessboard(container, null, perspective, {
+          active: true,
+          grid: currentGrid,
+          turn: nextTurn,
+          selectedTool: selectedTool,
+          selectedSq: selectedSq,
+          showFenDrawer: showFenDrawer
+        });
+      });
+      toolsRow.appendChild(btnToggleTurn);
+
+      // Khởi tạo nhanh (Ban đầu / Xóa sạch)
+      var btnStartPos = document.createElement("button");
+      btnStartPos.type = "button";
+      btnStartPos.className = "jv-cb-btn";
+      btnStartPos.innerHTML = "⚡ Thế ban đầu";
+      btnStartPos.title = "Đặt lại bàn cờ thi đấu tiêu chuẩn";
+      btnStartPos.addEventListener("click", function () {
+        var def = parseFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        renderChessboard(container, null, perspective, {
+          active: true,
+          grid: def.grid,
+          turn: "w",
+          selectedTool: selectedTool,
+          selectedSq: null,
+          showFenDrawer: showFenDrawer
+        });
+      });
+      toolsRow.appendChild(btnStartPos);
+
+      var btnClearAll = document.createElement("button");
+      btnClearAll.type = "button";
+      btnClearAll.className = "jv-cb-btn";
+      btnClearAll.innerHTML = "🧹 Xóa trắng";
+      btnClearAll.title = "Xóa toàn bộ quân cờ trên bàn";
+      btnClearAll.addEventListener("click", function () {
+        var emptyGrid = [];
+        for (var i = 0; i < 8; i++) emptyGrid.push([null,null,null,null,null,null,null,null]);
+        renderChessboard(container, null, perspective, {
+          active: true,
+          grid: emptyGrid,
+          turn: currentTurn,
+          selectedTool: selectedTool,
+          selectedSq: null,
+          showFenDrawer: showFenDrawer
+        });
+      });
+      toolsRow.appendChild(btnClearAll);
+
+      paletteWrap.appendChild(toolsRow);
+      wrap.appendChild(paletteWrap);
+    }
+
+    // Drawer Xem & Sửa FEN trực tiếp
+    if (showFenDrawer) {
+      var fenDrawer = document.createElement("div");
+      fenDrawer.className = "jv-cb-fen-drawer";
+
+      var fenRow = document.createElement("div");
+      fenRow.className = "jv-cb-fen-input-row";
+
+      var fenInput = document.createElement("input");
+      fenInput.className = "jv-cb-fen-input";
+      fenInput.type = "text";
+      fenInput.value = currentFen;
+      fenInput.placeholder = "Dán hoặc nhập chuỗi FEN tại đây...";
+      fenRow.appendChild(fenInput);
+
+      var btnApplyFen = document.createElement("button");
+      btnApplyFen.className = "jv-cb-btn btn-save";
+      btnApplyFen.type = "button";
+      btnApplyFen.innerHTML = "✓ Áp dụng";
+      btnApplyFen.addEventListener("click", function () {
+        var val = fenInput.value.trim();
+        var v = validateFen(val);
+        if (!v.valid) {
+          errDiv.textContent = "⚠️ " + v.error;
+          errDiv.style.display = "block";
+          return;
+        }
+        container.setAttribute("data-fen", val);
+        renderChessboard(container, val, perspective, {
+          active: false,
+          showFenDrawer: false
+        });
+      });
+      fenRow.appendChild(btnApplyFen);
+      fenDrawer.appendChild(fenRow);
+
+      var errDiv = document.createElement("div");
+      errDiv.className = "jv-cb-fen-err";
+      errDiv.style.display = "none";
+      fenDrawer.appendChild(errDiv);
+
+      wrap.appendChild(fenDrawer);
+    }
+
+    // Action Toolbar (Flip, Copy, Sửa thế cờ, Xem FEN, Lichess)
     var actions = document.createElement("div");
     actions.className = "jv-cb-actions";
 
-    // Nút lật bàn cờ
-    var btnFlip = document.createElement("button");
-    btnFlip.className = "jv-cb-btn";
-    btnFlip.type = "button";
-    btnFlip.innerHTML = "🔄 Đổi góc nhìn";
-    btnFlip.title = "Đảo góc nhìn Trắng / Đen";
-    btnFlip.addEventListener("click", function () {
-      var nextPersp = isWhite ? "black" : "white";
-      container.setAttribute("data-perspective", nextPersp);
-      container.innerHTML = "";
-      renderChessboard(container, data.fen, nextPersp);
-    });
-    actions.appendChild(btnFlip);
+    if (isEditMode) {
+      // Nút Lưu & Chuẩn hóa
+      var btnSaveEdit = document.createElement("button");
+      btnSaveEdit.className = "jv-cb-btn btn-save";
+      btnSaveEdit.type = "button";
+      btnSaveEdit.innerHTML = "💾 Lưu & Chuẩn hóa";
+      btnSaveEdit.title = "Lưu lại thế cờ đã xếp";
+      btnSaveEdit.addEventListener("click", function () {
+        var newFen = buildFen(currentGrid, currentTurn);
+        container.setAttribute("data-fen", newFen);
+        renderChessboard(container, newFen, perspective, { active: false });
+      });
+      actions.appendChild(btnSaveEdit);
 
-    // Nút copy FEN
-    var btnCopy = document.createElement("button");
-    btnCopy.className = "jv-cb-btn";
-    btnCopy.type = "button";
-    btnCopy.innerHTML = "📋 Copy FEN";
-    btnCopy.title = "Sao chép mã FEN";
-    btnCopy.addEventListener("click", function () {
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(data.fen).then(function () {
-          btnCopy.innerHTML = "✓ Đã chép!";
-          setTimeout(function () { btnCopy.innerHTML = "📋 Copy FEN"; }, 2000);
+      // Nút Hủy / Đóng chế độ xếp cờ
+      var btnCancelEdit = document.createElement("button");
+      btnCancelEdit.className = "jv-cb-btn";
+      btnCancelEdit.type = "button";
+      btnCancelEdit.innerHTML = "❌ Hủy";
+      btnCancelEdit.title = "Đóng chế độ xếp cờ";
+      btnCancelEdit.addEventListener("click", function () {
+        renderChessboard(container, fen, perspective, { active: false });
+      });
+      actions.appendChild(btnCancelEdit);
+    } else {
+      // Nút lật bàn cờ
+      var btnFlip = document.createElement("button");
+      btnFlip.className = "jv-cb-btn";
+      btnFlip.type = "button";
+      btnFlip.innerHTML = "🔄 Đổi góc nhìn";
+      btnFlip.title = "Đảo góc nhìn Trắng / Đen";
+      btnFlip.addEventListener("click", function () {
+        var nextPersp = isWhite ? "black" : "white";
+        container.setAttribute("data-perspective", nextPersp);
+        renderChessboard(container, fen, nextPersp);
+      });
+      actions.appendChild(btnFlip);
+
+      // Nút Bật/Tắt chế độ Xếp cờ (Board Editor)
+      var btnEditBoard = document.createElement("button");
+      btnEditBoard.className = "jv-cb-btn";
+      btnEditBoard.type = "button";
+      btnEditBoard.innerHTML = "✏️ Xếp / Sửa cờ";
+      btnEditBoard.title = "Di chuyển, thêm hoặc xóa quân cờ trực quan";
+      btnEditBoard.addEventListener("click", function () {
+        var parsed = parseFen(fen);
+        renderChessboard(container, null, perspective, {
+          active: true,
+          grid: parsed.grid,
+          turn: parsed.turn,
+          selectedTool: "move",
+          selectedSq: null,
+          showFenDrawer: false
         });
-      }
-    });
-    actions.appendChild(btnCopy);
+      });
+      actions.appendChild(btnEditBoard);
 
-    // Nút Mở Lichess Analysis
-    var btnLichess = document.createElement("a");
-    btnLichess.className = "jv-cb-btn";
-    btnLichess.href = "https://lichess.org/analysis/" + encodeURIComponent(data.fen.replace(/\s+/g, "_"));
-    btnLichess.target = "_blank";
-    btnLichess.rel = "noopener noreferrer";
-    btnLichess.innerHTML = "↗ Mở Lichess";
-    btnLichess.title = "Phân tích trên Lichess";
-    actions.appendChild(btnLichess);
+      // Nút Xem / Sửa FEN
+      var btnToggleFen = document.createElement("button");
+      btnToggleFen.className = "jv-cb-btn" + (showFenDrawer ? " active" : "");
+      btnToggleFen.type = "button";
+      btnToggleFen.innerHTML = "📝 Xem / Sửa FEN";
+      btnToggleFen.title = "Xem hoặc dán mã FEN trực tiếp";
+      btnToggleFen.addEventListener("click", function () {
+        renderChessboard(container, fen, perspective, {
+          active: false,
+          showFenDrawer: !showFenDrawer
+        });
+      });
+      actions.appendChild(btnToggleFen);
+
+      // Nút copy FEN
+      var btnCopy = document.createElement("button");
+      btnCopy.className = "jv-cb-btn";
+      btnCopy.type = "button";
+      btnCopy.innerHTML = "📋 Copy FEN";
+      btnCopy.title = "Sao chép mã FEN vào bộ nhớ đệm";
+      btnCopy.addEventListener("click", function () {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(currentFen).then(function () {
+            btnCopy.innerHTML = "✓ Đã chép!";
+            setTimeout(function () { btnCopy.innerHTML = "📋 Copy FEN"; }, 2000);
+          });
+        }
+      });
+      actions.appendChild(btnCopy);
+
+      // Nút Mở Lichess Analysis (GIỮ NGUYÊN DẤU / ĐỂ LICHESS PHÂN TÍCH ĐÚNG THẾ CỜ)
+      var cleanFen = String(currentFen || "").trim().replace(/\s+/g, "_");
+      var btnLichess = document.createElement("a");
+      btnLichess.className = "jv-cb-btn";
+      btnLichess.href = "https://lichess.org/analysis/fromPosition/" + cleanFen;
+      btnLichess.target = "_blank";
+      btnLichess.rel = "noopener noreferrer";
+      btnLichess.innerHTML = "↗ Mở Lichess";
+      btnLichess.title = "Phân tích thế cờ này trên Lichess";
+      actions.appendChild(btnLichess);
+    }
 
     wrap.appendChild(actions);
 
@@ -340,6 +905,8 @@
   if (typeof window !== "undefined") {
     window.JavisChess = {
       parseFen: parseFen,
+      buildFen: buildFen,
+      validateFen: validateFen,
       renderChessboard: renderChessboard,
       scanAndInit: scanAndInitChessboards,
       PIECES_SVG: PIECES_SVG
@@ -347,6 +914,11 @@
   }
 
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { parseFen: parseFen, PIECES_SVG: PIECES_SVG };
+    module.exports = {
+      parseFen: parseFen,
+      buildFen: buildFen,
+      validateFen: validateFen,
+      PIECES_SVG: PIECES_SVG
+    };
   }
 })();
