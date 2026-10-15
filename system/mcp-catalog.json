@@ -173,6 +173,52 @@
       "rate_limit": { "calls_per_min": 30 }
     },
     {
+      "id": "duongsinh-mcp",
+      "name": "Dương Sinh MCP Server (SSE)",
+      "icon": "server",
+      "category": "Vận hành",
+      "description": "Kết nối trực tiếp tới Dương Sinh MCP Server (@ds/mcp) qua giao thức SSE chuẩn hóa. Cung cấp đầy đủ 24 tools: tra cứu đào tạo, bốc thăm giải cờ, tạo Lead CRM, quản lý lớp/học viên/điểm danh an toàn và tự động soạn/đăng bài viết lên Blog CMS (Markdown sang Lexical RichText).",
+      "status": "ready",
+      "transport": "sse",
+      "url": "http://127.0.0.1:3012/sse",
+      "auth": {
+        "type": "none",
+        "guide": "Khởi động daemon MCP Server tại monorepo covuaduongsinh bằng lệnh 'pnpm --filter @ds/mcp server' (lắng nghe tại cổng 3012). Sau đó kết nối qua URL SSE."
+      },
+      "tool_meta": {
+        "read": [
+          "ds_danh_sach_bang",
+          "ds_truy_van",
+          "ds_hoc_vien",
+          "ds_lop_hoc",
+          "ds_buoi_hoc",
+          "ds_giao_trinh",
+          "ds_giai_dau",
+          "ds_boc_tham",
+          "ds_cms_danh_sach_bai",
+          "ds_cms_chuyen_muc_tags"
+        ],
+        "write": [
+          "ds_tao_lead",
+          "ds_ghi_nhat_ky_cskh",
+          "ds_nhap_nhan_xet_buoi_nhap",
+          "ds_cms_tao_bai_viet",
+          "ds_cms_sua_bai_viet",
+          "ds_cms_tai_anh",
+          "ds_tao_lop_hoc",
+          "ds_cap_nhat_lop_hoc",
+          "ds_dong_lop_hoc",
+          "ds_tao_hoc_vien",
+          "ds_cap_nhat_hoc_vien",
+          "ds_chuyen_trang_thai_hoc_vien",
+          "ds_ghi_danh_lop",
+          "ds_diem_danh_buoi_hoc"
+        ]
+      },
+      "default_perm": "readonly",
+      "risk": "Cung cấp quyền đọc dữ liệu vận hành và các action an toàn (tạo Lead, nhật ký CSKH, nhận xét nháp, quản lý lớp/học viên, điểm danh và soạn bài viết CMS dạng draft). Không bao giờ xoá cứng bản ghi hay chạm vào các bảng bảo mật (users, otp-codes, lichess-tokens, ai-config)."
+    },
+    {
       "id": "google-sheets",
       "name": "Google Sheets",
       "group": "google",
