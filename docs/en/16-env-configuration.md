@@ -15,7 +15,7 @@ If you install through **Hostinger Docker Manager**, you do not need the full ad
 Three configuration places need to be kept apart:
 
 - **The `.env` file**: system-level settings, read once at startup. A change only takes effect after restarting Javis.
-- **The ⚙ Settings panel in the app** (the Account, Models, Channels pages...): settings changed live through the interface, saved into `settings.json`, no file editing. For example: switching model, the OpenRouter API key, the Telegram token, the custom domain, the logo. More in [Models and engines](10-models-and-engines.md), [Security and accounts](14-security-and-accounts.md), [Branding and domains](15-branding-and-domains.md).
+- **The ⚙ Settings panel in the app** (the Account, Models, Admin channels pages...): settings changed live through the interface, saved into `settings.json`, no file editing. For example: switching model, the OpenRouter API key, the Telegram token, the custom domain, the logo. More in [Models and engines](10-models-and-engines.md), [Security and accounts](14-security-and-accounts.md), [Branding and domains](15-branding-and-domains.md).
 - **A few `settings.json` keys with no interface**: currently the `media` block (the rules for clearing images and temporary files). Changing them means opening the file by hand. See the dedicated section below.
 
 In short: `.env` handles "where it runs, who gets in, where the data lives". The in-app Settings panel handles "which model, which key, which voice". `settings.json` is where the two meet, and a few rare keys can only be edited there.
@@ -69,10 +69,11 @@ An important detail about `JAVIS_HOST`: Javis uses a "safe by default" rule. If 
 | `JAVIS_SETUP_2FA` | Open the QR screen for two-factor auth on the Account page. `1` = open it | Off | You want 2FA on from the first sign-in. This flag is only a **reminder**: it does NOT enable 2FA by itself. You must scan the QR and enter one correct code before it is really on, because switching it on before you have proved your app produces valid codes locks you out of your own account. You can turn 2FA on or off any time in Dashboard → Account without this variable. |
 | `JAVIS_SECURE_COOKIE` | Send the cookie only over HTTPS. `1`/`true`/`yes`/`on` = on | Off | Only turn on when you are CERTAIN of end-to-end HTTPS (a custom domain with SSL). Turning it on by mistake behind an HTTP proxy causes a login loop (the right password still bounces you back to the sign-in page). |
 | `JAVIS_ALLOWED_HOSTS` | Extra hostnames allowed to call Javis (CSRF and DNS-rebinding protection). Comma separated | (empty) | Running behind a reverse proxy on a domain not declared in the app, with no password set, and getting 403 "host not allowed". `localhost`, `127.0.0.1`, `::1` and the domain you set in Settings are already allowed. |
-| `JAVIS_ENABLE_USER_PLUGINS` | The HARD gate for plugins you install. Only `true` loads them | Off | You installed a plugin yourself (the global `plugins/` folder or one inside a brain) and want it to run. User plugins run REAL PYTHON CODE inside the server process, so they are blocked by default. Old alias: `JAVIS_ENABLE_VAULT_PLUGINS`. Plugins bundled with the app are not subject to this gate. See [Plugins](20-plugins.md). |
+| `JAVIS_ENABLE_USER_PLUGINS` | The switch that turns off plugins you install. `false` stops loading them | On | Since 0.162.0 plugins you install load by default; each one still runs only after you enable it in the app. Set `false` to block them on this machine (user plugins run REAL PYTHON CODE inside the server process). Old alias: `JAVIS_ENABLE_VAULT_PLUGINS`. Plugins bundled with the app are not subject to this switch. See [Plugins](20-plugins.md). |
 | `JAVIS_TERMINAL` | The switch that removes the Terminal in the Code group entirely. `0`/`off`/`false`/`no` = off | On | You do not want any command line openable from a browser. The Terminal is already only open to a SIGNED-IN browser (API tokens cannot reach it), but many people still want it hard-locked at the server layer. See [The Code group: Terminal](27-code-terminal.md). |
 | `JAVIS_TERMINAL_SHELL` | The shell the Terminal runs | `$SHELL`, falling back to `bash`/`sh`. Windows: `powershell.exe` then `cmd.exe` | You want to force another shell (`zsh`, `fish`, `cmd.exe`). |
 | `JAVIS_TERMINAL_CWD` | The folder the terminal opens in | The HOME of the user running Javis | You want the shell to open at the brain root or another project folder. |
+| `JAVIS_AUTO_INSTALL_CLIS` | The Docker edition installs Antigravity CLI (`agy`) and Grok Build (`grok`) at startup when missing | `1` (on) | Set `0` when the server has no Internet access or you do not want these two CLIs. Installed once, kept across updates; the install log is `/data/home/.cli-auto-install/install.log`. |
 | `JAVIS_TERMINAL_REMOTE` | Tell the CLIs in the Terminal that the user sits at ANOTHER machine (sets `SSH_CONNECTION`) | Auto: on when the server has no screen (VPS, Docker), off on native Windows/macOS and Linux with a display | Signing into `agy`, `claude`, `codex`... prints a link then sits there because they assume the browser is on this machine. Turn it on (`1`) so they ask where to paste the code. Turn it off (`0`) if the server really can open a browser for you (X11 forwarding, say). See [The Code group: Terminal](27-code-terminal.md). |
 
 About the first admin account: when running public with no admin, opening the app the first time only asks for a username and password, so **whoever opens the link first can create the admin**. That is why you should preset `JAVIS_ADMIN_USER` + `JAVIS_ADMIN_PASSWORD` (`install.sh` already asks for them) so the server boots with an admin, or create the account right after deploying. Once signed in, turn on two-factor authentication (2FA). More in [Security and accounts](14-security-and-accounts.md).
@@ -204,7 +205,7 @@ In the second example, because `JAVIS_HOST=0.0.0.0` (public) Javis turns forced 
 3. If you are unsure what a variable does, leave the `#` (comment) in place. The defaults already work well.
 4. For on/off variables (`JAVIS_REQUIRE_LOGIN`, `JAVIS_SECURE_COOKIE`, `JAVIS_ENABLE_USER_PLUGINS`), on accepts `1`, `true`, `yes`, `on`. Off accepts `0`, `false`, `no`, `off`.
 5. The `.env` file holds passwords and sensitive configuration. Do not put it anywhere public. On a shared machine, restrict read permissions. The `.secret_key` file in the state folder deserves the same care, and matters even more: losing it loses every stored API key.
-6. Turning on `JAVIS_ENABLE_USER_PLUGINS=true` is a weighty decision: plugins you install run real Python code inside the server process. Only turn it on when you know exactly where every plugin in the `plugins/` folder came from.
+6. Plugins you install run real Python code inside the server process. Javis loads them by default but only runs the ones you enabled; only enable a plugin when you know where it came from, and set `JAVIS_ENABLE_USER_PLUGINS=false` if this machine should run none.
 
 ## Common problems
 
@@ -216,13 +217,13 @@ In the second example, because `JAVIS_HOST=0.0.0.0` (public) Javis turns forced 
 
 **Everything returns 403 "host not allowed".** You reached Javis through a domain not on the allowlist, with no password set. Add the domain to `JAVIS_ALLOWED_HOSTS` (or enter it in Settings → Domain and SSL), or simply set a password.
 
-**A plugin is enabled in the app but still does not run.** Plugins you install also need `JAVIS_ENABLE_USER_PLUGINS=true` in `.env` plus a restart. The app states this sentence too when you enable a plugin that is blocked.
+**A plugin is enabled in the app but still does not run.** Check `.env` for `JAVIS_ENABLE_USER_PLUGINS=false`: if it is there, remove it (or set `true`) and restart. The app states this too when you enable a plugin that is turned off.
 
 **You set the workspace name in .env but the app shows another one.** The app prefers the name saved in Settings over the `WORKSPACE_NAME` variable. Edit the name in the app's Settings panel, or clear the saved name so the app falls back to the `.env` value.
 
 **You pointed OBSIDIAN_VAULT_PATH at a real vault and Javis sees no data.** Check that the path is right and that Javis has permission to read the folder. On Docker the volume must be mounted at the path you declared. After fixing, restart and rebuild the graph (see [Knowledge graph](03-knowledge-graph.md)).
 
-**After restoring a backup, every API key is empty.** You copied `settings.json` without `.secret_key` from the same folder. There is no recovery, you have to re-enter the keys on the Models and Channels pages.
+**After restoring a backup, every API key is empty.** You copied `settings.json` without `.secret_key` from the same folder. There is no recovery, you have to re-enter the keys on the Models and Admin channels pages.
 
 If you are still stuck, see [Troubleshooting and FAQ](17-troubleshooting.md).
 

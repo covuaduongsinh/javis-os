@@ -16,6 +16,7 @@ import uuid
 from pathlib import Path
 
 import mcp_catalog
+import localefmt
 import secrets_store
 import config as cfgmod
 from config import STATE_DIR
@@ -203,9 +204,11 @@ def add_connection(connector_id, data):
     connector_id = (connector_id or "custom").strip() or "custom"
     con = mcp_catalog.get(connector_id)
     if connector_id != "custom" and not con:
-        return None, f"Không có connector '{connector_id}' trong kho"
+        return None, localefmt.chu(f"Không có connector '{connector_id}' trong kho",
+                                  f"There is no connector '{connector_id}' in the catalog")
     if con and con.get("status") == "soon":
-        return None, "Connector này chưa mở (đang chờ xác minh endpoint)"
+        return None, localefmt.chu("Connector này chưa mở (đang chờ xác minh endpoint)",
+                                  "This connector is not open yet (waiting for endpoint verification)")
     d = _load()
     label = (data.get("label") or "").strip() or (con or {}).get("name") or connector_id
     base = _slugify(label)
@@ -426,6 +429,18 @@ def resolved(enabled_only=True):
                 i2 += 1
         taken_ns.add(ns)
         args = list(c.get("args") or [])
+        lenh = c.get("command", "")
+        # Kết nối LƯU lệnh chạy lúc tạo, nên catalog đổi lệnh (lên bản chính thức mới, thêm cờ vá
+        # lỗi) thì kết nối cũ vẫn chạy lệnh cũ mãi. Vụ thật lúc viết: kết nối Zalo tạo trước khi
+        # ghim bản vẫn chạy `zalo-agent-cli` trần, Google Sheets cũ chưa bao giờ nhận cờ `mcp<2`.
+        # `lenh_cu` của catalog liệt kê ĐÚNG các lệnh mặc định đã từng phát hành: kết nối còn y
+        # nguyên một lệnh trong đó thì chạy lệnh hiện hành. Lệnh người dùng tự sửa không khớp
+        # nên được giữ nguyên.
+        for cu in ((con or {}).get("lenh_cu") or []):
+            if (cu.get("command") == lenh and list(cu.get("args") or []) == args
+                    and con.get("command")):
+                lenh, args = con["command"], list(con.get("args") or [])
+                break
         env = secrets_store.decrypt_map(c.get("env") or {})
         if con:
             for k, v in mcp_catalog.build_env(con, secrets).items():
@@ -441,7 +456,7 @@ def resolved(enabled_only=True):
         # lái Chromium chứ không phải Google Chrome (container Debian không có Chrome, và câu
         # lỗi khi nó đi tìm thì không ai đoán ra). Nhận biết theo LỆNH chứ không theo id, để
         # connector đến từ gói hay người dùng tự thêm tay đều được lo như nhau.
-        if "playwright" in (str(c.get("command") or "") + " " + " ".join(str(a) for a in args)).lower():
+        if "playwright" in (str(lenh or "") + " " + " ".join(str(a) for a in args)).lower():
             try:
                 import optional_tools
                 for k, v in optional_tools.env_playwright().items():
@@ -521,7 +536,7 @@ def resolved(enabled_only=True):
             # là kết nối đi theo ngay - y như headers vốn đã dựng lại mỗi lần resolve.
             "url": (mcp_catalog.build_url(con, secrets) if (con or {}).get("url_template")
                     else "") or c.get("url", ""),
-            "command": c.get("command", ""), "args": args,
+            "command": lenh, "args": args,
             "headers": headers, "env": env,
             "internal": (con or {}).get("internal") or "",
             # Tham số kỹ thuật connector tự chèn vào MỌI tool call (vd meta['ucp-agent'] của

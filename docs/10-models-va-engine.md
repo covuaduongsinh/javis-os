@@ -25,6 +25,7 @@ Javis có thể chạy trên nhiều "engine" (nhà cung cấp AI) khác nhau. B
 | **Gọi API thẳng** | Anthropic (API) | Có - như trên | Không |
 | **Gọi API thẳng** | Google Gemini (API) | Có - như trên (từ 0.9.270 trang Kết nối cũng hết báo nhầm) | Không |
 | **Gọi API thẳng** | Groq (API) | Có - như trên | Không |
+| **Gọi API thẳng** | DeepSeek (API) | Có - như trên | Không |
 | **Gọi API thẳng** | Ollama Cloud | Có - như trên | Không |
 
 ### Bốn thứ engine API không có
@@ -67,6 +68,7 @@ Khối **Providers** liệt kê 10 nhà cung cấp. **Cái nào đã kết nối
 | **OpenAI (ChatGPT API)** | Dán API key | MCP + tool file + skill qua hub |
 | **Google Gemini (API)** | Dán API key | MCP + tool file + skill qua hub |
 | **Groq (API)** | Dán API key | MCP + tool file + skill qua hub. Suy luận rất nhanh, hợp làm model việc nền. Key này còn là thứ cho phép **ra lệnh bằng ghi âm trên Telegram và Zalo** (Whisper nghe giọng thành chữ) - xem [Telegram](11-telegram.md) và [Kênh Zalo Bot](26-kenh-zalo-bot.md); đấu key là đủ, không bắt buộc đổi model chính sang Groq |
+| **DeepSeek (API)** | Dán API key lấy ở platform.deepseek.com | MCP + tool file + skill qua hub. Model `deepseek-flash` (rẻ, nhận ảnh) và `deepseek-v4-pro`. Độ sâu suy nghĩ để **Tắt** thì DeepSeek trả lời thẳng; bật lên thì nó suy nghĩ trước, và nếu cuộc trò chuyện cũ không hợp chế độ đó Javis tự trả lời ở chế độ thường kèm một dòng báo |
 | **Ollama Cloud** | Dán API key lấy ở ollama.com | MCP + tool file + skill qua hub. Model mã nguồn mở cỡ lớn (gpt-oss, qwen3-coder, deepseek) chạy trên máy chủ của Ollama |
 
 Mỗi card provider hiển thị trạng thái **● Đã kết nối** hoặc **○ Chưa kết nối**, kèm số model khả dụng, và một nhãn kiểu bên cạnh tên: **MCP/skill** (Claude Code), **Device code** (ChatGPT), **MCP Javis** (các provider API). Card nào đang là Main Model sẽ có nhãn **MAIN**.
@@ -125,6 +127,7 @@ Lưu ý: đây là kênh thử nghiệm (chạy nền Codex). Nếu cần ổn �
 1. Cài CLI một lần trên máy chạy Javis:
    - Linux/macOS: `curl -fsSL https://x.ai/cli/install.sh | bash`
    - Windows PowerShell: `irm https://x.ai/cli/install.ps1 | iex`
+   - Bản Docker (từ 0.85.1): **không cần làm bước này**, Javis tự cài lúc khởi động. Trong lúc đang cài, thẻ hiện "Javis đang tự cài"; khoảng một phút sau bấm **Kiểm tra lại**.
 2. Vào **Models**, thẻ **xAI Grok Build CLI**, bấm **Đăng nhập**. Nó hiện ra một đường link và một mã. Mở link đó trên máy bạn (điện thoại cũng được), nhập mã, xác nhận. Thẻ tự chuyển sang **● Đã đăng nhập**, không phải bấm gì thêm.
 3. Bấm **Đổi model ▾** ở khối Main Model, chọn nhà cung cấp này rồi chọn model.
 
@@ -150,13 +153,14 @@ Vài chỗ đáng biết:
 1. Cài CLI một lần trên máy chạy Javis:
    - Linux/macOS: `curl -fsSL https://antigravity.google/cli/install.sh | bash`
    - Windows PowerShell: `irm https://antigravity.google/cli/install.ps1 | iex`
+   - Bản Docker (từ 0.85.1): **không cần làm bước này**, Javis tự cài lúc khởi động. Trong lúc đang cài, thẻ hiện "Javis đang tự cài"; khoảng một phút sau bấm **Kiểm tra lại**.
 2. Gõ `agy` một lần **trong terminal của máy chạy Javis** (trang **Code** trong Javis là chắc ăn nhất - đúng user đang chạy Javis). Máy để bàn có màn hình thì nó tự mở trình duyệt. Máy chủ không có màn hình (VPS, Docker - kể cả Docker trên chính máy Mac của bạn) thì nó in ra một đường link: mở link đó bằng trình duyệt trên máy bạn, đăng nhập Google xong trình duyệt sẽ nhảy sang một địa chỉ `http://localhost:...` **báo không mở được - đó là bước đúng**, copy nguyên địa chỉ trên thanh URL rồi dán ngược vào terminal và Enter. Phiên lưu trong keyring của hệ điều hành nên chỉ phải làm một lần.
 
    > Vì sao phải dán tay: `agy` nhận mã về qua một cổng loopback trên chính máy chạy nó. Trình duyệt của bạn ở máy khác nên không với tới cổng đó. Từ 0.55.46, terminal của Javis tự khai đây là phiên từ xa (`SSH_CONNECTION`) để `agy` hỏi chỗ dán thay vì nằm chờ im lặng. Bản `agy` cũ không hỏi thì mở thêm một phiên terminal rồi chạy `curl "<địa chỉ localhost vừa copy>"` cũng xong. Bố trí lạ (X11 forwarding, máy để bàn có màn hình) muốn tắt hành vi này thì đặt `JAVIS_TERMINAL_REMOTE=0`.
 3. Quay lại **Models**, thẻ **Google Antigravity CLI**, bấm **Kiểm tra lại** (nó chạy thử một lượt chat thật). Thẻ đổi sang **● Đã đăng nhập**.
 4. Bấm **Đổi model ▾** ở khối Main Model, chọn nhà cung cấp này rồi chọn model.
 
-Danh sách model **hỏi thẳng `agy models`** chứ Javis không giữ bảng chép tay, nên tài khoản bạn được cấp model nào là thấy đúng model đó, và Google đổi tên model cũng không làm picker lạc hậu.
+Danh sách model **hỏi thẳng `agy models`** chứ Javis không giữ bảng chép tay, nên tài khoản bạn được cấp model nào là thấy đúng model đó, và Google đổi tên model cũng không làm picker lạc hậu. Model mới chỉ hiện khi chính `agy` đã lên bản biết model đó, nên từ 0.137.0 Javis tự chạy `agy update` mỗi ngày một lần, cả trong bản Docker (tắt bằng biến môi trường `JAVIS_AGY_AUTO_UPDATE=0`). `agy` đã mới nhất mà vẫn không thấy một model thì tài khoản Google của bạn chưa được cấp model đó.
 
 Vài chỗ đáng biết, nói trước cho khỏi hiểu nhầm:
 
@@ -182,7 +186,7 @@ Vài chỗ đáng biết, nói trước cho khỏi hiểu nhầm:
 
 **Nếu vẫn gặp lỗi trên Windows**, đặt biến môi trường `JAVIS_AGY_PROMPT_DAI=file` để ép đi thẳng đường file, rồi báo lại giúp kèm câu lỗi `agy` in ra.
 
-### C. Kết nối provider bằng API key (OpenRouter / Anthropic API / OpenAI API / Gemini / Groq)
+### C. Kết nối provider bằng API key (OpenRouter / Anthropic API / OpenAI API / Gemini / Groq / DeepSeek)
 
 1. Vào **Models**, tìm card provider tương ứng.
 2. Dán API key vào ô nhập (ô ghi "dán API key để kết nối").

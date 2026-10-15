@@ -54,6 +54,8 @@
   // trong danh sách này thay vì bắt dán token; dán token mới cũng được, và token đó thành một
   // tài khoản ở tab Tài khoản bot.
   var _tkRanh = [];
+  // Tài khoản kênh đang do MỘT bot trực (0.65.9): form Bot mới hiện chúng mờ kèm tên bot giữ, thay vì giấu đi.
+  var _tkBan = [];
 
   // Kênh KHÔNG đoán theo id: mọi thứ (nhãn, logo, năng lực) lấy từ danh sách server cấp. Kênh
   // lạ (server mới có kênh mà giao diện cũ) thì hiện tên trần, không vẽ nhầm logo kênh khác.
@@ -76,8 +78,14 @@
   // Chip MỘT tài khoản kênh trên thẻ bot: logo kênh + tên tài khoản phía nền tảng.
   function chipTK(a) {
     var k = kenhCua(a.channel);
-    return '<span class="cb-kenh-chip" title="' + esc(k.nhan) + '">' + logoKenh(a.channel) + " " +
-           esc(a.external_id ? (k.tien_to_ten || "") + a.external_id : (a.label || k.nhan)) + "</span>";
+    var ten = logoKenh(a.channel) + " " + esc(a.external_id ? (k.tien_to_ten || "") + a.external_id : (a.label || k.nhan));
+    // Kênh kiểu "bot" (Telegram, Zalo Bot) sửa được ngay tại đây: bấm chip mở bảng sửa kênh (nhãn, token, brain, xoá). Kênh kiểu
+    // "account" (Zalo cá nhân) là một kết nối ở trang Kết nối nên chip chỉ để đọc. Từ 0.65.9 không còn tab riêng cho kênh.
+    if (k.kind === "bot") {
+      return '<button type="button" class="cb-kenh-chip cb-kenh-sua" data-tk="' + esc(a.id) + '" title="' +
+             esc(window.t("cb.sua_kenh_title", { kenh: k.nhan })) + '">' + ten + "</button>";
+    }
+    return '<span class="cb-kenh-chip" title="' + esc(k.nhan) + '">' + ten + "</span>";
   }
   // Bot có tài khoản nào đứng được trong nhóm không (quyết định khối cấu hình nhóm).
   function coNhom(b) {
@@ -151,6 +159,7 @@
       _langDS = d.lang_list || [];
       _kenhDS = d.kenh || [];
       _tkRanh = d.tai_khoan || [];
+      _tkBan = d.tai_khoan_ban || [];
       var vet = JSON.stringify(_bots);
       // Nhịp ngầm mà không có gì đổi thì ĐỪNG dựng lại DOM. Không phải để tiết kiệm: dựng lại
       // mỗi 5 giây nghĩa là cứ 5 giây một lần có một khoảnh khắc nút vừa bị thay khỏi cây, và
@@ -200,7 +209,7 @@
     });
     if (!_bots.length) {
       box.innerHTML =
-        '<div class="cb-empty"><div class="cb-empty-ico">' + ic("bot", { cls: "ic-xl" }) + '</div>' +
+        '<div class="cb-empty"><div class="cb-empty-ico">' + ic("headset", { cls: "ic-xl" }) + '</div>' +
         '<b>' + esc(window.t("cb.rong_tieu_de")) + '</b>' +
         '<div>' + esc(window.t("cb.rong_1")) + ' <b>' + esc(window.t("cb.rong_tat")) + '</b>' +
         esc(window.t("cb.rong_2")) + '</div></div>';
@@ -234,8 +243,8 @@
     // nguồn nào). Màu vàng chứ không đỏ: bot vẫn trả lời tử tế, chỉ là chạy thiếu quyền. Để im
     // thì chủ tưởng bot đang làm việc thật - đúng kiểu hỏng lặng lẽ mà cả trang này chống.
     var cbao = b.canh_bao_luot
-      ? '<div class="cb-quyen ghi">' + ic("triangle-alert") + ' ' +
-        esc(String(b.canh_bao_luot).slice(0, 300)) + '</div>' : "";
+      ? '<div class="cb-quyen ghi">' + ic("triangle-alert") + '<span class="cb-quyen-t">' +
+        esc(String(b.canh_bao_luot).slice(0, 300)) + '</span></div>' : "";
     // Mức quyền phải nhìn thấy TỪ NGOÀI THẺ, không phải mở form Sửa mới biết. Một con bot toàn
     // quyền lẫn giữa mấy con chỉ đọc mà nhìn giống hệt nhau là đúng kiểu hỏng im lặng: chủ nhớ
     // nhầm con nào là con nào rồi thả nhầm vào chỗ ai cũng nhắn được.
@@ -247,6 +256,7 @@
     var mq = b.muc_quyen || "suggest";
     var mqLoi = {
       suggest: " - " + window.t("cb.mq_suggest"),
+      read_docs: " - " + window.t("cb.mq_read_docs"),
       auto: " - " + window.t("cb.mq_auto"),
       full: " - " + window.t("cb.mq_full"),
     };
@@ -256,7 +266,7 @@
         // "shield-alert" không có trong bộ icon đã vendor nên bản trước vẽ ra một ô trống ở
         // đúng chỗ đáng chú ý nhất. Test icon không bắt được vì nó chỉ dò tên viết thẳng trong
         // lời gọi, không dò lời gọi có biểu thức ở trong.
-        ic(mq === "full" ? "shield" : mq === "auto" ? "pencil" : "eye") +
+        ic(mq === "full" ? "shield" : mq === "auto" ? "pencil" : mq === "read_docs" ? "book-open" : "eye") +
         ' <b>' + esc(mucCua(mq).nhan) + '</b>' +
       '</span>';
     // Nhóm có người gọi bot mà chủ chưa cho phép. Đây là chỗ sửa cho lỗi "thả bot vào nhóm,
@@ -298,7 +308,7 @@
     // người dùng đi mở @BotFather tìm một cài đặt không tồn tại cho con bot đó.
     var coTelegram = (b.accounts || []).some(function (a) { return a.channel === "telegram"; });
     var riengTu = (coTelegram && duNhom && st.da_hoi_telegram && !st.doc_moi_tin_nhom)
-      ? '<div class="cb-quyen ghi">' + ic("triangle-alert") + ' ' + esc(window.t("cb.rt_1")) +
+      ? '<div class="cb-quyen ghi">' + ic("triangle-alert") + '<span class="cb-quyen-t">' + esc(window.t("cb.rt_1")) +
         ' <b>' + esc(window.t("cb.rt_che_do")) + '</b> ' + esc(window.t("cb.rt_2")) +
         ' <b>' + esc(window.t("cb.rt_lenh")) + '</b> ' + esc(window.t("cb.rt_va")) +
         ' <b>' + esc(window.t("cb.rt_tra_thang")) + '</b>' +
@@ -306,7 +316,7 @@
         esc(window.t("cb.rt_fix_1")) + ' <b>@BotFather</b> ' + esc(window.t("cb.rt_go")) +
         ' <b>/setprivacy</b>' + esc(window.t("cb.rt_fix_2")) + ' <b>Disable</b>' +
         esc(window.t("cb.rt_fix_3")) + ' <b>' + esc(window.t("cb.rt_quan_tri")) + '</b>. ' +
-        esc(window.t("cb.rt_fix_4")) + '</div>' : "";
+        esc(window.t("cb.rt_fix_4")) + '</span></div>' : "";
     var c = el(
       '<div class="cb-card">' +
         '<div class="cb-head">' +
@@ -326,7 +336,9 @@
           ((b.accounts || []).length
             ? (b.accounts || []).map(chipTK).join("")
             : '<span class="cb-warn">' + ic("triangle-alert") + ' ' + esc(window.t("cb.chua_token")) + '</span>') +
-          '<span>' + ic("bot") + ' ' + esc(b.agent_name || (b.agent || {}).slug || "?") + '</span>' +
+          // Thêm kênh ngay trên thẻ: mở form Sửa ở bước chọn kênh (kênh rảnh, kênh mới, hoặc sang trang Kết nối cho Zalo cá nhân).
+          '<button type="button" class="cb-kenh-chip cb-kenh-them">' + ic("plus") + ' ' + esc(window.t("ht.them_tk")) + '</button>' +
+          '<span>' + ic("user-round") + ' ' + esc(b.agent_name || (b.agent || {}).slug || "?") + '</span>' +
           // Model bot chạy ra ngoài. Nó là model của trợ lý (0.62.3), nên phải hiện ở đây - nếu không
           // thì chọn model cho trợ lý xong vẫn không biết bot đã theo hay chưa.
           '<span title="' + esc(window.t("cb.model_title")) + '">' + ic("cpu") + ' ' +
@@ -361,6 +373,8 @@
                        : ic("play") + " " + esc(window.t("cb.bat"))) + '</button>' +
           '<button class="s-btn-ghost cb-edit" type="button">' + ic("pencil") + ' ' +
             esc(window.t("common.edit")) + '</button>' +
+          '<button class="s-btn-ghost cb-try" type="button">' + ic("play") + ' ' +
+            esc(window.t("try.btn")) + '</button>' +
           '<span class="cb-mn">' +
             '<button class="s-btn-ghost cb-mn-b" type="button" aria-label="' + esc(window.t("cb2.mn")) +
               '" title="' + esc(window.t("cb2.mn")) + '">&#8943;</button>' +
@@ -391,6 +405,18 @@
       if (window.JavisConversations) window.JavisConversations.mo({ bot_id: b.id });
     };
     c.querySelector(".cb-edit").onclick = function () { moForm(b); };
+    // Thử bot (0.78.0): chạy một tin giả, không gửi gì ra ngoài. Xem chatbots-try.js.
+    c.querySelector(".cb-try").onclick = function () {
+      // Bot chưa gắn kênh nào vẫn thử được "Trong nhóm": chỉnh bot cho ổn rồi mới gắn kênh.
+      if (window.JavisTryBot) window.JavisTryBot.open(b, { groups: coNhom(b) || !(b.accounts || []).length });
+    };
+    c.querySelector(".cb-kenh-them").onclick = function () { moForm(b, { buoc: 1 }); };
+    c.querySelectorAll(".cb-kenh-sua").forEach(function (n) {
+      n.onclick = function () {
+        var fn = window.JavisConversations && window.JavisConversations.suaKenh;
+        if (fn) fn(n.dataset.tk);
+      };
+    });
     c.querySelector(".cb-del").onclick = function () { xoa(b); };
     c.querySelectorAll(".cb-nhomcho").forEach(function (n) {
       var cid = n.dataset.cid;
@@ -531,7 +557,7 @@
   // tài liệu nó đọc. Bản trước bắt chọn brain trong form, và chọn xong lại phải nhớ Agent nằm
   // ở brain nào - hai lớp phải khớp nhau mà không có gì bắt chúng khớp. Bỏ hẳn ô đó thì phạm
   // vi của trang chính là câu trả lời, và không còn gì để lệch.
-  async function nạpAgent(br) {
+  async function napAgent(br) {
     try {
       // Bản NHẸ: ô chọn chỉ hiện tên + vai trò, không đụng tới system prompt.
       var ad = await api("/agents?brain=" + encodeURIComponent(br || "brain") + "&prompt=0");
@@ -620,7 +646,7 @@
   function veCanhBao(id) {
     var m = mucCua(id);
     if (!(m.canh_bao || []).length) {
-      return '<div class="cb-hint">' + esc(window.t("cb2.mq_doc")) + '</div>';
+      return '<div class="cb-hint">' + esc(window.t(id === "read_docs" ? "cb2.mq_read_docs" : "cb2.mq_doc")) + '</div>';
     }
     var HIEN = 2;
     return '<div class="cb-canhbao ' + (id === "full" ? "full" : "ghi") + '">' +
@@ -636,6 +662,11 @@
 
   // Một dòng "bot trả lời ai" cho thẻ: đọc là biết ngay bot đang nói chuyện với ai, không phải mở form.
   function tomTatDoiTuong(b) {
+    var s = tomTatAi(b), g = b.gio_truc || {};
+    return g.tu && g.den ? s + " · " + window.t("cb.tt_gio_truc", { tu: g.tu, den: g.den }) : s;
+  }
+
+  function tomTatAi(b) {
     var aud = b.audience || "nhom";
     var nhom = (b.groups || []).length, nguoi = (b.people || []).length;
     var cn = coNhom(b);
@@ -677,7 +708,21 @@
     var da = {};
     ((b && b.accounts) || []).forEach(function (a) { ds.push(a); da[a.id] = true; });
     _tkRanh.forEach(function (a) { if (!da[a.id]) ds.push(a); });
-    if (!ds.length) return '<div class="cb-trong-tk">' + esc(window.t("cb.tk_chua_co")) + '</div>';
+    // Kênh đang do bot KHÁC trực: hiện mờ, không tick được, ghi rõ bot nào (và brain nào nếu khác brain đang mở).
+    var khoa = _tkBan.filter(function (a) { return !da[a.id]; }).map(function (a) {
+      var k = kenhCua(a.channel);
+      var tb = window.JavisConversations && window.JavisConversations.tenBrain;
+      var khac = a.bot_brain && a.bot_brain !== brain();
+      return '<div class="cb-tk cb-tk-khoa" aria-disabled="true">' +
+        '<span class="cb-tk-logo">' + logoKenh(a.channel, "18px") + '</span>' +
+        '<span class="cb-tk-text"><b>' + esc(a.label || k.nhan) + '</b><small>' + esc(k.nhan) +
+        (a.external_id ? ' · ' + esc((k.tien_to_ten || "") + a.external_id) : "") + '</small>' +
+        '<small class="cb-tk-luu-y">' + ic("lock") + ' ' + esc(window.t("cb.tk_khoa", { bot: a.bot_name || "?" })) +
+        (khac ? ' ' + esc(window.t("cb.tk_khoa_brain", { brain: tb ? tb(a.bot_brain) : a.bot_brain })) : "") + '</small>' +
+        '</span></div>';
+    }).join("");
+    var khoaBox = khoa ? '<div class="cb-tk-list cb-tk-list-khoa">' + khoa + '</div>' : "";
+    if (!ds.length) return '<div class="cb-trong-tk">' + esc(window.t("cb.tk_chua_co")) + '</div>' + khoaBox;
     var chon = {};
     if (!chinhXac) ((b && b.accounts) || []).forEach(function (a) { chon[a.id] = true; });
     (chonSan || []).forEach(function (id) { chon[id] = true; });
@@ -693,7 +738,7 @@
         // nói thẳng ngay lúc chọn. Đọc theo `kind` do server khai, không đoán theo id kênh.
         (k.kind === "account" ? '<small class="cb-tk-luu-y">' + esc(window.t("cb.tk_ca_nhan_luu_y")) + '</small>' : "") +
         '</span></label>';
-    }).join("") + '</div>';
+    }).join("") + '</div>' + khoaBox;
   }
 
   // Mở modal "Thêm tài khoản" của tab Tài khoản bot (chatbots.js KHÔNG tự dựng lại form dán token: xem
@@ -708,6 +753,7 @@
         var d = await api("/chatbots?brain=" + encodeURIComponent(brain()));
         _kenhDS = d.kenh || _kenhDS;
         _tkRanh = d.tai_khoan || [];
+        _tkBan = d.tai_khoan_ban || _tkBan;
       } catch (e) {}
       // Ghép tay tài khoản vừa nối vào danh sách nếu lần nạp lại chưa thấy nó (mạng hỏng, hoặc
       // server trả về trước khi kho kịp thấy bản ghi mới). Không có bước này thì id vừa tích
@@ -717,7 +763,8 @@
     } });
   }
 
-  // `truoc` (tuỳ chọn): { account_id } - tài khoản tích sẵn khi mở từ tab Tài khoản bot ("Tạo bot trực").
+  // `truoc` (tuỳ chọn): { account_id } - tài khoản tích sẵn khi mở từ mục "Kênh chưa có bot" ("Tạo bot cho kênh này");
+  // { buoc: 1 } - mở thẳng ở bước chọn kênh (chip "Thêm kênh" trên thẻ bot).
   //
   // Form tạo bot đi theo HAI BƯỚC, và đó là cả điểm của nó. Bước 1 hỏi đúng một câu - bot trả lời ở
   // đâu - bước 2 mới là cài đặt. Sửa bot thì vào thẳng bước 2: tài khoản đã chọn rồi.
@@ -733,9 +780,9 @@
   async function moForm(b, truoc) {
     var sua = !!b;
     var br = brain();                 // brain đang mở = brain của bot, không hỏi lại
-    var agents = await nạpAgent(br);
+    var agents = await napAgent(br);
     var chonSan = (truoc && truoc.account_id) ? [truoc.account_id] : [];
-    var buoc = sua ? 2 : 1;
+    var buoc = (truoc && truoc.buoc) || (sua ? 2 : 1);
     var aud0 = (b && b.audience) || "nhom";
     var nguon0 = (b && b.nguon_tra_loi === "tai_lieu") ? "tai_lieu" : "agent";
     var muc0 = (b && b.muc_quyen) || "suggest";
@@ -808,6 +855,7 @@
               '</div>' +
               '<div class="cb-hint cb-pk-hint" id="cbPkHint"></div>' +
             '</div>' +
+            '<div class="cb-hint" id="cbKoNhom" style="display:none"></div>' +
             '<div id="cbRwBox" style="display:none">' +
               '<div id="cbRwSeg">' +
                 '<div class="cb-sub">' + esc(window.t("cb2.rw_lb")) + '</div>' +
@@ -837,6 +885,18 @@
           '<div class="cb-sec">' + secH("shield", "cb2.s_quyen") +
             htmlMuc(muc0) +
             '<div class="cb-muc-note">' + veCanhBao(muc0) + '</div>' +
+          '</div>' +
+
+          // 5. Active hours (0.130.0). Both empty = all day. Outside them the bot stays silent and the message
+          // still lands in the inbox; an end earlier than the start runs past midnight (08:00 to 02:00).
+          '<div class="cb-sec">' + secH("alarm-clock", "cb.s_gio_truc") +
+            '<div class="cb-gio-truc">' +
+              '<label>' + esc(window.t("cb.gio_tu")) +
+                ' <input type="time" id="cbGioTu" value="' + esc(((b && b.gio_truc) || {}).tu || "") + '"></label>' +
+              '<label>' + esc(window.t("cb.gio_den")) +
+                ' <input type="time" id="cbGioDen" value="' + esc(((b && b.gio_truc) || {}).den || "") + '"></label>' +
+            '</div>' +
+            '<div class="cb-hint">' + esc(window.t("cb.hint_gio_truc")) + '</div>' +
           '</div>' +
 
           // Nâng cao: chỉ ngôn ngữ trả lời. Ngôn ngữ của bot ĐỘC LẬP với ngôn ngữ của chủ: bot nói
@@ -1047,6 +1107,18 @@
         t.style.display = tabs.indexOf(t.dataset.t) >= 0 ? "" : "none";
       });
       box.querySelector("#cbRwBox").style.display = co ? "" : "none";
+      // Không có nhóm thì nói vì sao, thay vì ẩn im lặng (0.102.1): chủ tưởng phải đưa bot vào nhóm mới hiện.
+      var koNhom = box.querySelector("#cbKoNhom");
+      var dsTk = tkDangChon();
+      koNhom.style.display = !co && dsTk.length ? "" : "none";
+      if (!co && dsTk.length) {
+        var tenKenh = [];
+        dsTk.forEach(function (a) {
+          var n = kenhCua(a.channel).nhan;
+          if (tenKenh.indexOf(n) < 0) tenKenh.push(n);
+        });
+        koNhom.textContent = window.t("cb2.ko_nhom", { kenh: tenKenh.join(", ") });
+      }
       apGoiY();
       veRw();
       if (tabs.length) taiChats();
@@ -1061,7 +1133,10 @@
       var ds = tkDangChon();
       t.innerHTML = '<span class="cb-tom-l">' + esc(window.t("cb.tra_loi_o")) + '</span> ' +
         (ds.length ? ds.map(function (a) {
-          return '<span class="cb-kenh-chip">' + logoKenh(a.channel) + " " + esc(a.ten) + "</span>";
+          // Tên KÊNH đi kèm tên tài khoản (0.102.1): Zalo Bot và Zalo cá nhân dùng chung một logo, mà hai kênh
+          // khác nhau đúng ở chỗ có nhóm hay không, nên chỉ nhìn logo thì không hiểu vì sao mục nhóm biến mất.
+          return '<span class="cb-kenh-chip">' + logoKenh(a.channel) + " " + esc(a.ten) +
+                 ' <span class="cb-tom-kenh">· ' + esc(kenhCua(a.channel).nhan) + "</span></span>";
         }).join(" ") : '<span class="cb-warn">' + esc(window.t("cb.chua_chon_tk")) + '</span>') +
         ' <button type="button" class="cb-doi-tk">' + esc(window.t("cb.doi")) + '</button>';
       var nut = t.querySelector(".cb-doi-tk");
@@ -1147,6 +1222,9 @@
       function ds(loai) {
         return Object.keys(chon[loai]).filter(function (k) { return chon[loai][k]; });
       }
+      var gioTu = ((box.querySelector("#cbGioTu") || {}).value || "").trim();
+      var gioDen = ((box.querySelector("#cbGioDen") || {}).value || "").trim();
+      if (!gioTu !== !gioDen) return alert(window.t("cb.gio_thieu"));
       // Không tài khoản nào đứng được trong nhóm thì gửi danh sách nhóm rỗng: bản ghi mang một danh
       // sách nhóm không bao giờ dùng tới là một lời hứa suông nằm lại trong dữ liệu.
       var chung = { name: ten, agent_slug: ag, agent_brain: br, brain: br,
@@ -1155,7 +1233,8 @@
                     audience: aud, people: ds("private").join("\n"),
                     groups: co ? ds("group").join("\n") : "",
                     reply_when: co ? (the === "auto" ? "auto" : (giaTri("cbRw") || "mention")) : "mention",
-                    account_ids: ids.join(",") };
+                    account_ids: ids.join(","),
+                    gio_truc: gioTu ? JSON.stringify({ tu: gioTu, den: gioDen }) : "" };
       try {
         if (sua) {
           await api("/chatbots/" + encodeURIComponent(b.id) + "/update", { method: "POST", body: fd(chung) });

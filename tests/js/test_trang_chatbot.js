@@ -187,10 +187,12 @@ check("mức chỉ đọc có màu riêng chứ không mượn màu cảnh báo"
 check("bật bot có quyền thao tác thì hỏi lại", /if \(on && mucCua\(mq\)\.can_xac_nhan/.test(CB));
 check("CSS cho nhãn mức quyền và khối cảnh báo",
   /\.cb-quyen\.full/.test(CSS) && /\.cb-canhbao\.full/.test(CSS) && /\.cb-ack/.test(CSS));
-// Hai rào KHÔNG đổi theo mức, và trang phải nói đúng như vậy - hứa thiếu thì chủ ngại nâng
-// mức một cách vô cớ, hứa thừa thì chủ tin vào một rào không tồn tại.
-check("trang nói rõ hai rào giữ nguyên ở mọi mức",
-  noi("cb.intro_7", "không thấy brain khác, và không chạy được lệnh máy"));
+// Hai rào giữ nguyên DƯỚI mức Toàn quyền, còn Toàn quyền chạy y như kênh admin (0.85.3), và trang
+// phải nói đúng như vậy - hứa thiếu thì chủ ngại nâng mức một cách vô cớ, hứa thừa thì chủ tin vào
+// một rào không tồn tại (câu cũ "giữ nguyên ở MỌI mức" thành lời hứa thừa từ 0.85.3).
+check("trang nói rõ hai rào giữ nguyên dưới mức Toàn quyền",
+  noi("cb.intro_7", "không thấy brain khác và không chạy được lệnh máy"));
+check("và nói thẳng Toàn quyền chạy như kênh admin", noi("cb.intro_7", "kênh admin"));
 
 // ============================================================
 // 6. Bot KHÔNG có brain riêng - trang thuộc về brain đang mở
@@ -202,7 +204,7 @@ check("CANARY: form KHÔNG còn ô chọn brain", CB.indexOf('id="cbBrain"') ===
 check("CANARY: form KHÔNG còn nút tạo brain", CB.indexOf('cbNewBrain') === -1);
 check("trang lọc bot theo brain đang mở", /\/chatbots\?brain=" \+ encodeURIComponent\(brain\(\)\)/.test(CB));
 check("form nạp Agent của brain đang mở",
-  /var br = brain\(\)/.test(CB) && /nạpAgent\(br\)/.test(CB));
+  /var br = brain\(\)/.test(CB) && /napAgent\(br\)/.test(CB));
 check("lưu bot thì Agent và tài liệu cùng một brain", /agent_brain: br, brain: br,/.test(CB));
 check("trang nói rõ đang xem bot của brain nào",
   /window\.t\("cb\.intro_1"\)\) \+ ' <b>' \+ esc\(brain\(\)\)/.test(CB)
@@ -297,6 +299,14 @@ check("cảnh báo chế độ riêng tư cho mọi bot có dùng nhóm",
 // `/setprivacy` là LỆNH gõ cho BotFather nên cố ý không dịch, vẫn nằm thẳng trong .js.
 check("cảnh báo chỉ ra CẢ HAI cách sửa, không chỉ BotFather",
   /setprivacy/.test(CB) && noi("cb.rt_quan_tri", "quản trị viên"));
+// Telegram docs: disabling privacy mode only takes effect after the bot is re-added to the group.
+check("cảnh báo nhắc xoá bot khỏi nhóm rồi thêm lại sau khi tắt riêng tư",
+  noi("cb.rt_fix_4", "THÊM LẠI") && tu("cb2.rw_tg", "thêm lại"));
+// 0.77.2: the box is a flex row, so loose text and <b> as direct children each became a column
+// (one word per line on the card). All text must sit in ONE .cb-quyen-t span.
+check("chữ của khung cảnh báo nằm trong một span, không vỡ thành cột",
+  /triangle-alert"\) \+ '<span class="cb-quyen-t">' \+ esc\(window\.t\("cb\.rt_1"\)\)/.test(CB) &&
+  /\.cb-quyen-t \{ flex: 1/.test(CSS));
 // getMe hỏng: bot trả lời tin nhắn riêng hoàn hảo nhưng điếc trong mọi nhóm, vì không biết
 // @username của chính mình. Chấm vẫn xanh, lượt vẫn chạy - không có dòng này thì không ai đoán ra.
 check("thẻ nói ra khi bot không hỏi được danh tính của chính nó",
@@ -378,7 +388,8 @@ check("chưa chọn tài khoản thì không sang được bước 2",
 check("bước 2 tóm tắt lại bot sẽ trả lời ở đâu, kèm lối quay lại đổi",
   /function veTom\(\)/.test(CB) && /class="cb-doi-tk"/.test(CB) &&
   noi("cb.tra_loi_o", "Trả lời ở") && noi("cb.doi", "Đổi"));
-check("sửa bot thì vào thẳng bước 2 (tài khoản đã chọn rồi)", /var buoc = sua \? 2 : 1;/.test(CB));
+check("sửa bot thì vào thẳng bước 2 (tài khoản đã chọn rồi), trừ khi được chỉ mở ở bước chọn kênh (chip Thêm kênh)",
+  /var buoc = \(truoc && truoc\.buoc\) \|\| \(sua \? 2 : 1\);/.test(CB));
 // Một cặp nút cố định đọc dễ hơn hai hàng nút hiện ra rồi biến đi, và trên điện thoại ngón
 // tay luôn tìm thấy chúng ở đúng chỗ cũ.
 check("hai nút ở chân form đổi vai theo bước chứ không mọc thêm hàng nút",
@@ -470,12 +481,12 @@ check("agent để Mặc định thì nói rõ là theo model chính, không đ�
 // ============================================================
 // 6c. Nhãn trang và ba tab (0.62.5)
 // ============================================================
-// Chủ repo chốt 21/09: thanh bên gọi trang này là "Chatbot", ba tab là Hòm thư bot /
-// Tài khoản bot / Tạo chatbot. Nhãn nằm trong từ điển, nên canary soi từ điển.
+// Chủ repo chốt 21/09: thanh bên gọi trang này là "Chatbot"; từ 0.65.9 chỉ còn hai tab, Hòm thư bot và Bot (gộp Kênh của bot với
+// Tạo chatbot). Nhãn nằm trong từ điển, nên canary soi từ điển.
 check("thanh bên gọi trang này là Chatbot", VI["page.conversations.label"] === "Chatbot");
-check("ba tab đúng tên mới",
-  VI["ht.tab_inbox"] === "Hòm thư bot" && VI["ht.tab_kenh"] === "Kênh của bot" &&
-  VI["ht.tab_chatbot"] === "Tạo chatbot");
+check("hai tab đúng tên mới, hai tab cũ không còn trong từ điển",
+  VI["ht.tab_inbox"] === "Hòm thư bot" && VI["ht.tab_bot"] === "Bot" &&
+  VI["ht.tab_kenh"] === undefined && VI["ht.tab_chatbot"] === undefined);
 check("nói tên mới cũng mở đúng trang",
   SRV2.includes('"hom thu bot": "conversations"') && SRV2.includes('"tai khoan bot": "conversations"') && SRV2.includes('"kenh cua bot": "conversations"') &&
   SRV2.includes('"tao chatbot": "chatbots"'));

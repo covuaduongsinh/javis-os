@@ -1,6 +1,6 @@
 # Javis OS - Quick start
 
-***Tiếng Việt** · [English](QUICKSTART.en.md)*
+*[English](QUICKSTART.en.md) · **Tiếng Việt** · [简体中文](docs/i18n/zh/QUICKSTART.md) · [Español](docs/i18n/es/QUICKSTART.md) · [日本語](docs/i18n/ja/QUICKSTART.md) · [हिन्दी](docs/i18n/hi/QUICKSTART.md) · [Português](docs/i18n/pt-BR/QUICKSTART.md) · [한국어](docs/i18n/ko/QUICKSTART.md) · [Русский](docs/i18n/ru/QUICKSTART.md) · [Deutsch](docs/i18n/de/QUICKSTART.md) · [Français](docs/i18n/fr/QUICKSTART.md) · [Bahasa Indonesia](docs/i18n/id/QUICKSTART.md)*
 
 Chạy Javis OS trong vài phút. Chi tiết từng phần: [docs/](docs/README.md).
 
@@ -37,7 +37,7 @@ Mở http://localhost:7777. Muốn HTTPS qua Caddy: thêm `-f docker-compose.htt
 
 ## Sau khi chạy
 
-- **Chọn engine/model**: trang **Models** (Claude Code, ChatGPT/Codex, Antigravity CLI, OpenRouter, OpenAI, Google Gemini, Anthropic API, Groq, Ollama).
+- **Chọn engine/model**: trang **Models** (Claude Code, ChatGPT/Codex, Antigravity CLI, OpenRouter, OpenAI, Google Gemini, Anthropic API, Groq, DeepSeek, Ollama).
 - **Đấu kết nối** (POS, quảng cáo, lịch, Zalo...) để báo cáo số liệu thật: trang **Kết nối** - xem [docs/09](docs/09-mcp-va-so-lieu.md).
 - **Sao lưu brain lên GitHub** để không mất dữ liệu: trang **Tự học** - xem [docs/18](docs/18-sao-luu-github.md).
 - **Theo dõi token đã dùng**: trang **Mức dùng** - xem [docs/23](docs/23-muc-dung-token.md).

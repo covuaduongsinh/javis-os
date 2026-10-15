@@ -104,8 +104,8 @@ const NGUONG_TIM = hangSo("SHARE_NGUONG_TIM", 8);
 
 // pager() THẬT của console.js, không phải bản giả: phân trang của trang Chia sẻ chạy đúng bộ
 // máy dùng chung với trang Kỹ năng, nên test phải chạy đúng bộ máy đó.
-const thanPager = bocHam(consoleSrc, "function pager(box, items, perPage, renderPage, emptyHtml) {");
-const pagerThat = new Function("box", "items", "perPage", "renderPage", "emptyHtml", "window",
+const thanPager = bocHam(consoleSrc, "function pager(box, items, perPage, renderPage, emptyHtml, opts) {");
+const pagerThat = new Function("box", "items", "perPage", "renderPage", "emptyHtml", "opts", "window",
   thanPager)
   ;
 
@@ -138,11 +138,17 @@ async function chay(items, opts) {
       if (opts && opts.loi) throw new Error("mat mang");
       return { json: async () => ({ ok: true, items }) };
     }
+    if (url === "/share/rename") {
+      const nhan = JSON.parse(o.body).nhan;
+      if (opts && opts.renameLoi) return { json: async () => ({ ok: false }) };
+      return { json: async () => ({ ok: true, ten: nhan || "Tiêu đề tự lấy" }) };
+    }
     return { json: async () => ({ ok: true }) };
   };
   const win = {
+    prompt: (opts && opts.prompt) || (() => null),
     isSecureContext: false,
-    JavisPager: (box, arr, per, ve, trong) => pagerThat(box, arr, per, ve, trong, win),
+    JavisPager: (box, arr, per, ve, trong, opts) => pagerThat(box, arr, per, ve, trong, opts, win),
     t: t,
   };
   await new Function("el", "_renderGen", "ic", "t", "esc", "fetch", "location",
@@ -155,6 +161,7 @@ async function chay(items, opts) {
   return { el, list, oTim, goi, fetchGia };
 }
 
+const r_hoi = [];
 (async () => {
   const MAU = [
     { token: "tok1", brain: "brain", path: "thu-muc/app.html", tao_luc: 1789000000, url: "/s/tok1" },
@@ -341,6 +348,45 @@ async function chay(items, opts) {
       check("nhãn " + k + " có ở CẢ hai ngôn ngữ",
         typeof vi[k] === "string" && typeof en[k] === "string");
     }
+  }
+
+  // ---- 7. TÊN LINK (0.65.30): tự lấy theo tiêu đề file, đổi được, tìm được theo tên ----
+  {
+    const DS = [
+      { token: "ta", brain: "brain", path: "apps/doanh-thu/index.html", ten: "Bảng doanh thu tháng 9", tao_luc: 1789000000, url: "/s/ta" },
+      { token: "tb", brain: "brain", path: "apps/lich/index.html", ten: "lich", tao_luc: 1789000001, url: "/s/tb" },
+    ];
+    const r = await chay(DS.map(x => Object.assign({}, x)), { prompt: (cau, cu) => { r_hoi.push([cau, cu]); return "Báo cáo cho sếp"; } });
+    check("hàng hiện TÊN LINK chứ không phải 'index.html'",
+      r.list._html.includes(">Bảng doanh thu tháng 9<") && r.list._html.includes("apps/doanh-thu/index.html"));
+    const b = r.list.querySelectorAll('[data-share-rename="ta"]')[0];
+    check("mỗi hàng có nút Đổi tên mang đúng token", !!b && typeof b.onclick === "function"
+      && (r.list._html.match(/data-share-rename=/g) || []).length === DS.length);
+    check("nhãn nút Đổi tên có ở cả hai ngôn ngữ", r.list._html.includes(vi["share.rename"]));
+    if (b) {
+      await b.onclick();
+      const g = r.goi.find(x => x.url === "/share/rename");
+      check("hỏi tên mới, gợi sẵn tên đang dùng", r_hoi.length === 1 && r_hoi[0][1] === "Bảng doanh thu tháng 9"
+        && r_hoi[0][0] === vi["share.rename_ask"]);
+      check("gửi /share/rename đúng token và tên mới", !!g && JSON.parse(g.body).token === "ta"
+        && JSON.parse(g.body).nhan === "Báo cáo cho sếp");
+      check("đổi xong thì tên mới hiện ngay, không phải tải lại trang",
+        r.list._html.includes(">Báo cáo cho sếp<") && !r.list._html.includes(">Bảng doanh thu tháng 9<"));
+    }
+    // Bấm Huỷ ở hộp nhập: không gọi gì.
+    const h = await chay(DS.map(x => Object.assign({}, x)), { prompt: () => null });
+    const bh = h.list.querySelectorAll('[data-share-rename="tb"]')[0];
+    if (bh) await bh.onclick();
+    check("bấm Huỷ thì không đổi gì", !h.goi.some(x => x.url === "/share/rename"));
+    // Tìm theo TÊN (không có trong đường dẫn).
+    const k = await chay(DS.map(x => Object.assign({}, x)));
+    k.oTim.value = "doanh thu thang";
+    k.oTim.oninput();
+    check("tìm được theo tên link (không dấu)", demHang(k.list._html) === 1 && k.list._html.includes("Bảng doanh thu tháng 9"));
+    k.oTim.value = "lich";
+    k.oTim.oninput();
+    check("vẫn tìm được theo thư mục", demHang(k.list._html) === 1 && k.list._html.includes("apps/lich/index.html"));
+    check("ô tìm gợi ý tìm theo tên link", /tên link/.test(vi["share.search_ph"]));
   }
 
   console.log(fails.length ? "\nFAIL: " + fails.join(", ") : "\nTat ca OK");

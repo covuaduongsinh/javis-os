@@ -1,9 +1,9 @@
 """Cổng Zalo Bot - API CHÍNH THỨC của Zalo (bot.zaloplatforms.com).
 
 Đây là kênh thứ tư của Javis, sau dashboard, Telegram và CLI. Nó KHÔNG thay
-`zalo-agent-cli` (xem docs/12-zalo.md): hai thứ khác bản chất và cùng tồn tại.
+`javis-zalo` (xem docs/12-zalo.md): hai thứ khác bản chất và cùng tồn tại.
 
-  - `zalo-agent-cli` đăng nhập CHÍNH tài khoản Zalo của bạn qua API không chính thức. Đọc
+  - `javis-zalo` đăng nhập CHÍNH tài khoản Zalo của bạn qua API không chính thức. Đọc
     được hội thoại thật, nhắn cho bất kỳ ai, và tài khoản CÓ THỂ bị khoá.
   - Zalo Bot là một DANH TÍNH RIÊNG, chính thức, không bị khoá, nhưng chỉ thấy được thứ
     người ta nhắn thẳng cho nó.
@@ -46,6 +46,7 @@ from pathlib import Path
 import httpx
 
 import stt
+import localefmt
 from bot_gateway import HangLuot, dong_vet, parse_chat_ids, ten_tool
 
 ZALO_API = "https://bot-api.zaloplatforms.com/bot{token}/{method}"
@@ -257,9 +258,13 @@ class ZaloBot(HangLuot):
             if i < lan - 1:
                 await asyncio.sleep(2 ** i)
         self.loi_danh_tinh = (
-            f"Không hỏi được danh tính bot từ Zalo ({loi}). Bot vẫn trả lời tin nhắn RIÊNG, "
-            "nhưng trong nhóm nó không nhận ra được ai đang gọi tên mình nên sẽ im. "
-            "Tắt rồi bật lại bot để thử lại.")
+            localefmt.chu(
+                f"Không hỏi được danh tính bot từ Zalo ({loi}). Bot vẫn trả lời tin nhắn RIÊNG, "
+                "nhưng trong nhóm nó không nhận ra được ai đang gọi tên mình nên sẽ im. "
+                "Tắt rồi bật lại bot để thử lại.",
+                f"Could not get the bot's identity from Zalo ({loi}). The bot still answers PRIVATE "
+                "messages, but in groups it cannot tell who is calling it, so it stays silent. "
+                "Turn the bot off and on again to retry."))
         print(f"[zalo getMe] {loi}", file=sys.stderr)
         return False
 
@@ -598,7 +603,7 @@ class ZaloBot(HangLuot):
                         continue
                     if not d.get("ok"):
                         ma = d.get("error_code")
-                        mo_ta = str(d.get("description") or "getUpdates lỗi")
+                        mo_ta = str(d.get("description") or localefmt.chu("getUpdates lỗi", "getUpdates failed"))
                         if ma in _MA_CAN_NGUOI:
                             # Chủ phải ra tay: sai token, bot bị xoá, gọi quá dày. Đỏ thẻ NGAY,
                             # vì chỉ nhóm này mới nói được cho chủ một việc cụ thể để làm.
@@ -615,7 +620,8 @@ class ZaloBot(HangLuot):
                         self._gay_lien_tiep += 1
                         if self._gay_lien_tiep >= _NGUONG_DO_THE:
                             self.status = "error"
-                            self.last_error = f"{mo_ta} (gãy {self._gay_lien_tiep} vòng liên tiếp)"
+                            self.last_error = localefmt.chu(f"{mo_ta} (gãy {self._gay_lien_tiep} vòng liên tiếp)",
+                                                            f"{mo_ta} (failed {self._gay_lien_tiep} rounds in a row)")
                         else:
                             print(f"[zalo] getUpdates gãy vòng {self._gay_lien_tiep}: {mo_ta[:160]}",
                                   file=sys.stderr)

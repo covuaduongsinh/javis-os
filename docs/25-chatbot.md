@@ -6,9 +6,9 @@
 
 Dùng được cho bất cứ việc gì bạn phải trả lời đi trả lời lại cho người khác: hỏi đáp về một sản phẩm hay dịch vụ, giải đáp quy định nội bộ cho đồng nghiệp, trực câu hỏi của học viên, hướng dẫn thành viên trong một cộng đồng, sàng lọc câu hỏi trước khi tới tay bạn.
 
-Khác với [Kênh Telegram](11-telegram.md) ở một điểm quyết định: bot Telegram ở trang **Kênh** là **Javis của bạn** (toàn quyền, đọc brain chính, gọi được mọi nguồn dữ liệu, chỉ bạn nhắn được). Bot ở trang **Chatbot** là **một Agent đứng trực** (mặc định chỉ đọc, chỉ thấy brain của nó, người lạ nhắn được). Đừng dùng cái này thay cái kia.
+Khác với [Kênh Telegram](11-telegram.md) ở một điểm quyết định: bot Telegram ở trang **Kênh Admin** là **Javis của bạn** (toàn quyền, đọc brain chính, gọi được mọi nguồn dữ liệu, chỉ bạn nhắn được). Bot ở trang **Chatbot** là **một Agent đứng trực** (mặc định chỉ đọc, chỉ thấy brain của nó, người lạ nhắn được). Đừng dùng cái này thay cái kia.
 
-Bot chuyên trách **làm việc thật được** nếu bạn nâng mức quyền cho nó - ghi file, gọi nguồn dữ liệu, thậm chí thao tác ra ngoài. Nhưng người điều khiển nó là người nhắn cho nó chứ không phải bạn, nên đọc kỹ mục [Ba mức quyền](#ba-mức-quyền---bot-được-làm-gì) trước khi nâng.
+Bot chuyên trách **làm việc thật được** nếu bạn nâng mức quyền cho nó - ghi file, gọi nguồn dữ liệu, thậm chí thao tác ra ngoài. Nhưng người điều khiển nó là người nhắn cho nó chứ không phải bạn, nên đọc kỹ mục [Bốn mức quyền](#bốn-mức-quyền---bot-được-làm-gì) trước khi nâng.
 
 ## Tính năng này là gì
 
@@ -17,7 +17,7 @@ Bot chuyên trách **làm việc thật được** nếu bạn nâng mức quy�
 - Trang Chatbot **thuộc về brain đang mở**: đổi brain ở đầu trang là thấy bot của brain đó, y như trang Agents và Skills.
 - Người ta nhắn riêng cho bot, hoặc bạn thả bot vào nhóm.
 - **Bot làm theo đúng file Agent của bạn.** Javis không chèn thêm luật nào của mình vào.
-- **Ba mức quyền**, chọn khi tạo và đổi được sau: Chỉ đọc (mặc định), Được ghi, Toàn quyền. Nâng mức phải tick vào ô đồng ý sau khi đọc phần rủi ro.
+- **Bốn mức quyền**, chọn khi tạo và đổi được sau: Chỉ đọc (mặc định), Đọc tài liệu, Được ghi, Toàn quyền. Hai mức đầu không ghi gì và không gọi nguồn nào; nâng lên hai mức sau phải tick vào ô đồng ý sau khi đọc phần rủi ro.
 - Hai rào **không đổi theo mức**, và khoá bằng mã nguồn chứ không bằng câu dặn: **bot chỉ thấy brain của chính nó**, và **không chạy được lệnh máy**.
 - Câu bot không trả lời nổi được ghi vào tab **Bot bí** để bạn bổ sung tài liệu, và bạn bấm **Tiếp quản** ở trang Hội thoại khi cần người thật vào cuộc.
 - Trang Chatbot dựng theo hướng **nhiều bot** ngay từ đầu: lưới thẻ, ô tìm, thêm/sửa/xoá, bật/tắt tại chỗ. Chạy một con hay mười con đều cùng một giao diện.
@@ -25,7 +25,7 @@ Bot chuyên trách **làm việc thật được** nếu bạn nâng mức quy�
 
 ## Mở ở đâu trong Javis
 
-Thanh điều hướng bên trái, nhóm **Năng lực**, mục **Chatbot**, tab **Tạo chatbot** (từ 0.61.0 cả ba việc ở chung một trang: Hòm thư bot, Tài khoản bot, Tạo chatbot). Nói "mở chatbot" là tới thẳng tab này.
+Thanh điều hướng bên trái, nhóm **Năng lực**, mục **Chatbot**, tab **Bot**. Trang chỉ có hai tab: **Hòm thư bot** và **Bot** (từ 0.65.9; trước đó là ba tab Hòm thư bot, Kênh của bot, Tạo chatbot, và người dùng phải nhảy qua lại giữa "thêm kênh" và "tạo bot"). Nói "mở chatbot" là tới thẳng tab Bot.
 
 ## Chuẩn bị trước khi tạo bot
 
@@ -51,7 +51,7 @@ Bot **đọc Agent lúc chạy**, không chép lại. Sau này sửa Agent ở t
 
 ### 3. Một tài khoản kênh: token riêng, lấy đúng chỗ theo kênh
 
-Từ 0.61.0 token là một **tài khoản bot** ở tab **Tài khoản bot**, bot chỉ **trỏ tới** nó. Bạn thêm tài khoản ở tab Tài khoản bot trước rồi tích chọn khi tạo bot, hoặc dán token ngay trong form tạo bot; hai đường cho cùng một kết quả. Một bot trực được **nhiều** tài khoản (một vai trả lời ở cả Telegram lẫn Zalo Bot), còn mỗi tài khoản chỉ **một** bot trực.
+Từ 0.61.0 token là một **kênh** (tài khoản bot), bot chỉ **trỏ tới** nó. Bạn thêm kênh bằng nút **Thêm kênh** ở mục **Kênh chưa có bot** ngay dưới danh sách bot rồi tích chọn khi tạo bot, hoặc bấm **Kết nối kênh mới** ngay trong form Bot mới (kênh vừa nối được tick sẵn); hai đường cho cùng một kết quả. Một bot trực được **nhiều** tài khoản (một vai trả lời ở cả Telegram lẫn Zalo Bot), còn mỗi tài khoản chỉ **một** bot trực.
 
 Nếu bot chạy trên **Telegram**: vào **@BotFather** gõ `/newbot`, đặt tên và username, lấy chuỗi token dạng `123456789:ABCdef...`.
 
@@ -99,10 +99,10 @@ Bấm **Bot mới**. Từ 0.64.85 form có **bốn phần**, mỗi phần một 
 
 | Phần | Điền gì |
 |---|---|
-| **Bot là ai** | Tích một hay nhiều tài khoản kênh (chỉ hiện tài khoản của brain này mà chưa bot nào trực), đặt tên bot, chọn Agent làm bộ não hoặc bấm **Tạo Agent**. Chưa có tài khoản thì mở **Thêm tài khoản mới bằng token**: chọn loại kênh, dán token, Kiểm tra. Xem [Chọn Telegram hay Zalo](#chọn-telegram-hay-zalo) |
+| **Bot là ai** | Tích một hay nhiều tài khoản kênh (chỉ hiện tài khoản của brain này mà chưa bot nào trực), đặt tên bot, chọn Agent làm bộ não hoặc bấm **Tạo Agent**. Kênh đang do bot khác trực hiện **mờ kèm ổ khoá**, ghi rõ bot nào (và brain nào nếu khác brain đang mở) đang giữ. Chưa có kênh thì bấm **Kết nối kênh mới**: chọn loại kênh, dán token, Kiểm tra. Xem [Chọn Telegram hay Zalo](#chọn-telegram-hay-zalo) |
 | **Bot trả lời ai** | Bốn thẻ chọn một, xem mục [Bot trả lời ai](#bot-trả-lời-ai) ngay dưới. Chọn nhóm hay người thì tick trong danh sách, không phải gõ id. Kèm nút chọn **khi nào bot lên tiếng trong nhóm**: Được gọi tên (mặc định), Tự đánh giá, hoặc Mọi tin (thẻ Tự động hóa tất cả đã quyết sẵn nên ẩn nút này) |
 | **Bot dựa vào đâu để trả lời** | Agent và tài liệu, hoặc Chỉ tài liệu. Xem mục hai chế độ ở dưới |
-| **Bot được làm gì** | Mức quyền. Cứ để **Chỉ đọc** cho lần đầu; xem mục [Ba mức quyền](#ba-mức-quyền---bot-được-làm-gì) trước khi nâng |
+| **Bot được làm gì** | Mức quyền. Cứ để **Chỉ đọc** cho lần đầu; xem mục [Bốn mức quyền](#bốn-mức-quyền---bot-được-làm-gì) trước khi nâng |
 | Nâng cao | Ngôn ngữ trả lời |
 
 Chỉ có tài khoản Zalo Bot thì phần chọn nhóm **biến mất** thay vì hiện ra rồi vô tác dụng: gói bot cơ bản của Zalo không cho bot vào nhóm, nên chọn nhóm ở đó chỉ là một lời hứa suông nằm lại trong dữ liệu.
@@ -174,13 +174,25 @@ Từ 0.64.82 bot gắn vào **tài khoản Zalo cá nhân** (nối ở trang K�
 2. **Tài liệu trong brain của bot** có phần nào khớp câu hỏi không. Đây là cách bot hiểu "chủ đề mình trả lời được": có căn cứ trong tài liệu bạn đưa, không phải kiến thức chung của model. Không có thì im.
 3. Cuối cùng một lượt model, trong đó Agent vẫn được quyền tự chọn im nếu thấy không nên chen vào.
 
-Để bot không thành máy phát thanh: bot **chờ khoảng 20 giây** trước khi tự trả lời, và nếu trong lúc đó có người nhắn tay bằng nick này thì nhường. Mỗi nhóm bot chỉ tự trả lời tối đa **8 lần mỗi giờ**, mỗi người **3 lần mỗi giờ**, và giữa hai lần có một khoảng nghỉ. Lượt được tag không bị các giới hạn này chặn.
+Bot **chờ khoảng 20 giây** trước khi tự trả lời, và nếu trong lúc đó có người nhắn tay bằng nick này thì nhường. Từ 0.85.5 **không còn hạn mức số lần tự trả lời** (trước đó tối đa 8 lần mỗi nhóm, 3 lần mỗi người mỗi giờ, kèm khoảng nghỉ giữa hai lần): nói hay im là việc của bộ phán xử và mô hình, theo vai của Agent và tài liệu.
 
-Tin bị bỏ qua vì đáng lẽ trả lời được mà tài liệu không có, hay vì hết hạn mức, đều có **một dòng lý do trong nhật ký bot** (thẻ bot, mục nhật ký). Dòng "tài liệu không có phần nào khớp" chính là câu hỏi thật của người trong nhóm mà brain của bot còn thiếu, nên đó là danh sách để bổ sung tài liệu. Các dòng bỏ qua **không** tính vào số lượt hay tỉ lệ bí của bot.
+Tin bị bỏ qua vì đáng lẽ trả lời được mà tài liệu không có đều có **một dòng lý do trong nhật ký bot** (thẻ bot, mục nhật ký). Dòng "tài liệu không có phần nào khớp" chính là câu hỏi thật của người trong nhóm mà brain của bot còn thiếu, nên đó là danh sách để bổ sung tài liệu. Các dòng bỏ qua **không** tính vào số lượt hay tỉ lệ bí của bot.
 
 Chế độ này cũng chạy với nhóm Telegram nếu bạn đã tắt chế độ riêng tư (mục ngay dưới), nhưng phần chờ nhường và nhận tag theo tên chỉ có ở Zalo cá nhân.
 
-**Bot ở Zalo cá nhân khác bot ở Telegram** ở một điểm quan trọng: câu nó gửi mang tên nick, và nick có thể còn nhiều người khác nhắn vào. Vì thế bot chỉ xử lý tin dạng chữ (ảnh, tiếng, file bỏ qua), bỏ tin cũ quá 3 phút, và nhường 10 phút khi có người vừa nhắn tay ở cuộc chat đó.
+**Tag trong chú thích ảnh cũng được tính** (từ 0.65.13). Gửi ảnh kèm chú thích "@Tên bot ..." thì chú thích được coi như nội dung tin: bot nhận ra tag và trả lời như với tin chữ, và biết tin đó có kèm một ảnh. **Bot xem được ảnh đó bằng chính bộ não của nó** (từ 0.81.0): Javis lưu ảnh vào brain của bot rồi gửi thẳng ảnh vào lượt chat cho model đang chạy bot (Claude, GPT, Gemini, OpenRouter, Groq, Ollama, gói ChatGPT, gói Claude Code). Không cần kết nối ChatGPT nữa. Bộ não không xem được ảnh (Antigravity, Grok Build, model chữ thuần) hoặc ảnh không tải được thì bot đọc mỗi chú thích và nói thật là chưa xem được ảnh. Telegram cũng vậy: ảnh có tag bot, trả lời vào một ảnh rồi tag bot, hoặc gửi ảnh rồi tag bot ngay sau (trong 3 phút, cùng một người; cần tắt chế độ riêng tư) đều được. Ảnh không có chú thích thì vẫn bị bỏ qua.
+
+**Bot ở Zalo cá nhân khác bot ở Telegram** ở một điểm quan trọng: câu nó gửi mang tên nick, và nick có thể còn nhiều người khác nhắn vào. Vì thế bot chỉ xử lý tin dạng chữ, tin **ảnh có chú thích** và tin **file** (ảnh trơn, tiếng bỏ qua), bỏ tin cũ quá 3 phút, và nhường 10 phút khi có người vừa nhắn tay ở cuộc chat đó. Câu bot vừa gửi (cả ảnh) quay về vòng đọc thì được nhận ra là tiếng vọng, không tính là người nhắn tay.
+
+**Ở chat riêng, bot chờ khách nhắn xong rồi mới trả lời một lần** (từ 0.128.0). Khách hay nhắn một ý thành mấy tin liền ("Thầy ơi", "cho em hỏi", "lớp 9 còn chỗ không ạ"). Bot gom các tin đó và chỉ trả lời khi khách đã im **5 giây**, bằng một câu đáp đủ các ý, đúng thứ tự. Gửi ảnh rồi nhắn "xem giúp em" cũng thành một câu hỏi kèm ảnh, gửi file cũng vậy (từ 0.133.0): bot có quyền Được ghi trở lên tải file về `inbox/khach` trong brain của bot (tối đa 20MB, đọc thẳng nội dung file chữ), bot Chỉ đọc thì không tải nhưng vẫn biết khách có gửi file. Trong lúc chờ mà bạn nhắn tay vào cuộc chat đó, hoặc tắt bot, thì bot không gửi gì. Để khách không phải chờ lâu, tài khoản vừa có khách nhắn riêng được đọc tin mỗi 2 giây thay vì 20 giây, trong một phút; việc đọc này chỉ đọc bộ đệm trên máy chạy Javis, không gọi thêm lên Zalo. Nhóm không đổi: mỗi tin vẫn được xét riêng như trước.
+
+**Bạn vừa nhắn tay mà chưa trả lời khách sau 10 phút thì bot trả lời thay** (từ 0.136.0, chỉ chat riêng). Bot vẫn nhường 10 phút khi bạn vừa tự nhắn vào cuộc chat, nhưng tin khách tới trong quãng đó không còn bị bỏ. Javis giữ lại; bạn trả lời (gõ trên điện thoại hay gửi từ Hộp thư) thì thôi. Tin đầu tiên của khách đã chờ đủ 10 phút mà bạn vẫn im thì bot trả lời một lần cho tất cả. Bot được báo là khách đã chờ và khách gửi kèm gì (tên file, ảnh), nên tin chỉ có file hay ảnh không chữ cũng được đáp hợp cảnh, ví dụ báo đã nhận và sẽ phản hồi. Bot không mở được nội dung file. Trước 0.136.0 các tin này không bao giờ được trả lời, vì hết 10 phút thì tin đã cũ quá 3 phút. Nhóm không áp: ở nhóm, trả lời tin của mười phút trước là lạc lõng. Javis khởi động lại giữa chừng thì tin đang giữ bị quên: tệ nhất là một tin không được trả lời thay, không bao giờ trả lời hai lần.
+
+Câu báo của engine như "You've hit your session limit", "API Error" hay "Credit balance is too low" không bao giờ được gửi cho khách, kể cả khi engine trả nó về như một câu trả lời bình thường (từ 0.108.0). Lượt đó tính là lượt hỏng: người hỏi bot nhận câu xin lỗi chung, lượt Tự đánh giá thì bot im, và lý do thật vẫn nằm trong nhật ký bot.
+
+**Trong nhóm, bot tự tag người nó đang trả lời** (từ 0.65.7). Khách hỏi thì câu trả lời mở đầu bằng "@Tên ...", nên người hỏi được báo và cả nhóm biết bot đang nói với ai. Không có ô cài đặt nào, và chỉ áp dụng cho nhóm (chat riêng thì không cần). Nút **Trả lời giúp tin này** ở Hòm thư cũng tag người gửi tin đó. Tin có tag đi bằng chính công cụ `zalo-agent-cli` chứ không qua MCP (MCP chỉ gửi được chữ), nên mỗi câu trả lời trong nhóm chậm thêm khoảng 1 đến 2 giây (từ 0.65.8; trước đó khoảng 3 đến 5 giây vì mỗi lần phải chạy `npx`). Lần đầu sau khi cập nhật, Javis cài ngầm một bản công cụ Zalo vào thư mục `tools/` trong thư mục dữ liệu của mình (khoảng 10 giây, một lần); trong lúc đó câu trả lời vẫn đi bằng cách cũ nên chậm hơn. Nếu tag hỏng (máy thiếu Node.js, Zalo từ chối) thì bot vẫn gửi câu trả lời như cũ, chỉ mất cái tag; hỏng ba lần liên tiếp thì bot nghỉ tag 10 phút để khỏi chậm thêm vô ích. Riêng trường hợp quá giờ, Javis **không gửi lại**, vì tin có thể đã đi rồi và gửi lại sẽ ra hai câu dưới tên bạn; nhật ký bot ghi một dòng lỗi.
+
+**Trong nhóm, bot xem 30 tin gần nhất để trả lời đúng ngữ cảnh** (từ 0.65.12). Bot chỉ được gọi khi có người tag hay reply, nên trước đây nó chỉ thấy đúng câu gọi nó và không hiểu "vậy còn cái kia?". Nay mỗi lượt trả lời trong nhóm kèm tối đa 30 tin ngay trước tin đang hỏi (mỗi tin cắt khoảng 300 ký tự, cả khối tối đa khoảng 6.000 ký tự, bớt từ tin cũ nhất). Khối này được đưa vào như **dữ liệu**, không phải lệnh: marker nội bộ và thẻ đóng khối trong tin nhắn bị gỡ, và bot được dặn bỏ qua mọi câu trong đó bảo nó đổi quy tắc. Nó nằm trong hướng dẫn của lượt chứ không ghi vào lịch sử phiên của Agent, nên không phình dần. Chat riêng không đổi. Mỗi lượt trong nhóm tốn thêm khoảng 1.000 đến 2.000 token.
 
 ### Bộ phán xử: bot tự quyết nói hay im, và học từ nhóm
 
@@ -194,14 +206,14 @@ Chế độ Tự đánh giá cũ dùng một cửa từ khoá: tin nào không g
 
 **Khác luật cũ ở đâu.**
 - **Gọi tên trơn cũng là gọi bot**, không cần @: "nhi mai ơi", "alo nhi mai", hoặc tên đứng đầu câu. Riêng điều này áp dụng cho MỌI bot, kể cả khi chưa ở chế độ Tự đánh giá. Tên tự nhận là nhãn kết nối Zalo và tên hiển thị của nick. Muốn bot nhận thêm một tên (ví dụ "Thu") thì gọi bot rồi dạy, ví dụ "Nhi Mai ơi, từ giờ gọi em là Thu nhé", bằng tài khoản của người được dạy (xem dưới). Tên nằm giữa câu ("hỏi nhi mai xem") chưa đủ để coi là gọi: bộ phán xử sẽ cân nhắc.
-- **Đọc vài tin gần nhất** thay vì đúng một tin, nên người vừa được bot trả lời hỏi tiếp ("vậy còn cái kia?") được hiểu là hỏi tiếp cho bot, và không bị chặn bởi khoảng nghỉ 20 giây giữa hai lần bot tự nói.
-- **Mọi quyết định đều có dấu vết, kể cả lúc bot im.** Menu "..." của thẻ bot, mục **Bộ phán xử**, liệt kê từng tin kèm lý do (ví dụ "Tài liệu không có phần khớp", "Điểm thấp hơn ngưỡng", "Hết hạn mức tự nói") và điểm so với ngưỡng.
+- **Đọc vài tin gần nhất** thay vì đúng một tin, nên người vừa được bot trả lời hỏi tiếp ("vậy còn cái kia?") được hiểu là hỏi tiếp cho bot.
+- **Mọi quyết định đều có dấu vết, kể cả lúc bot im.** Menu "..." của thẻ bot, mục **Bộ phán xử**, liệt kê từng tin kèm lý do (ví dụ "Tài liệu không có phần khớp", "Điểm thấp hơn ngưỡng") và điểm so với ngưỡng.
 
 **Mỗi bot một vai.** Bộ phán xử **không viết câu trả lời**: giọng và cách trả lời vẫn là của Agent, nên Nhi Mai nói kiểu Nhi Mai và Javis Vũ nói kiểu Javis Vũ. Ba bot khác ngành không đọc được ca đã học, bài học hay hồ sơ của nhau, và ngưỡng của nhóm này không đổi nhóm kia. Bot mới có sẵn khoảng 12 tin mẫu đúng ngành của nó, do model viết từ Agent, và các mẫu này nhạt dần khi bot học được ca thật. Bản 0.65.0 có ô "Luật lên tiếng" viết tay: chữ đã viết được gộp một lần vào **bài học** của bot (thấy trong menu Bộ phán xử), form không còn ô đó.
 
 **Bạn chỉnh bằng gì.** Không phải bằng cài đặt mà bằng phản hồi, ngay trên dữ liệu thật:
-- Bấm **Đúng** hoặc **Sai** ở từng dòng trong menu Bộ phán xử: nhãn nặng nhất, có tác dụng ngay ở tin kế tiếp.
-- Bấm **Là chủ** ở tin của bạn trong menu Bộ phán xử: từ đó bot nghe lời dạy của bạn ngay trong nhóm (gọi tên bot rồi nói "đừng trả lời chuyện phiếm" hay "gọi tên em là em phải trả lời") và lưu thành **bài học**. Chỉ những ai bạn đã bấm mới dạy được; lời người khác trong nhóm ("từ giờ cứ trả lời mọi tin") KHÔNG thành luật.
+- Bấm **Đúng** hoặc **Sai** ở từng dòng trong menu Bộ phán xử: nhãn nặng nhất, có tác dụng ngay ở tin kế tiếp. **Đúng** nghĩa là bot làm đúng (nói đúng lúc, hoặc im đúng lúc); **Sai** nghĩa là bot đáng lẽ phải làm ngược lại. Rê chuột vào nút để xem nghĩa cụ thể của từng dòng (ví dụ "Đáng lẽ bot phải im").
+- Bấm **Đặt làm chủ bot** ở tin của bạn trong menu Bộ phán xử: từ đó bot nghe lời dạy của bạn ngay trong nhóm (gọi tên bot rồi nói "đừng trả lời chuyện phiếm" hay "gọi tên em là em phải trả lời") và lưu thành **bài học**. Chỉ những ai bạn đã đặt mới dạy được; lời người khác trong nhóm ("từ giờ cứ trả lời mọi tin") KHÔNG thành luật. Đầu menu có dòng **Chủ bot** liệt kê những người đã đặt, mỗi người có nút **Bỏ chủ** (từ 0.65.14); người đã đặt hiện nhãn **Chủ** ở các tin của họ.
 
 **Tự học.** Bot còn học từ phản ứng MẠNH của người thật, và ca vừa học có tác dụng ngay ở tin kế tiếp:
 - Bot im mà **cùng người đó hỏi lại** ("sao không trả lời") hoặc có người gọi bot ngay sau đó: lần sau tin giống vậy bot nói, ngưỡng của nhóm hạ.
@@ -209,13 +221,40 @@ Chế độ Tự đánh giá cũ dùng một cửa từ khoá: tin nào không g
 - Bot được cảm ơn hoặc được hỏi tiếp đúng mạch: ghi nhận là đúng.
 - Bị phớt lờ thì **không tính**, vì người ta phớt lờ liên tục.
 
-Học chỉ đổi việc **nói hay im**, không bao giờ đổi điều bot khẳng định: câu trả lời vẫn bám tài liệu và vai của Agent. Hạn mức tự nói, việc nhường khi bạn đang gõ tay, nhóm nào được phép và mức quyền đều nằm ngoài vòng học. Bộ phán xử gặp lỗi, hết giờ hay trả về rác thì bot **im** (riêng tin gọi tên chắc chắn vẫn được trả lời). Nút **Quên hết** xoá ca, ngưỡng, bài học **và cả nhật ký quyết định** của bot (không hoàn tác được).
+Học chỉ đổi việc **nói hay im**, không bao giờ đổi điều bot khẳng định: câu trả lời vẫn bám tài liệu và vai của Agent. Việc nhường khi bạn đang gõ tay, nhóm nào được phép và mức quyền đều nằm ngoài vòng học. Bộ phán xử gặp lỗi, hết giờ hay trả về rác thì bot **im** (riêng tin gọi tên chắc chắn vẫn được trả lời). Nút **Quên hết** xoá ca, ngưỡng, bài học **và cả nhật ký quyết định** của bot (không hoàn tác được).
 
 **Riêng tư.** Vì tự vận hành, bot ở chế độ Tự đánh giá ghi lại chữ của mọi tin nhóm đáng cân nhắc để hiện trong menu Bộ phán xử: tối đa 400 ký tự mỗi tin, giữ 14 ngày. Các ca đã học (từ phản hồi của bạn hoặc của nhóm) giữ tối đa 180 ngày. Tất cả nằm trong thư mục dữ liệu của Javis (không lên git). Bot không ở chế độ Tự đánh giá thì không lưu gì. **Quên hết** hoặc xoá bot xoá sạch dữ liệu này.
 
-**Ai chạy và tốn gì.** Mỗi tin đáng cân nhắc tốn một lượt model rẻ theo model "việc nền" bạn chọn ở trang **Models** (gói thuê bao hay API rẻ đều được), thêm khoảng vài giây; model chạy trong thư mục trống, không công cụ ghi hay chạy lệnh. Tin hiển nhiên không đáng (rỗng, chỉ có link, nhắn người khác) và tin gọi tên rõ ràng không tốn lượt nào. Bộ phán xử dùng đủ trên **Zalo cá nhân** (cửa sổ tin, tin nối tiếp). Trên **Telegram** nó cũng quyết trong nhóm nhưng không có cửa sổ tin nối tiếp.
+**Ai chạy và tốn gì.** Mỗi tin đáng cân nhắc tốn một lượt model rẻ theo model "việc nền" bạn chọn ở trang **Models** (gói thuê bao hay API rẻ đều được), thêm khoảng vài giây; model chạy trong thư mục trống, không công cụ ghi hay chạy lệnh. Tin hiển nhiên không đáng (rỗng, chỉ có link, nhắn người khác khi chưa học được gì khác) và tin gọi tên rõ ràng không tốn lượt nào. Bộ phán xử dùng đủ trên **Zalo cá nhân** (cửa sổ tin, tin nối tiếp). Trên **Telegram** nó cũng quyết trong nhóm nhưng không có cửa sổ tin nối tiếp.
 
 **Cho người vận hành.** Muốn quan sát trước khi tin tưởng, đặt biến môi trường `JAVIS_REPLY_POLICY_SHADOW=1` rồi khởi động lại: mọi bot chạy thử, luật cũ vẫn quyết còn bộ phán xử chỉ ghi quyết định của nó để so sánh. Đây là công tắc của người vận hành, không có trong giao diện.
+
+### Bộ phán xử tự soát, và nhờ Javis chỉnh (từ 0.77.0)
+
+Ca học tức thì ở trên sửa từng tin một. Từ 0.77.0 còn có một **vòng tự soát** nhìn cả bức tranh: khi một bot gom đủ bằng chứng mới (khoảng 8 nhãn Đúng/Sai, hoặc 40 tin bị im) và đã qua 24 giờ từ lần soát trước, Javis gửi báo cáo của bot đó cho **bộ não chính** (model bạn chọn ở trang **Models**, thường mạnh hơn model rẻ chấm từng tin). Model tìm mẫu lặp lại, ví dụ "khách tag anh Quý hỏi lịch học mà bot im cả bảy lần", rồi tự chỉnh tối đa 3 chỗ. Không có mẫu rõ thì không đổi gì.
+
+**Chỉnh được những gì.** Chỉ việc nói hay im, trong một danh sách đóng:
+- thêm hoặc bỏ **bài học** (vòng soát chỉ bỏ được bài nó tự viết, không bao giờ đẩy bài bạn dạy ra ngoài);
+- biến một tin bị im thành **ca mẫu** "nên trả lời" (hoặc ngược lại);
+- **ngưỡng** của từng nhóm, **độ hăng nói** chung của bot;
+- **xét cả tin tag người khác**: mặc định tin mở đầu bằng "@ai đó" bị bỏ qua. Bật lên thì tin như "@anh Quý ơi lịch học sao" vẫn được cân nhắc, nhưng bot vẫn chỉ nói khi tài liệu có phần khớp và bộ phán xử đồng ý. Bấm **Sai** ở một tin tag như vậy giờ cũng có tác dụng: tin giống nó lần sau sẽ được xét.
+
+Mỗi thay đổi phải dẫn đúng những tin của chính bot đó làm bằng chứng, nên chữ khách gõ trong nhóm không biến thành lệnh được. Hạn mức, việc nhường khi bạn gõ tay, quyền và nội dung câu trả lời vẫn nằm ngoài tầm.
+
+**Tự đo, tự hoàn.** Sau mỗi lần soát, máy so tỉ lệ bot bị chấm sai trước và sau. Sai nhiều hơn rõ rệt thì cả lần soát đó tự hoàn lại, và bạn nhận một tin báo. Chỗ nào nằm cứng trong mã (vòng soát không chỉnh được) thì nó ghi góp ý vào `Javis/gop-y-bo-phan-xu.md` trong brain của bot.
+
+**Bạn biết bằng cách nào.** Lần soát nào có chỉnh hay có góp ý thì gửi đúng một tin vào **hộp thư** (cái chuông) và Telegram của bạn, liệt kê từng thay đổi và mã lần soát.
+
+**Muốn can thiệp thì nói với Javis**, không cần mở cài đặt nào:
+- "Thống kê bộ phán xử của Javis Vũ tuần này, vì sao bot im nhiều thế?"
+- "Cho Javis Vũ trả lời thay anh khi khách tag anh hỏi về lịch học."
+- "Hoàn lại lần tự soát a1b2c3 của Javis Vũ."
+
+Javis đọc đúng số liệu của bộ phán xử (cùng báo cáo mà vòng soát đọc), đề xuất, và chỉnh khi bạn đồng ý. Mọi thay đổi, của vòng soát hay do bạn nhờ, đều có nhật ký và hoàn lại được. Muốn phân tích kỹ hơn thì chuyển bộ não chính sang model mạnh hơn ở trang **Models** trước khi hỏi.
+
+**Bot chăm khách không bao giờ thấy hai công cụ này.** Kho của bộ phán xử chứa chữ chat của mọi khách, nên chỉ phiên của chính bạn đọc và chỉnh được. Bot ở mức Được ghi hay Toàn quyền cũng không thấy.
+
+**Lưu ý gói thuê bao.** Vòng tự soát là việc chạy nền trên bộ não chính. Nếu đó là gói Claude Pro/Max thì đây thuộc loại dùng mà Anthropic không tính là cá nhân thông thường. Tần suất rất thấp (tối đa một lần mỗi ngày mỗi bot, chỉ khi có bằng chứng), nhưng an toàn nhất là để bộ não chính chạy bằng gói ChatGPT, Grok hoặc một API key. Người vận hành tắt hẳn vòng soát bằng biến môi trường `JAVIS_REPLY_POLICY_REVIEW=0`.
 
 ### Chế độ riêng tư của Telegram (đọc mục này nếu bot im trong nhóm)
 
@@ -285,6 +324,17 @@ Mỗi lần có người hỏi, Javis **tra tài liệu trong brain của bot tr
 
 Điều này khác với "bot có quyền đọc brain". Có quyền đọc không có nghĩa là nó chịu đọc: model hoàn toàn có thể trả lời thẳng bằng kiến thức chung của nó, câu vẫn trôi chảy tự tin y hệt, và anh **không phân biệt được từ bên ngoài**. Nên Javis tra trước, không giao việc đó cho model tự quyết.
 
+### Link Google Docs và Google Sheets gắn vào Agent (từ 0.84.10)
+
+Bảng giá hay hướng dẫn đang nằm trên Google thì không cần chép về brain. Gắn link vào Agent (mục **Tài liệu của trợ lý** khi mở Agent) hoặc dán thẳng link vào nội dung Agent, bot sẽ tra trong đó y như tra file của brain:
+
+- Google Sheets đọc **mọi tab**, mỗi dòng kèm tên cột, nên khách hỏi "kìm cắt Stanley giá bao nhiêu" là ra đúng dòng đó. Link trỏ vào một tab cụ thể (có `#gid=` ở cuối) thì chỉ đọc tab đó.
+- File phải được chia sẻ ở chế độ **Bất kỳ ai có đường liên kết, quyền Người xem**, và không tắt quyền tải xuống. File chưa chia sẻ thì bot vẫn trả lời bình thường nhưng không có phần đó, và thẻ bot hiện cảnh báo nói rõ link nào cần chia sẻ.
+- Sửa file trên Google thì vài phút sau bot dùng bản mới. Google tạm trục trặc thì bot dùng bản đọc được lần trước.
+- Chỉ link **bạn** gắn trong Agent mới được đọc. Khách dán link vào tin nhắn thì Javis không mở. Hai bot cùng brain nhưng khác Agent thì không thấy link của nhau.
+
+Ở mức **Đọc tài liệu**, ba công cụ tự tìm của bot vẫn chỉ mở file trong brain. Nội dung link Google đến với bot qua phần tra sẵn trước mỗi lượt.
+
 ### Hai chế độ, chọn khi tạo bot
 
 Khác biệt chỉ nằm ở **lúc không tìm thấy tài liệu nào khớp**. Tìm thấy thì hai chế độ hành xử y hệt.
@@ -306,26 +356,49 @@ Ngoại lệ duy nhất là chế độ "chỉ tài liệu" ở trên, và đó 
 
 Nên **file Agent là thứ quyết định chất lượng bot, gần như hoàn toàn**. Viết như dặn một người mới vào làm: nói năng thế nào, phạm vi tới đâu, cái gì không được hứa, gặp trường hợp nào thì chuyển người thật. Bot cư xử sai thì sửa Agent, đừng tìm nút nào khác.
 
-### Hai rào Javis khoá ở MỌI mức
+### Hai rào Javis khoá ở ba mức đầu
 
-Hai điều dưới đây đúng kể cả khi bạn cho bot toàn quyền. Chúng nằm trong mã nguồn chứ không nằm trong lời dặn, nên không lách được bằng lời lẽ:
+Hai điều dưới đây đúng ở Chỉ đọc, Đọc tài liệu và Được ghi. Mức **Toàn quyền** thì không (từ 0.85.3 nó chạy y như kênh admin, xem mức Toàn quyền bên dưới). Chúng nằm trong mã nguồn chứ không nằm trong lời dặn, nên không lách được bằng lời lẽ:
 
 - Bot **không thấy brain khác**, kể cả brain chính của bạn. Mọi đường đọc và ghi file đều bị kẹp trong đúng thư mục brain của bot; trèo ra bằng `../` hay đường dẫn tuyệt đối đều bị từ chối ngay.
 - Bot **không chạy được lệnh máy**, không tự mở một trang web lạ ra đọc, không đẻ agent con. Bot cũng **không có lệnh quản trị**: `/brain`, `/model`, `/status` không có tác dụng.
 
-Cách Javis bảo đảm: **bot không bao giờ chạm vào công cụ gốc của engine.** Ở mức Chỉ đọc nó không có công cụ nào; ở hai mức trên, mọi công cụ đều đi qua trung tâm kết nối của Javis, nơi đường dẫn file bị kẹp và mức quyền được áp ngay tại chỗ gọi. Bot không mở CLI, nên `Bash` và `Read` đường dẫn tuyệt đối của Claude Code không có mặt ở đây.
+Cách Javis bảo đảm: **bot không bao giờ chạm vào công cụ gốc của engine.** Ở mức Chỉ đọc nó không có công cụ nào; ở mức Đọc tài liệu nó chỉ có ba công cụ đọc tài liệu; ở mức Được ghi, mọi công cụ đều đi qua trung tâm kết nối của Javis, nơi đường dẫn file bị kẹp và mức quyền được áp ngay tại chỗ gọi. Bot không mở CLI, nên `Bash` và `Read` đường dẫn tuyệt đối của Claude Code không có mặt ở đây.
 
 Còn tài liệu thì vẫn được tra sẵn bằng Python trước khi model chạy rồi đưa vào đầu bài, ở mọi mức. Bot đọc được brain của nó mà không cần công cụ nào.
 
-## Ba mức quyền - bot được làm gì
+## Bốn mức quyền - bot được làm gì
 
 Chọn ở ô **Bot được làm gì** khi tạo hoặc sửa bot. Mặc định là **Chỉ đọc**.
 
 | Mức | Bot làm được | Hợp với |
 |---|---|---|
 | **Chỉ đọc** (mặc định) | Chỉ đọc tài liệu rồi trả lời. Không công cụ nào. | Trực và hỏi đáp - gần như mọi việc |
+| **Đọc tài liệu** | Như Chỉ đọc, cộng ba công cụ chỉ-đọc để **tự tìm và mở** tài liệu trong brain của nó. Không ghi, không gọi nguồn nào | Bot hay im oan vì khách gõ khác chữ tài liệu |
 | **Được ghi** | Thêm: ghi file trong brain của chính nó, gọi nguồn dữ liệu đã đấu ở mức đọc/ghi | Ghi nhận yêu cầu, cập nhật ghi chú, tra số liệu thật |
-| **Toàn quyền** | Thêm: gửi đi, thanh toán, đặt/huỷ, xoá, công bố ra ngoài | Nơi bạn kiểm soát được danh sách người nhắn vào |
+| **Toàn quyền** | **Y như kênh admin**: lệnh máy, mọi file, mọi kết nối của bạn (kể cả Gmail, Drive, lịch qua tài khoản Claude/ChatGPT), kỹ năng, việc nền, mọi thao tác ra ngoài | Bot chỉ bạn hoặc người bạn tin tuyệt đối nhắn được |
+
+### Mức Đọc tài liệu (từ 0.80.0)
+
+Ở mức Chỉ đọc, Javis tra tài liệu **theo chữ** trước mỗi lượt rồi đưa vài đoạn khớp nhất cho bot. Cách này giữ bot không bịa, nhưng trượt khi khách dùng chữ khác tài liệu: tài liệu ghi "hoàn trả" mà khách gõ "đổi trả" là không ra, và bot im hoặc nói chưa có thông tin.
+
+Mức **Đọc tài liệu** giữ nguyên phần tra sẵn đó, rồi cho bot thêm ba công cụ để **tự** đọc brain của nó như Javis chính đọc sổ tay:
+
+- **Tìm** trong tài liệu, thử lại bằng từ khác khi lần đầu không ra.
+- **Xem danh sách** tài liệu kèm tên các mục, để tự chọn tài liệu đúng chủ đề.
+- **Mở đọc trọn** một tài liệu.
+
+Bot được dặn: câu hỏi cần thông tin cụ thể mà phần tra sẵn không có thì phải tự tìm trước, chỉ khi tìm kỹ vẫn không có mới nói chưa có thông tin.
+
+**Bộ phán xử cũng nhìn mục lục.** Ở các mức khác, tin không ai gọi bot mà khớp chữ trượt thì bộ phán xử cho im ngay. Ở mức này nó được xem mục lục tài liệu của bot và tự xét tin đó có thuộc chủ đề nào không, nên khách gõ khác chữ không còn bị im oan.
+
+**Vì sao mức này không bắt tick đồng ý:** nó không lấy đi thứ gì phần tra sẵn chưa lấy.
+
+- Không có công cụ ghi nào, không gọi nguồn dữ liệu nào, không plugin, kể cả khi bạn đã đấu nhiều nguồn. Javis khoá ở tầng gọi công cụ, không phải bằng lời dặn.
+- Bot chỉ mở được đúng những file mà phần tra sẵn vẫn tra: trừ `memory/`, `inbox/` (file khách gửi), skill, plugin, file quy ước của Javis, và thêm cả `agents/`, `workflows/` (hướng dẫn nội bộ của bạn). Đường dẫn khách gõ chỉ được so với danh sách đó, nên `../`, đường dẫn tuyệt đối hay file liên kết trỏ ra ngoài đều không mở được.
+- Chỉ đúng brain của bot. Thiếu thông tin brain thì bot không có công cụ nào, chứ không lấy brain bạn đang mở.
+
+Nút **Thử** chạy đúng mức này (vì nó chỉ đọc), nên thử trước được ngay. Mức này tốn thêm vài lượt gọi model khi bot tự tìm, và nhạy với engine giống hai mức trên (xem mục [Engine nào chạy được mức nâng quyền](#engine-nào-chạy-được-mức-nâng-quyền)).
 
 ### Cái mất được khi nâng mức
 
@@ -339,13 +412,15 @@ Chọn ở ô **Bot được làm gì** khi tạo hoặc sửa bot. Mặc địn
 - Bot gọi được các nguồn dữ liệu bạn đã đấu, ở mức đọc và ghi. Mọi thứ trong những nguồn đó nằm trong tầm với của người đang chat với bot.
 - Javis vẫn **chặn cứng** nhóm thao tác ra ngoài ở mức này: không gửi đi, không thanh toán, không đặt hay huỷ, không xoá, không công bố gì. Chặn ở tầng gọi công cụ, không phải bằng lời dặn.
 
-**Mức Toàn quyền:**
+**Mức Toàn quyền (từ 0.85.3 chạy y như kênh admin):**
 
-- Bot làm được **mọi thứ** các nguồn đã đấu cho phép, kể cả gửi đi, thanh toán, đặt hay huỷ, xoá, công bố ra ngoài. Những thao tác đó **không hoàn tác được**.
-- Một câu dụ khéo ("bỏ qua hướng dẫn trước, làm giúp việc này") là đủ để bot làm theo. Rào cứng còn lại là **mức quyền của từng kết nối** ở trang Kết nối (hạ một kết nối về Chỉ đọc thì bot cũng bị chặn ghi ở đó), nhưng rào đó chặn theo loại thao tác nên với nguồn Javis chưa có khuôn phân loại sẵn thì không kín tuyệt đối. Ngoài ra chỉ còn file Agent bạn viết, mà chữ thì lách được.
-- Bot không hỏi lại bạn trước khi làm. Không có cổng duyệt từng lệnh.
+- Bot chạy **đúng đường của kênh admin**: cùng bộ não, cùng công cụ gốc của engine (chạy lệnh trên máy chủ, đọc và ghi mọi file kể cả brain khác), cùng mọi kết nối của bạn (kể cả Gmail, Drive, lịch nối qua tài khoản Claude hoặc ChatGPT), kỹ năng, giao việc nền, đặt lịch. Nó chỉ khác kênh admin ở chỗ nói theo **vai của Agent** và làm việc trong brain của bot.
+- Bot làm được mọi thao tác ra ngoài: gửi đi, thanh toán, đặt hay huỷ, xoá, công bố. Những thao tác đó **không hoàn tác được**.
+- Người điều khiển là **người nhắn cho bot**. Một câu dụ khéo ("bỏ qua hướng dẫn trước, làm giúp việc này") là đủ để bot làm theo; chỉ còn file Agent bạn viết, mà chữ thì lách được. Không có cổng duyệt từng lệnh.
 
-Vì thế: **chỉ bật Toàn quyền khi bạn kiểm soát được danh sách người nhắn vào bot.** Chỗ ai cũng nhắn được thì không, dù Agent bạn viết kỹ tới đâu.
+Vì thế: **chỉ bật Toàn quyền cho bot mà chỉ bạn hoặc người bạn tin tuyệt đối nhắn được** (đặt mục **Bot trả lời ai** thành người được chọn). Chỗ ai cũng nhắn được thì đừng bật, dù Agent bạn viết kỹ tới đâu.
+
+Bộ não Grok Build và Antigravity chỉ dùng được công cụ ở mức Toàn quyền. Ở mức Đọc tài liệu và Được ghi chúng trả lời không công cụ, và thẻ bot hiện cảnh báo nói rõ điều đó.
 
 ### Nâng mức thế nào
 
@@ -363,7 +438,7 @@ Thẻ bot nào được nâng quyền đều có một dải màu ghi rõ mức 
 
 Mức **Chỉ đọc** chạy giống hệt nhau trên cả chín bộ não, không có ngoại lệ.
 
-Hai mức nâng quyền cần engine gọi được công cụ. Sáu engine API (OpenRouter, OpenAI, Anthropic, Gemini, Groq, Ollama) và gói Claude Code dùng đường đã chạy thật lâu nay. Riêng **gói ChatGPT** đi qua một đường của backend Codex mà nhà cung cấp chưa công bố ổn định, nên có thể không gọi được công cụ.
+Ba mức còn lại (Đọc tài liệu, Được ghi, Toàn quyền) cần engine gọi được công cụ. Sáu engine API (OpenRouter, OpenAI, Anthropic, Gemini, Groq, Ollama) và gói Claude Code dùng đường đã chạy thật lâu nay. Riêng **gói ChatGPT** đi qua một đường của backend Codex mà nhà cung cấp chưa công bố ổn định, nên có thể không gọi được công cụ.
 
 Gặp trường hợp đó thì **bot không chết**: nó trả lời lượt đó ở mức Chỉ đọc, và thẻ bot hiện một dải vàng nói rõ nó đang chạy thiếu quyền so với mức bạn đặt. Nâng quyền không bao giờ được phép lấy đi năng lực bot vốn đã có.
 
@@ -418,13 +493,25 @@ Nhật ký giữ 2000 lượt gần nhất mỗi bot, cũ hơn thì tự cắt. 
 
 **Ở mọi mức, bot KHÔNG làm được:** đọc hay ghi brain khác, chạy lệnh máy, tự mở trang web lạ, đẻ agent con, dùng lệnh quản trị (`/brain`, `/model`, `/status`... đều không có tác dụng, bot chỉ trả lời chung chung).
 
-**Phần còn lại tuỳ mức quyền** bạn đặt - ghi file, gọi nguồn dữ liệu, thao tác ra ngoài. Xem bảng ở mục [Ba mức quyền](#ba-mức-quyền---bot-được-làm-gì). Mặc định là Chỉ đọc, tức không làm được thứ nào trong số đó.
+**Phần còn lại tuỳ mức quyền** bạn đặt - ghi file, gọi nguồn dữ liệu, thao tác ra ngoài. Xem bảng ở mục [Bốn mức quyền](#bốn-mức-quyền---bot-được-làm-gì). Mặc định là Chỉ đọc, tức không làm được thứ nào trong số đó.
 
 Menu lệnh trong Telegram của bot chỉ có ba mục (`/help`, `/nhanvien`, `/id`), không phải menu quản trị của bot Javis chính. Liệt kê ở đó những lệnh bot từ chối chạy là dạy người ta đi tìm một tập lệnh khác.
 
 Còn **cách nó nói năng, phạm vi nó nhận trả lời, thứ nó từ chối** thì do file Agent của bạn quyết, không do Javis. Muốn bot tránh một chủ đề, không hứa hẹn thay bạn, không đổi vai khi bị dụ thì viết những điều đó vào Agent.
 
 Lưu ý cách hiểu đúng: những giới hạn trên nằm ở **mức quyền trong mã nguồn**, không phải ở câu dặn trong prompt. Câu dặn có thể bị lời lẽ khôn khéo lách qua; mức quyền thì không, vì công cụ đơn giản là không được cấp cho lượt chạy đó. Mặt trái của cùng một sự thật: khi bạn **cấp** công cụ cho lượt đó, câu dặn trong Agent cũng không giữ nổi nó nữa.
+
+## Bot gửi ảnh cho khách (từ 0.84.3)
+
+Bot gửi được ảnh trên Telegram, Zalo cá nhân, Slack, WhatsApp và Lark, ở **mọi mức quyền**. Cách dùng: dặn trong file Agent khi nào gửi ảnh nào, ví dụ "khách hỏi mẫu áo thì gửi `![Mẫu áo](attachments/mau-ao.jpg)`". Agent chèn cú pháp ảnh đó vào câu trả lời, Javis gỡ nó khỏi câu chữ rồi gửi ảnh thật ngay sau tin chữ. Trong nhóm Zalo, tin chữ vẫn tag người đang hỏi.
+
+Javis chỉ gửi khi đủ các điều kiện:
+
+- Ảnh **nằm trong brain của chính bot** (đường dẫn tính từ gốc brain đó). Ảnh ở brain khác hay chỗ khác trên máy thì không.
+- Đúng là ảnh (`.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`), có thật, không quá 10 MB. File tài liệu như PDF hay ghi chú `.md` thì không gửi.
+- Tối đa 4 ảnh mỗi câu trả lời.
+
+Ảnh không qua được điều kiện thì cú pháp ảnh ở lại nguyên trong câu chữ, để bạn thấy trong Hộp thư bot đã định gửi gì. Javis **không** tự đính kèm file nào bot vừa tạo ra: người đang lái bot là khách lạ, nên chỉ ảnh mà Agent chủ động gọi tên mới đi.
 
 ## Bot nói như người, không lộ trạng thái máy
 
@@ -445,9 +532,11 @@ Một chỗ vẫn cố ý nói thẳng: khi có người gọi bot trong **nhóm
 
 ## Giới hạn tần suất
 
-Mỗi người bị giới hạn số lượt hỏi trong một giờ (mặc định 20, sửa được khi Sửa bot). Vượt thì bot lịch sự xin trả lời lại sau.
+Từ 0.85.4 **không còn giới hạn số câu bot trả lời mỗi người**. Ai nhắn riêng hay gọi tên bot đều được trả lời, bao nhiêu câu cũng được. (Trước đó mỗi người tối đa 20 câu một giờ, quá thì bot xin trả lời lại sau.)
 
-Cần thiết vì một người rảnh trong nhóm đủ đốt hết quota model của bạn trong một buổi chiều, và bạn chỉ biết khi nhìn hoá đơn.
+Từ 0.85.5 cũng **không còn hạn mức lúc bot tự lên tiếng** trong nhóm khi không ai gọi (chế độ Tự đánh giá, xem mục ở trên). Bot tự trả lời bao nhiêu lần là do bộ phán xử và mô hình quyết, theo vai của Agent và tài liệu; bạn chỉnh bằng cách bấm Đúng/Sai ở Bộ phán xử.
+
+Không còn giới hạn nghĩa là một người nhắn liên tục, hay một nhóm đông hỏi nhiều, sẽ tốn lượt dùng model của bạn liên tục. Thấy bất thường thì bấm **Tiếp quản** cuộc chat đó ở trang Hội thoại, thu hẹp mục **Bot trả lời ai**, hoặc đổi nhóm đó về **Được gọi tên**.
 
 ## Xoá bot
 
@@ -463,9 +552,9 @@ Bấm **Xoá** trên thẻ. Bot ngừng trả lời ngay.
 
 Vì sao theo Agent chứ không theo model chính: bot vốn đã mượn nguyên đầu bài của Agent, nên model cũng phải là của Agent - không thì chọn một model rẻ cho trợ lý đối ngoại xong bot vẫn đốt model đắt, mà không có dấu hiệu nào. Nhà đã chọn bị gỡ key thì bot lui về model chính chứ không chết câm trước mặt khách.
 
-**Bot có gọi được các nguồn dữ liệu tôi đã đấu không?** Mặc định là không - mức Chỉ đọc chỉ có tài liệu trong brain của nó. Nâng lên **Được ghi** thì có, và **Toàn quyền** thì có cả nhóm thao tác ra ngoài. Cân nhắc rằng người điều khiển là người nhắn cho bot; việc chỉ mình bạn cần thì hỏi Javis ở dashboard hoặc kênh Telegram riêng vẫn an toàn hơn.
+**Bot có gọi được các nguồn dữ liệu tôi đã đấu không?** Mặc định là không - mức Chỉ đọc chỉ có tài liệu trong brain của nó. Nâng lên **Được ghi** thì có, và **Toàn quyền** thì có y như kênh admin, kể cả các kết nối của tài khoản Claude/ChatGPT và nhóm thao tác ra ngoài. Cân nhắc rằng người điều khiển là người nhắn cho bot; việc chỉ mình bạn cần thì hỏi Javis ở dashboard hoặc kênh Telegram riêng vẫn an toàn hơn.
 
-**Bot ở mức Toàn quyền có nguy hiểm không?** Có, và đó là lý do Javis bắt tick đồng ý rồi hỏi lại thêm lần nữa. Nguy hiểm không nằm ở việc model làm bậy, mà ở chỗ **ai cũng nhắn cho bot được**: một câu dụ khéo là bot gọi công cụ thật, không hoàn tác được và không hỏi lại bạn. Chỉ dùng khi bạn kiểm soát được danh sách người nhắn vào.
+**Bot ở mức Toàn quyền có nguy hiểm không?** Có, và đó là lý do Javis bắt tick đồng ý rồi hỏi lại thêm lần nữa. Mức này trao cho bot đúng quyền của kênh admin. Nguy hiểm không nằm ở việc model làm bậy, mà ở chỗ **người khác nhắn cho bot được**: một câu dụ khéo là bot chạy lệnh máy hay gọi công cụ thật, không hoàn tác được và không hỏi lại bạn. Chỉ dùng cho bot chỉ bạn hoặc người bạn tin tuyệt đối nhắn được.
 
 **Đang chạy Toàn quyền mà thấy bất ổn thì làm gì ngay?** Bấm **Tắt** trên thẻ - có tác dụng trong vài giây, không cần khởi động lại Javis. Rồi bấm Sửa hạ mức xuống Chỉ đọc; hạ mức không hỏi lại gì cả. Xem bot đã làm gì ở **Nhật ký**, tab Hội thoại gần đây.
 

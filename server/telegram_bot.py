@@ -27,6 +27,7 @@ from pathlib import Path
 import httpx
 
 import stt
+import localefmt
 from bot_gateway import HangLuot, dong_vet, ten_tool
 
 
@@ -272,9 +273,11 @@ class TelegramBot(HangLuot):
             except Exception as e:
                 loi.append(f"{ten}: {type(e).__name__}: {e}")
         if loi:
-            self.loi_menu_lenh = (
+            self.loi_menu_lenh = localefmt.chu(
                 "Không đặt được menu lệnh / trên Telegram (" + "; ".join(loi) + "). "
-                "Bot vẫn hiểu lệnh khi gõ tay, chỉ là danh sách không tự sổ ra.")
+                "Bot vẫn hiểu lệnh khi gõ tay, chỉ là danh sách không tự sổ ra.",
+                "Could not set the / command menu on Telegram (" + "; ".join(loi) + "). "
+                "The bot still understands typed commands, the list just does not pop up.")
             print(f"[telegram setMyCommands] {'; '.join(loi)}", file=sys.stderr)
         else:
             self.loi_menu_lenh = ""
@@ -502,6 +505,23 @@ class TelegramBot(HangLuot):
                     return True
         return False
 
+    def _anh_cua_tin_duoc_tra_loi(self, msg):
+        """Tin này trả lời vào một ẢNH (ảnh thường, hoặc ảnh gửi dạng file) VÀ đang gọi bot: trả một tin giả chỉ mang ảnh đó
+        để `_ingest_attachment` tải về. Không gọi bot (trong nhóm) thì None: không tải ảnh của người khác cho vui.
+
+        Telegram gửi kèm nguyên tin được trả lời trong `reply_to_message`, kể cả khi tin gốc chưa từng tới bot (chế độ riêng
+        tư đang bật), nên đây là cách chắc nhất để bot thấy một ảnh trong nhóm."""
+        rep = msg.get("reply_to_message") or {}
+        doc = rep.get("document") or {}
+        la_anh_file = str(doc.get("mime_type") or "").startswith("image/")
+        if not (rep.get("photo") or la_anh_file):
+            return None
+        rieng = str((msg.get("chat") or {}).get("type") or "") == "private"
+        if not (rieng or self._co_nhac_ten(msg) or self._la_reply_bot(msg)):
+            return None
+        return {"photo": rep.get("photo") or [], "document": doc if la_anh_file else None,
+                "chat": msg.get("chat") or {}, "message_id": rep.get("message_id")}
+
     def _la_reply_bot(self, msg):
         """Tin này có phải reply vào một tin của CHÍNH con bot này không.
 
@@ -541,10 +561,13 @@ class TelegramBot(HangLuot):
                 loi = f"{type(e).__name__}: {e}"
             if i < lan - 1:
                 await asyncio.sleep(2 ** i)
-        self.loi_danh_tinh = (
+        self.loi_danh_tinh = localefmt.chu(
             f"Không hỏi được danh tính bot từ Telegram ({loi}). Bot vẫn trả lời tin nhắn RIÊNG, "
             "nhưng trong nhóm nó không nhận ra được ai đang gọi tên mình nên sẽ im. "
-            "Tắt rồi bật lại bot để thử lại.")
+            "Tắt rồi bật lại bot để thử lại.",
+            f"Could not get the bot's identity from Telegram ({loi}). The bot still answers PRIVATE "
+            "messages, but in groups it cannot tell who is calling it, so it stays silent. "
+            "Turn the bot off and on again to retry.")
         print(f"[telegram getMe] {loi}", file=sys.stderr)
         return False
 
@@ -808,12 +831,14 @@ class TelegramBot(HangLuot):
                     if not data.get("ok"):
                         if data.get("error_code") == 409:
                             self.status = "conflict"
-                            self.last_error = data.get("description") or "409 - token bị poll nơi khác hoặc còn webhook."
+                            self.last_error = data.get("description") or localefmt.chu(
+                                "409 - token bị poll nơi khác hoặc còn webhook.",
+                                "409 - the token is being polled elsewhere or a webhook is still set.")
                             print("[telegram] 409 CONFLICT - cùng token đang poll ở nơi khác. Chỉ chạy 1 nơi.", file=sys.stderr)
                             await asyncio.sleep(20)
                         else:
                             self.status = "error"
-                            self.last_error = data.get("description") or "getUpdates lỗi"
+                            self.last_error = data.get("description") or localefmt.chu("getUpdates lỗi", "getUpdates failed")
                             print(f"[telegram] getUpdates lỗi: {data.get('description')}", file=sys.stderr)
                             await asyncio.sleep(10)
                         continue
@@ -846,6 +871,14 @@ class TelegramBot(HangLuot):
                             # dòng "[đã tải về: path]" cho skill dùng file.
                             ingested = await self._ingest_attachment(client, msg) or ""
                             text = _caption_command_text(ingested, msg.get("caption"))
+                        else:
+                            # Trả lời vào một ẢNH rồi gọi bot ("@bot xem giúp ảnh này", 0.81.0): tải đúng ảnh được
+                            # trả lời về, như thể ảnh nằm ngay trong tin này.
+                            anh_rep = self._anh_cua_tin_duoc_tra_loi(msg)
+                            if anh_rep:
+                                phu = await self._ingest_attachment(client, anh_rep) or ""
+                                if phu:
+                                    text = text + "\n" + phu
                         if not text:
                             continue
                         await self._dispatch(client, chat, text, self._build_meta(msg))

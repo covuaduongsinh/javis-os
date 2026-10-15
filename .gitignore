@@ -11,6 +11,8 @@ __pycache__/
 .staging/
 server/*.pid
 *.mp3
+# Mẫu nghe thử 9 giọng ChatGPT Live đi kèm app (0.65.17), không phải file tạm.
+!dashboard/voices/*.mp3
 test_output*.mp3
 server/*.log
 server/loop_config.json
@@ -46,6 +48,8 @@ server/connector-home/
 server/connector-files/
 server/connector-cred/
 server/purge-trash/
+# Công cụ Javis tự cài ngầm lúc chạy (bản ghim của CLI Zalo javis-zalo, chạy thẳng bằng Node). Sinh ra lúc chạy, có node_modules nặng.
+server/tools/
 # Lựa chọn GỠ năng lực mặc định (connector lõi...). Dữ liệu người dùng, mỗi máy một kiểu.
 server/core-off.json
 # Gói mở rộng người dùng cài (connector/plugin thả vào lúc chạy). Dữ liệu người dùng.
@@ -63,10 +67,16 @@ server/memory_index.db*
 # cây git bẩn thêm một file, và `git add -A` commit đường dẫn máy người khác.
 server/bin_paths.json
 server/claude-update.json
+server/agy-update.json
 server/antigravity-duong-prompt.json
 server/usage-marks.jsonl*
 server/conversations.db
 server/conversations.db.bak-*
+# Snapshot lúc nâng nhóm chat team (0.140.0) và bản giữ lại khi khôi phục: chứa toàn bộ chat của người dùng.
+server/conversations.db.pre-*
+server/conversations.db.post-*
+# Sổ PID tiến trình MCP stdio (dọn tiến trình mồ côi, 0.114.0): dữ liệu chạy, ghi vào thư mục state mặc định server/.
+server/mcp-stdio-pids.json
 server/md_hong_da_soi.json
 server/conversations.db-wal
 server/conversations.db-shm
@@ -86,6 +96,10 @@ server/kanban.sqlite3*
 # kanban.sqlite3* trên - test không đặt JAVIS_STATE_DIR sẽ ghi rơi vào server/ vì
 # execute_workflow giờ luôn chạm workflow_runs.get_store().
 server/workflow_runs.sqlite3*
+# Kho Cộng hưởng (mục tiêu, sổ danh tính agent) và kho nhóm chat team: dữ liệu chạy, cùng lớp với kanban.sqlite3*.
+# Server chạy từ worktree mà không đặt JAVIS_STATE_DIR sẽ ghi vào server/.
+server/resonance.sqlite3*
+server/team.sqlite3*
 server/tg_brain.json
 server/update_state.json
 server/logs/
@@ -173,3 +187,6 @@ server/chatbot_reply_policy.sqlite3*
 server/reply_policy_cwd/
 # Tài khoản kênh của bot (token đã mã hoá) là dữ liệu chạy, không phải mã nguồn.
 server/channel_accounts.json
+
+# Bộ đo tai nghe (tools/stt_bench): clip âm thanh và kết quả, không lên git
+server/stt_bench/

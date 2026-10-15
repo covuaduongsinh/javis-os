@@ -31,10 +31,12 @@ vault (brain đang chọn). Studio / trang tương ứng tự nhận file mới.
    loops/). Nếu đã có cái gần giống -> cập nhật cái cũ, đừng đẻ bản sao.
 4. **Ghi file** đúng frontmatter (mẫu bên dưới). slug = ASCII không dấu, gạch nối. Tên hiển thị
    tiếng Việt. TUYỆT ĐỐI không dùng ký tự em dash, dùng "-".
-   **`group` là BẮT BUỘC với cả ba loại agent / skill / workflow.** Trước khi chọn, đọc nhóm
-   đang dùng trong `agents/*.md`, `workflows/*.md`, `skills/*/SKILL.md` rồi lấy nhóm sát nhất;
-   không nhóm nào hợp thì đặt nhóm mới, tên ngắn theo lĩnh vực. Bỏ trống thì nó rơi vào "Chung"
-   và trang Studio dồn hết vào một đống - đúng chỗ mà cột nhóm sinh ra để tránh.
+   **Phân loại là BẮT BUỘC.** Agent dùng `tags` (danh sách, gắn được nhiều tag); skill và workflow
+   dùng `group` (một nhóm). Trước khi chọn, đọc tag đang dùng trong `agents/*.md` và nhóm đang dùng
+   trong `workflows/*.md`, `skills/*/SKILL.md` rồi lấy cái sát nhất; không cái nào hợp thì đặt tên
+   mới ngắn theo lĩnh vực. Agent bỏ trống `tags` thì nằm ở "Chưa gắn tag", skill/workflow bỏ trống
+   `group` thì rơi vào "Chung". Tag chỉ để phân loại và tìm agent: không thêm agent vào nhóm chat,
+   không chọn reviewer, không cấp quyền.
 5. **Báo cáo ngắn** bằng văn nói: đã tạo loại gì, tên/đường dẫn file, dùng ở đâu.
 
 ## Mẫu file (ghi CHÍNH XÁC theo đây)
@@ -46,7 +48,7 @@ type: agent
 name: <Tên tiếng Việt>
 slug: <ascii>
 role: <vai trò 1 câu>
-group: <Marketing|Bán hàng|Nội dung|Vận hành|Tài chính|AI|Năng suất|Cá nhân>
+tags: [Marketing, Viết nội dung]   # một hay nhiều tag; ví dụ Marketing, Bán hàng, Nội dung, Vận hành, Tài chính, AI, Năng suất, Cá nhân
 skills: [slug-skill]      # [] nếu chưa gán; chỉ gán skill đã có trong skills/
 model: ""                 # "" mặc định | sonnet|opus|haiku|fable (Claude) | gpt-5.5|gpt-5.4|gpt-5.3-codex (ChatGPT/Codex)
 updated: <YYYY-MM-DD>
@@ -112,14 +114,15 @@ skill cứ thế hỏng âm thầm lúc chạy. Bạn là lớp phòng thủ duy
 type: workflow
 name: <Tên>
 slug: <ascii>
-status: off               # tạo mới để 'off' cho user xem trước rồi bật
+status: 'off'             # tạo mới để 'off' cho user xem trước rồi bật; GIỮ dấu nháy (off trần = boolean). Quy trình tắt không chạy nền
 group: <Marketing|Bán hàng|Nội dung|Vận hành|Tài chính|AI|Năng suất|Cá nhân>
 description: <mô tả ngắn>
 steps:
   - agent: <agent-slug>
     task: "<việc; {{input}}=đầu vào user, {{prev}}=kết quả bước trước>"
-    verify_agent: <agent-slug>   # tùy chọn: agent soi lỗi
+    verify_agent: <agent-slug>   # tùy chọn: agent soi lỗi, PHẢI trả JSON {"pass":true|false,...}; vẫn trượt sau max_retries thì quy trình DỪNG
     max_retries: 1               # tùy chọn
+    tools: [javis_generate_image] # tùy chọn: tool plugin riêng bước này cần khi chạy nền dưới Toàn quyền (vd tạo/xem ảnh); WebFetch, WebSearch cũng nhận
 updated: <YYYY-MM-DD>
 ---
 <mô tả>
@@ -194,6 +197,7 @@ ctx có `ctx.vault_root`, `ctx.data_dir` (state riêng plugin, không đụng va
   phân biệt được với skill khác (mô tả mơ hồ làm Javis chọn skill sai). Đừng tạo skill trùng
   chức năng skill đã có.
 - Plugin user (toàn cục lẫn vault) chạy CODE PYTHON THẬT trong tiến trình server -> tạo `enabled: false`,
-  `min_mode: readonly`, và NÓI RÕ với user: plugin chỉ chạy khi họ đặt env `JAVIS_ENABLE_USER_PLUGINS=true`
-  rồi khởi động lại (rào chống chạy code lạ). Plugin làm hành động ra ngoài thì khai `min_mode: full` cho đúng, hub xét theo mức quyền của chỗ gọi.
+  `min_mode: readonly`, và NÓI RÕ với user: plugin nằm tắt cho tới khi họ bật nó trong app. Từ 15/10/2026
+  Javis cho tải plugin người dùng mặc định; máy nào muốn chặn hẳn thì đặt env `JAVIS_ENABLE_USER_PLUGINS=false`
+  rồi khởi động lại. Plugin làm hành động ra ngoài thì khai `min_mode: full` cho đúng, hub xét theo mức quyền của chỗ gọi.
 - Sau khi tạo, KHÔNG tự chạy thứ có side-effect; để user xem trước.

@@ -25,6 +25,7 @@ The most important thing to understand: **changing model does NOT cost Javis any
 | **Direct API** | Anthropic (API) | Yes, as above | No |
 | **Direct API** | Google Gemini (API) | Yes, as above (since 0.9.270 the Connections page no longer misreports it) | No |
 | **Direct API** | Groq (API) | Yes, as above | No |
+| **Direct API** | DeepSeek (API) | Yes, as above | No |
 | **Direct API** | Ollama Cloud | Yes, as above | No |
 
 ### The four things API engines lack
@@ -67,6 +68,7 @@ The **Providers** block lists 10 providers. **Connected ones are sorted first**,
 | **OpenAI (ChatGPT API)** | Paste an API key | MCP + file tools + skills through the hub |
 | **Google Gemini (API)** | Paste an API key | MCP + file tools + skills through the hub |
 | **Groq (API)** | Paste an API key | MCP + file tools + skills through the hub. Very fast inference, well suited as the background model. This key is also what enables **voice commands on Telegram and Zalo** (Whisper turning speech into text), see [Telegram](11-telegram.md) and [Zalo Bot channel](26-zalo-bot-channel.md); wiring the key is enough, you need not switch the main model to Groq |
+| **DeepSeek (API)** | Paste an API key from platform.deepseek.com | MCP + file tools + skills through the hub. Models `deepseek-flash` (cheap, takes images) and `deepseek-v4-pro`. With thinking depth set to **Off** DeepSeek answers directly; turned on, it thinks first, and if an older conversation does not fit that mode Javis answers in normal mode with a one-line notice |
 | **Ollama Cloud** | Paste an API key from ollama.com | MCP + file tools + skills through the hub. Large open-source models (gpt-oss, qwen3-coder, deepseek) running on Ollama's servers |
 
 Each provider card shows **● Connected** or **○ Not connected**, the number of available models, and a type label next to the name: **MCP/skills** (Claude Code), **Device code** (ChatGPT), **Javis MCP** (API providers). The card currently serving as Main Model carries a **MAIN** label.
@@ -125,6 +127,7 @@ This is the **xAI** route on the plan you already pay for, rather than buying a 
 1. Install the CLI once on the machine running Javis:
    - Linux/macOS: `curl -fsSL https://x.ai/cli/install.sh | bash`
    - Windows PowerShell: `irm https://x.ai/cli/install.ps1 | iex`
+   - Docker edition (from 0.85.1): **skip this step**, Javis installs it by itself at startup. While it does, the card says "Javis is installing"; click **Check again** about a minute later.
 2. Open **Models**, the **xAI Grok Build CLI** card, and click **Sign in**. It shows a link and a code. Open that link on your machine (a phone works too), enter the code and confirm. The card switches to **● Signed in** with nothing else to click.
 3. Click **Change model ▾** in the Main Model block, pick this provider and pick a model.
 
@@ -150,13 +153,14 @@ This is the route **Google designated** after cutting Gemini CLI off from person
 1. Install the CLI once on the machine running Javis:
    - Linux/macOS: `curl -fsSL https://antigravity.google/cli/install.sh | bash`
    - Windows PowerShell: `irm https://antigravity.google/cli/install.ps1 | iex`
+   - Docker edition (from 0.85.1): **skip this step**, Javis installs it by itself at startup. While it does, the card says "Javis is installing"; click **Check again** about a minute later.
 2. Type `agy` once **in a terminal on the machine running Javis** (the **Code** page inside Javis is the safest spot - it runs as the exact user Javis runs as). A desktop with a screen opens a browser. A server with no screen (VPS, Docker - including Docker on your own Mac) prints a link instead: open it in a browser on your machine, sign into Google, and the browser then jumps to an `http://localhost:...` address that **fails to load, which is the right step** - copy that whole address from the URL bar and paste it back into the terminal, then Enter. The session lives in the operating system keyring, so this is a one-time step.
 
    > Why the manual paste: `agy` collects the code through a loopback port on the machine running it, and your browser sits on another machine. Since 0.55.46 the Javis terminal declares itself a remote session (`SSH_CONNECTION`) so `agy` asks where to paste instead of waiting in silence. If your `agy` is older and never asks, open a second terminal session and run `curl "<the localhost address you copied>"`. Unusual setups (X11 forwarding, a desktop with a screen) can turn this off with `JAVIS_TERMINAL_REMOTE=0`.
 3. Return to **Models**, the **Google Antigravity CLI** card, and click **Re-check** (it runs a real chat turn). The card switches to **● Signed in**.
 4. Click **Change model ▾** in the Main Model block, pick this provider and pick a model.
 
-The model list **asks `agy models` directly** rather than using a hand-written table, so you see exactly the models your account is granted, and Google renaming models does not make the picker stale.
+The model list **asks `agy models` directly** rather than using a hand-written table, so you see exactly the models your account is granted, and Google renaming models does not make the picker stale. A new model only appears once `agy` itself is on a build that knows it, so since 0.137.0 Javis runs `agy update` once a day, Docker included (turn it off with the environment variable `JAVIS_AGY_AUTO_UPDATE=0`). If `agy` is up to date and a model is still missing, your Google account has not been granted that model.
 
 A few things worth knowing up front, to avoid confusion:
 
@@ -182,7 +186,7 @@ A few things worth knowing up front, to avoid confusion:
 
 **If you still hit errors on Windows**, set the environment variable `JAVIS_AGY_PROMPT_DAI=file` to force the file route, and please report back with the error `agy` printed.
 
-### C. Connecting a provider with an API key (OpenRouter / Anthropic API / OpenAI API / Gemini / Groq)
+### C. Connecting a provider with an API key (OpenRouter / Anthropic API / OpenAI API / Gemini / Groq / DeepSeek)
 
 1. Open **Models** and find the provider card.
 2. Paste the API key into the field (labelled "paste an API key to connect").

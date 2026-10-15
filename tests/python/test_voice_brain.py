@@ -170,12 +170,18 @@ async def main():
     check("api: sự kiện error -> RuntimeError", "429" in err)
 
     # ---- 4. sổ phiên ----
-    conf = vb.config_from_settings({"voice": {"mode": "fast", "brain_provider": "groq", "brain_model": "m1"},
+    conf = vb.config_from_settings({"voice": {"mode": "fast", "brain_provider": "groq",
+                                              "brain_models": {"groq": "m1", "antigravity": "gemini-x"}},
                                     "model": {"groq_api_key": "gk"}})
     # Legacy text-only noise filtering is retired; accepted speech is preserved.
-    check("config_from_settings: lấy đúng key theo provider",
+    check("config_from_settings: lấy đúng key và model theo provider",
           conf == {"mode": "fast", "provider": "groq", "model": "m1", "api_key": "gk",
                    "loc_tap_am": False})
+    # 0.65.26: khoá cũ brain_model là một chuỗi chung cho mọi bộ não, đổi bộ não là thành tên model
+    # của hãng khác (Antigravity nhận "--model gpt-6-luna"). Bỏ qua nó, dùng mặc định của hãng.
+    c2 = vb.config_from_settings({"voice": {"mode": "fast", "brain_provider": "antigravity",
+                                            "brain_model": "gpt-6-luna", "brain_models": {"codex": "gpt-6-luna"}}})
+    check("config_from_settings: model của bộ não khác và khoá cũ brain_model không lọt sang", c2["model"] == "")
     b1 = await vb.get_brain("s1", conf)
     b2 = await vb.get_brain("s1", conf)
     check("get_brain: cùng phiên dùng lại", b1 is b2 and vb.active_count() == 1)
@@ -329,7 +335,7 @@ async def main():
     # ---- 5. dây nối main.py ----
     src5 = (SERVER / "main.py").read_text(encoding="utf-8")
     check("main: gặp JAVIS_ASK_MAIN thì kết thúc lượt giọng ngay và giao việc nền, không await run_turn",
-          "asyncio.create_task(_voice_bg_task(ask, conv_sid, brain))" in src5
+          "asyncio.create_task(_voice_bg_task(ask, conv_sid, brain, call_lang=_call_lang))" in src5
           and '"background": ask' in src5
           and "await run_turn(conv_sid, user_message, brain, turn_tag, runtime_trace)\n\n        async def _voice_bg_task" not in src5)
     # Khoá dùng một lần là khoá của MẠCH ENGINE (để hai việc chạy song song không xếp hàng
@@ -337,9 +343,9 @@ async def main():
     # nói qua `phien_kho` (xem test_viec_nen_giong_dung_khung_chat).
     check("main: việc nền có khoá phiên riêng để chạy song song, xong thì push_to_chat",
           'f"voice:{conv_sid}:{uuid.uuid4().hex[:8]}"' in src5
-          and "_voice_ask_javis(request, conv_sid, brain, key=khoa_mach)" in src5
+          and "_voice_ask_javis(request, conv_sid, brain, key=khoa_mach, call_lang=call_lang)" in src5
           and "await push_to_chat(conv_sid, out" in src5
-          and 'meta={"chat_id": key}' in src5)
+          and 'meta={"chat_id": key, "call_lang": call_lang}' in src5)
     check("main: câu gửi bộ não giọng ghép pending_note", "voice_brain.pending_note(conv_sid)" in src5)
     check("main: /voice/options báo sẵn/chưa sẵn cho codex, claude, grok",
           'elif pid == "codex":' in src5 and 'elif pid == "claude":' in src5 and 'elif pid == "grok":' in src5)

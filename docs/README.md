@@ -4,7 +4,7 @@
 
 Hướng dẫn sử dụng chi tiết từng chức năng của Javis OS. Mỗi trang là một how-to độc lập: mở ở đâu, bấm gì, dùng thế nào.
 
-> Mới bắt đầu? Đọc [Cài đặt trong README](../README.md#-cài-đặt) trước, rồi qua [01 - Bắt đầu & thiết lập lần đầu](01-bat-dau-thiet-lap.md).
+> Mới bắt đầu? Đọc [Cài đặt trong README](i18n/vi/README.md#-cài-đặt) trước, rồi qua [01 - Bắt đầu & thiết lập lần đầu](01-bat-dau-thiet-lap.md).
 
 Thanh điều hướng của dashboard gom **19 trang** thành **7 nhóm**: Trợ lý · Bộ não · Code · Năng lực · Việc · Kết nối · Hệ thống. Mục lục dưới đây xếp theo cùng logic đó.
 
@@ -28,6 +28,9 @@ Thanh điều hướng của dashboard gom **19 trang** thành **7 nhóm**: Tr�
 - [20 - Plugins](20-plugins.md) - thêm tool/hook native cho mọi engine bằng một thư mục Python.
 - [25 - Chatbot (Bot chuyên trách)](25-chatbot.md) - đem Agent ra trả lời khách qua bot Telegram hoặc Zalo riêng, brain riêng, chuyển nhân viên khi bí.
 - [28 - Hội thoại khách (Hộp thư)](28-hoi-thoai-khach.md) - đọc lại mọi cuộc chat khách nhắn cho bot và Zalo cá nhân ở một chỗ, tiếp quản khi cần người thật.
+- [29 - Slack và WhatsApp](29-slack-whatsapp.md) - chat với Javis và đặt bot khách hàng trên Slack (không cần tên miền) và WhatsApp (API chính thức của Meta).
+- [30 - Discord và Lark/Feishu](30-discord-lark.md) - chat với Javis từ Discord và Lark/Feishu ở trang Kênh Admin, không cần tên miền.
+- [31 - Messenger](31-messenger.md) - đặt bot khách hàng trả lời hộp thư Fanpage Facebook (API chính thức của Meta, cần tên miền HTTPS).
 
 ### Việc chạy nền (nhóm Việc & Bộ não)
 - [08 - Việc định kỳ & Nhắc hẹn](08-viec-dinh-ky.md) - nhiều vòng lặp chạy nền + nhắc hẹn theo giờ hoặc cron.
@@ -62,11 +65,13 @@ Thanh điều hướng của dashboard gom **19 trang** thành **7 nhóm**: Tr�
 
 **Toàn bộ tài liệu đã có bản tiếng Anh.** Mỗi trang có dòng chuyển ngôn ngữ ngay dưới tiêu đề,
 bấm là sang đúng trang tương ứng. Mục lục tiếng Anh ở [docs/en/](en/README.md); ngoài ra ở gốc
-repo có [README.en.md](../README.en.md), [QUICKSTART.en.md](../QUICKSTART.en.md),
-[DEPLOY.en.md](../DEPLOY.en.md) và [CONTRIBUTING.en.md](../CONTRIBUTING.en.md).
+repo có [README.md](../README.md), [QUICKSTART.en.md](../QUICKSTART.en.md),
+[DEPLOY.en.md](../DEPLOY.en.md) và [CONTRIBUTING.md](../CONTRIBUTING.md) (bản tiếng Việt: [i18n/vi/CONTRIBUTING.md](i18n/vi/CONTRIBUTING.md)).
 
-Bản tiếng Việt là bản gốc: sửa nội dung thì sửa bên tiếng Việt trước rồi cập nhật bản tiếng Anh
-tương ứng, đừng để hai bên nói khác nhau. Thêm một ngôn ngữ vào chính Javis (không phải tài
+Bản tiếng Việt là bản gốc của tài liệu: sửa nội dung thì sửa bên tiếng Việt trước rồi cập nhật
+bản tiếng Anh tương ứng, đừng để hai bên nói khác nhau. Riêng README thì ngược lại: từ 0.66.0
+`README.md` ở gốc repo là bản tiếng Anh, bản tiếng Việt nằm ở
+[i18n/vi/README.md](i18n/vi/README.md). Thêm một ngôn ngữ vào chính Javis (không phải tài
 liệu) thì theo [sổ tay thêm ngôn ngữ](dev/them-mot-ngon-ngu.md).
 
 ---

@@ -32,11 +32,13 @@
   <!-- Biến --ic-* cho icon dùng trong content: của CSS. Phải đứng TRƯỚC style.css
        vì style.css tham chiếu các biến này. -->
   <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=1">
-  <link rel="stylesheet" href="/static/style.css?v=101">
-  <link rel="stylesheet" href="/static/console.css?v=77">
+  <link rel="stylesheet" href="/static/style.css?v=111">
+  <link rel="stylesheet" href="/static/console.css?v=81">
   <!-- Áp tông đã lưu TRƯỚC khi vẽ để không nháy tối rồi mới đổi sang sáng.
-       Giá trị cũ "dim" (tông tối-nhạt, gỡ ở 0.9.250) quy về tối; theme.js sẽ ghi đè lại. -->
-  <script>(function(){try{if(localStorage.getItem('javis.theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
+       Giá trị cũ "dim" (tông tối-nhạt, gỡ ở 0.9.250) quy về tối; theme.js sẽ ghi đè lại.
+       Chế độ "auto" (0.74.0, mặc định khi chưa chọn gì từ 0.75.1) tính theo khung giờ "HH:MM-HH:MM", cùng quy tắc với lightAt() trong
+       theme.js (vắt qua nửa đêm được, hai mốc trùng là tối): sửa một bên thì sửa cả bên kia. -->
+  <script>(function(){try{var m=localStorage.getItem('javis.theme'),L=m==='light';if(m!=='light'&&m!=='dark'&&m!=='dim'){var p=/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/.exec(localStorage.getItem('javis.theme.schedule')||'')||[0,6,0,18,0],a=p[1]*60+ +p[2],b=p[3]*60+ +p[4],d=new Date(),n=d.getHours()*60+d.getMinutes();L=a!==b&&(a<b?n>=a&&n<b:n>=a||n<b);}if(L)document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
 </head>
 <body>
   <div class="hud">
@@ -314,7 +316,10 @@
           </span>
         </div>
         <!-- MỨC DÙNG token đã DỜI xuống góc dưới-phải khung giữa (giải phóng chỗ cho khung chat). -->
-        <div class="transcript" id="chatArea"></div>
+        <!-- Thanh gọi (call-bar.js, 0.65.18): hiện khi bấm mic gọi Javis. Nằm trong CHAT_NODE_IDS
+             (console.js) nên sang trang Trò chuyện là đi theo khung chat. -->
+        <div class="call-bar" id="callBar" hidden></div>
+        <div class="transcript" id="chatArea" data-i18n-empty="chat.empty_hint" data-empty-hint="Nói hoặc gõ để bắt đầu hội thoại với Javis."></div>
         <!-- Thanh #toolBar cũ ĐÃ BỎ: trạng thái "đang suy nghĩ / gọi tool" giờ hiện bằng
              chip hoạt động NGAY TRONG #chatArea (app.js showActivity) → tự đi theo cả khi
              phóng to chat workspace (chat-zoom chỉ dời #chatArea, trước đây toolBar bị bỏ lại). -->
@@ -333,11 +338,6 @@
           </summary>
           <div class="quick-set-body">
 
-            <label class="qs-row" data-settings-section="voice">
-              <span><i data-ic="volume-2"></i> <span data-i18n="qs.tts">Đọc trả lời bằng giọng</span></span>
-              <span class="toggle"><input type="checkbox" id="qsTts"><span></span></span>
-            </label>
-
             <!-- MỘT CỘT, mỗi thẻ một việc (0.58.8). Bản trước xếp lưới HAI cột: các thẻ cao
                  thấp chênh nhau rất xa (thẻ giọng nói 1200px nằm cạnh thẻ ảnh đại diện 150px)
                  nên ô ngắn bị ô dài kéo giãn theo, để lại mảng trống gần một màn hình - chủ
@@ -349,96 +349,81 @@
                  Đặt TRÊN nhóm giọng nói vì giọng đọc phụ thuộc ngôn ngữ, không ngược lại. -->
             <div id="replyLangHost" data-settings-section="general"></div>
 
-            <!-- GIỌNG ĐỌC. Nhà cung cấp do console.js đổ vào #ttsProviderHost (nằm TRONG thẻ
-                 này, không tách thẻ riêng nữa: chọn nhà cung cấp rồi chọn giọng là một việc).
-                 Bảy giọng trước đây là bảy thẻ radio xếp dọc, cao gần 600px cho một lựa chọn
-                 duy nhất; nay là một ô chọn cao một hàng. Tốc độ cũng vậy: thanh trượt đổi
-                 thành ô chọn có tên mức, vì không ai cần 1.37× mà cần "hơi nhanh". -->
-            <div class="qs-block" data-settings-section="voice">
-              <div class="popover-label" data-i18n="qs.voice">GIỌNG ĐỌC</div>
-              <!-- #edgeVoiceSection: console.js ẩn khối này khi nhà cung cấp không phải Edge
-                   (OpenAI/ElevenLabs chọn giọng ngay trong khối nhà cung cấp ở trên). -->
-              <div id="edgeVoiceSection">
-                <div class="qs-field">
-                  <label class="qs-lbl" for="voiceSel" data-i18n="qs.voice_pick">Giọng Edge</label>
-                  <select class="js-input" id="voiceSel" name="voice">
-                    <option value="en-US-EmmaMultilingualNeural" data-i18n="qs.voice_opt_emma">Emma · Nữ, vui tươi rõ chữ · đa ngôn ngữ</option>
-                    <option value="vi-VN-HoaiMyNeural" data-i18n="qs.voice_opt_hoaimy">Hoài My · Nữ, tự nhiên ấm áp</option>
-                    <option value="vi-VN-NamMinhNeural" data-i18n="qs.voice_opt_namminh">Nam Minh · Nam, trầm</option>
-                    <option value="en-US-AvaMultilingualNeural" data-i18n="qs.voice_opt_ava">Ava · Nữ, dịu và biểu cảm · đa ngôn ngữ</option>
-                    <option value="en-US-AndrewMultilingualNeural" data-i18n="qs.voice_opt_andrew">Andrew · Nam, ấm và tự tin · đa ngôn ngữ</option>
-                    <option value="en-US-BrianMultilingualNeural" data-i18n="qs.voice_opt_brian">Brian · Nam, gần gũi đời thường · đa ngôn ngữ</option>
-                    <option value="en-AU-WilliamMultilingualNeural" data-i18n="qs.voice_opt_william">William · Nam, thân thiện giọng Úc · đa ngôn ngữ</option>
-                  </select>
-                </div>
-                <div class="qs-hint" data-i18n="qs.voice_ml_note">Giọng đa ngôn ngữ: đọc tiếng Việt mượt hơn, có thể lơ lớ vài chữ</div>
-              </div>
+            <!-- GIỌNG NÓI (0.65.19, docs/dev/2026-10-voice-call-spec.md mục 5): MỘT thẻ, ba ô, mọi ô
+                 tự lưu khi đổi, không còn nút Lưu. Bấm mic là gọi Javis, nên những gì máy tự lo được
+                 (bộ não giọng, tai nghe lại, ngôn ngữ nghe, im bao lâu thì gửi, ngắt lời bằng giọng,
+                 nhịp hội thoại, đọc trả lời bằng giọng; từ 0.65.22 cả "Tập trung": im 30 giây thì ngắt
+                 Live, nói là nối lại) không còn ô nhập. Giá trị đã lưu từ bản cũ
+                 vẫn được đọc và dùng tiếp. console.js renderVoiceCard() đổ lựa chọn và nối tay bắt;
+                 khung là node TĨNH để data-i18n dịch được và #rateSel giữ tay bắt của app.js. -->
+            <div class="qs-block" id="voiceCard" data-settings-section="voice">
+              <div class="popover-label" data-i18n="settings.vc_title">GIỌNG NÓI</div>
+              <div class="qs-hint" id="vcNow" role="status"></div>
               <div class="qs-field">
-                <label class="qs-lbl" for="rateSel" data-i18n="qs.rate_lbl">Tốc độ đọc</label>
-                <select class="js-input" id="rateSel">
-                  <option value="0.85" data-i18n="qs.rate_opt_slow">Chậm · 0,85×</option>
-                  <option value="1.00" data-i18n="qs.rate_opt_normal">Bình thường · 1,00×</option>
-                  <option value="1.10" data-i18n="qs.rate_opt_default">Hơi nhanh · 1,10× (mặc định)</option>
-                  <option value="1.25" data-i18n="qs.rate_opt_fast">Nhanh · 1,25×</option>
-                  <option value="1.45" data-i18n="qs.rate_opt_veryfast">Rất nhanh · 1,45×</option>
-                </select>
+                <label class="qs-lbl" for="vcVoice" data-i18n="settings.vc_voice">Giọng Javis</label>
+                <div class="v2-voice-row">
+                  <select class="js-input" id="vcVoice"></select>
+                  <button class="gcard-btn ghost" type="button" id="vcTry" data-i18n="qs.test_voice">▶ Nghe thử</button>
+                </div>
               </div>
-              <div class="js-actions qs-foot">
-                <button class="gcard-btn ghost" id="testVoiceBtn" data-i18n="qs.test_voice">▶ Nghe thử</button>
-              </div>
-              <div class="qs-hint" data-i18n="qs.voice_local">Giọng Edge và tốc độ được lưu ngay trên thiết bị này.</div>
-              <details class="qs-advanced" id="ttsAdvanced">
-                <summary data-i18n="settings.tts_advanced">Nhà cung cấp và kết nối</summary>
-                <div id="ttsProviderHost"></div>
-                <div class="js-actions qs-foot"><button class="gcard-btn" id="vpSave" data-i18n="qs.voice_save">Lưu nhà cung cấp</button></div>
+              <div class="qs-hint" id="vcVoiceNote" data-i18n="qs.voice_ml_note" hidden>Giọng đa ngôn ngữ hỗ trợ tiếng Việt.</div>
+              <details class="qs-advanced" id="vcAdvanced">
+                <summary data-i18n="settings.vc_advanced">Nâng cao</summary>
+                <div class="qs-field">
+                  <label class="qs-lbl" for="vcEngine" data-i18n="settings.vc_engine">Đường gọi</label>
+                  <select class="js-input" id="vcEngine">
+                    <option value="auto" data-i18n="settings.vc_engine_auto">Tự động</option>
+                    <option value="chatgpt">ChatGPT Live</option>
+                    <option value="api" data-i18n="settings.vc_engine_api">Live qua API key</option>
+                    <option value="basic" data-i18n="settings.vc_engine_basic">Cơ bản</option>
+                  </select>
+                </div>
+                <!-- Bộ não trả lời nhanh + Model: CHỈ hiện khi cuộc gọi chạy đường Cơ bản (0.65.31, chủ dự
+                     án góp ý 02/10). ChatGPT Live và Live qua API tự nghe, tự trả lời nên ô này không có
+                     tác dụng; để hiện ở đó thì chọn Antigravity mà vẫn nghe ChatGPT trả lời, rất khó hiểu.
+                     console.js renderVoiceCard() bật/tắt theo đường đang dùng thật (call.engine). -->
+                <div id="vcBrainBox" hidden>
+                  <div class="qs-field">
+                    <label class="qs-lbl" for="vcBrain" data-i18n="settings.vc_brain">Bộ não trả lời nhanh</label>
+                    <select class="js-input" id="vcBrain"></select>
+                  </div>
+                  <div class="qs-field" id="vcBrainModelRow" hidden>
+                    <label class="qs-lbl" for="vcBrainModel" data-i18n="settings.vc_brain_model">Model</label>
+                    <select class="js-input" id="vcBrainModel"></select>
+                  </div>
+                  <div class="qs-hint" data-i18n="settings.vc_brain_hint">Bộ não trả lời các câu nói ở đường Cơ bản. Việc cần dữ liệu vẫn đi bộ não chính.</div>
+                </div>
+                <div class="qs-field" id="vcRateRow">
+                  <label class="qs-lbl" for="rateSel" data-i18n="qs.rate_lbl">Tốc độ đọc</label>
+                  <select class="js-input" id="rateSel">
+                    <option value="0.85" data-i18n="qs.rate_opt_slow">Chậm · 0,85×</option>
+                    <option value="1.00" data-i18n="qs.rate_opt_normal">Bình thường · 1,00×</option>
+                    <option value="1.10" data-i18n="qs.rate_opt_default">Hơi nhanh · 1,10× (mặc định)</option>
+                    <option value="1.25" data-i18n="qs.rate_opt_fast">Nhanh · 1,25×</option>
+                    <option value="1.45" data-i18n="qs.rate_opt_veryfast">Rất nhanh · 1,45×</option>
+                  </select>
+                </div>
+                <div id="vcEleven" hidden>
+                  <label class="js-lbl" for="vcElKey">ElevenLabs API key <span class="dim" id="vcElKeySet" data-i18n="settings.key_set" hidden>(đã có - để trống nếu không đổi)</span></label>
+                  <input class="js-input" id="vcElKey" type="password" autocomplete="off" data-i18n-ph="settings.eleven_ph" placeholder="Dán API key ElevenLabs">
+                  <label class="js-lbl" for="vcElVoice">Voice ID <span class="dim" data-i18n="settings.voice_id_hint">(lấy ở ElevenLabs → Voices)</span></label>
+                  <input class="js-input" id="vcElVoice" data-i18n-ph="settings.eleven_voice_ph" placeholder="Ví dụ: 21m00Tcm4TlvDq8ikWAM (Rachel)">
+                </div>
+                <div class="qs-hint" id="vcOpenaiNote" data-i18n="settings.vc_openai_note" hidden>Muốn giọng OpenAI: dán API key OpenAI ở trang Models.</div>
               </details>
-              <div class="gcard-meta" id="vpStatus" role="status"></div>
-            </div>
-
-            <!-- CHẾ ĐỘ NÓI CHUYỆN (Voice V2): console.js renderVoiceV2Card() đổ vào đây.
-                 Là thẻ RIÊNG chứ không lồng trong thẻ giọng đọc, vì nó có nút Lưu của chính
-                 nó - luật của trang này: một thẻ, một nút Lưu, luôn ở góc dưới phải. -->
-            <div id="vpV2Host" data-settings-section="voice"></div>
-
-            <!-- MICRO (Voice V1): ba mục ghi thẳng localStorage của máy đang dùng. Từ 0.59.27
-                 chúng nằm CÙNG THẺ với "Chế độ nói chuyện" (chủ dự án chốt 17/09): console.js
-                 renderVoiceV2Card() DỜI #qsMicFields vào thẻ đó, ngay trên nút Lưu chế độ, rồi
-                 ẩn cái nhà này. Là node tĩnh chứ không vẽ bằng JS vì app.js gắn tay bắt cho ba
-                 ô này đúng một lần lúc tải trang. Nhà mang lớp .qs-block để lỡ thẻ kia không
-                 vẽ được (máy chủ cũ) thì ba mục vẫn đứng trong một thẻ tử tế. -->
-            <div class="qs-block" id="qsMicHome" data-settings-section="voice">
-              <div id="qsMicFields">
-                <div class="qs-sub" data-i18n="qs.mic">MICRO</div>
-                <div class="qs-field">
-                  <label class="qs-lbl" for="recLangSel" data-i18n="qs.rec_lang">Ngôn ngữ nghe</label>
-                  <select class="js-input" id="recLangSel" name="recognitionLang">
-                    <option value="vi-VN" data-i18n="qs.rec_vi_opt">Tiếng Việt · vi-VN</option>
-                    <option value="en-US" data-i18n="qs.rec_en_opt">Tiếng Anh · en-US</option>
-                    <option value="auto" data-i18n="qs.rec_auto_opt">Đa ngôn ngữ · không cố định</option>
-                  </select>
-                </div>
-                <div class="qs-hint" data-i18n="qs.rec_auto_hint">Đa ngôn ngữ: Groq Whisper tự nhận ra tiếng đang nói; máy nghe của trình duyệt vẫn dùng một ngôn ngữ cố định (mặc định tiếng Việt).</div>
-                <div id="qsBrowserMicFields">
-                  <div class="qs-field"><label class="qs-lbl" for="adaptiveMode" data-i18n="qs.adaptive_mode">Nhịp hội thoại (thử nghiệm)</label><select class="js-input" id="adaptiveMode"><option value="off" data-i18n="qs.adaptive_off">Chờ cố định</option><option value="observe" data-i18n="qs.adaptive_observe">Quan sát để kiểm tra</option><option value="natural" data-i18n="qs.adaptive_natural">Tự nhiên</option></select></div>
-                  <div class="qs-hint" data-i18n="qs.adaptive_hint">Tự nhiên chờ theo câu nói, không thêm API. Quan sát chỉ ghi chẩn đoán trong bộ nhớ. Áp dụng cho Chuẩn và Làn nhanh.</div>
-                  <div class="qs-field"><label for="adaptivePace" class="qs-lbl" data-i18n="qs.adaptive_pace">Nhịp phản hồi</label><select id="adaptivePace" class="js-input"><option value="fast" data-i18n="qs.adaptive_fast">Nhanh</option><option value="balanced" data-i18n="qs.adaptive_balanced">Cân bằng</option><option value="patient" data-i18n="qs.adaptive_patient">Kiên nhẫn</option></select></div>
-                  <div class="qs-field"><button type="button" class="js-btn" id="adaptiveReset" data-i18n="qs.adaptive_reset">Đặt lại nhịp đã học</button><button type="button" class="js-btn" id="adaptiveExport" data-i18n="qs.adaptive_export">Tải chẩn đoán</button></div>
-                <div class="qs-field">
-                  <label class="qs-lbl" for="endpointSel" data-i18n="qs.endpoint">Im lặng rồi gửi</label>
-                  <select class="js-input" id="endpointSel" name="endpoint">
-                    <option value="500" data-i18n="qs.endpoint_fast_opt">Nhanh · 0,5 giây</option>
-                    <option value="800" data-i18n="qs.endpoint_mid_opt">Vừa · 0,8 giây</option>
-                    <option value="1200" data-i18n="qs.endpoint_slow_opt">Chậm · 1,2 giây (mặc định)</option>
-                  </select>
-                </div>
-                <div class="qs-hint" data-i18n="qs.endpoint_hint">Câu kết bằng "và", "nhưng", dấu phẩy thì Javis tự chờ lâu hơn. Nói "khoan" hay "đợi chút" là Javis im chờ bạn.</div>
-                <label class="qs-field">
-                  <span class="qs-lbl" data-i18n="qs.barge">Ngắt lời Javis bằng giọng</span>
-                  <span class="toggle"><input type="checkbox" id="qsBarge" checked><span></span></span>
-                </label>
-                <div class="gcard-meta" data-i18n="qs.mic_local">Ba mục micro áp dụng ngay trên máy đang dùng, không cần bấm Lưu; nút Lưu chế độ chỉ lưu phần chế độ và bộ não giọng.</div>
-                </div>
-              </div>
+              <div class="gcard-meta" id="vcStatus" role="status"></div>
+              <div class="gcard-meta" id="v2LastErr" hidden></div>
+              <!-- Kho giọng Edge: app.js đọc/ghi giọng Edge qua ô này (localStorage javis.voice), còn
+                   người dùng chọn ở #vcVoice. Ẩn, nhưng vẫn là danh sách gốc của bảy giọng Edge. -->
+              <select id="voiceSel" name="voice" hidden aria-hidden="true" tabindex="-1">
+                <option value="en-US-EmmaMultilingualNeural" data-i18n="qs.voice_opt_emma">Emma · Nữ, vui tươi rõ chữ · đa ngôn ngữ</option>
+                <option value="vi-VN-HoaiMyNeural" data-i18n="qs.voice_opt_hoaimy">Hoài My · Nữ, tự nhiên ấm áp</option>
+                <option value="vi-VN-NamMinhNeural" data-i18n="qs.voice_opt_namminh">Nam Minh · Nam, trầm</option>
+                <option value="en-US-AvaMultilingualNeural" data-i18n="qs.voice_opt_ava">Ava · Nữ, dịu và biểu cảm · đa ngôn ngữ</option>
+                <option value="en-US-AndrewMultilingualNeural" data-i18n="qs.voice_opt_andrew">Andrew · Nam, ấm và tự tin · đa ngôn ngữ</option>
+                <option value="en-US-BrianMultilingualNeural" data-i18n="qs.voice_opt_brian">Brian · Nam, gần gũi đời thường · đa ngôn ngữ</option>
+                <option value="en-AU-WilliamMultilingualNeural" data-i18n="qs.voice_opt_william">William · Nam, thân thiện giọng Úc · đa ngôn ngữ</option>
+              </select>
             </div>
 
             <!-- THƯƠNG HIỆU. Hai nút trước đây là hai thanh tràn ngang (một tím đặc, một
@@ -455,6 +440,13 @@
                 </div>
               </div>
               <div class="opt-sub" id="brandLogoStatus"></div>
+            </div>
+
+            <!-- Cộng hưởng (Resonance A1): công tắc theo TỪNG TRỢ LÝ của brain đang chọn, mặc định tắt, cùng mục
+                 "Chờ gán" cho mục tiêu có trước A1. resonance-agent.js vẽ vào #resonanceAgents qua /resonance/agents. -->
+            <div class="qs-block" data-settings-section="general" id="resonanceBlock">
+              <div class="popover-label" data-i18n="resonance.settings_title">Auto (thử nghiệm)</div>
+              <div id="resonanceAgents"></div>
             </div>
 
             <div class="qs-block" data-settings-section="general">
@@ -494,46 +486,55 @@
          là nó đi theo, không bị bỏ lại như thanh #toolBar cũ. -->
     <div class="bg-strip" id="bgStrip" hidden></div>
 
-    <!-- Attachment chips -->
-    <div class="attach-bar" id="attachBar"></div>
+    <!-- The Coding page's own chip row (that page inserts its chips here on desktop). Empty on the home
+         page, so hidden (.model-bar:empty). The model chip moved into the composer in 0.153.0. -->
+    <div class="model-bar" id="modelBar"></div>
 
-    <!-- Chọn model (đa nhà cung cấp) + effort ngay trên khung chat -->
-    <div class="model-bar" id="modelBar">
-      <button class="mb-chip" id="mbOpen" title="Đổi model / nhà cung cấp / effort" data-i18n-title="mb.open">
-        <span class="mb-dot"></span>
-        <span id="mbModelTxt">Model</span>
-        <span class="mb-sep">·</span>
-        <span id="mbEffortTxt" class="mb-eff">Effort</span>
-        <span class="mb-caret">▾</span>
-      </button>
-      <div class="mb-pop" id="mbPop" hidden></div>
-      <!-- 0.64.15: dải ba tool gọi gần nhất (chữ xanh lá) đã bỏ. Từng bước tool giờ hiện ngay trong
-           khung chat (khối bước + chip đang chạy), nên dải này chỉ lặp lại thứ đã thấy. -->
-    </div>
-
-    <!-- ===== BOTTOM: voice bar ===== -->
+    <!-- ===== Composer: ONE rounded card in the style of Claude (0.153.0) =====
+         Top: attached images and files. Middle: text box. Bottom: "+", model chip, effort chip,
+         Fast mode bolt, pinned folder chip, then mic and send. Popovers open above the card. -->
     <div class="hud-voice" id="hudVoice">
       <button id="voiceFocusResume" class="voice-focus-resume" hidden></button>
-      <button class="mic-big" id="voiceBtn" title="Bấm để nói (hoặc giữ Space)" data-i18n-title="bar.mic">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>
-        </svg>
-      </button>
-      <button class="attach-btn" id="attachBtn" title="Đính kèm file (ảnh, text, tài liệu) → lưu vào Sources" data-i18n-title="bar.attach">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-        </svg>
-      </button>
+      <div class="attach-bar" id="attachBar"></div>
       <input type="file" id="fileInput" multiple style="display:none">
       <textarea id="chatInput" class="voice-input" placeholder="Bạn muốn tôi làm điều gì?" data-i18n-ph="bar.input_ph" rows="1"></textarea>
-      <button class="stop-btn" id="stopBtn" title="Ngắt lệnh / dừng đọc (Esc)" data-i18n-title="bar.stop" style="display:none">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-      </button>
-      <button class="send-btn" id="sendBtn">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
-      </button>
-    </div>
+      <div class="cp-row" id="cpRow">
+        <button type="button" class="cp-plus" id="plusBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="plusMenu"
+                title="Thêm file, lệnh, kết nối" data-i18n-title="cp.plus" aria-label="Thêm file, lệnh, kết nối" data-i18n-aria="cp.plus">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <div class="cp-chips" id="cpChips">
+          <button type="button" class="mb-chip" id="mbOpen" title="Đổi model / nhà cung cấp" data-i18n-title="mb.open">
+            <span class="mb-dot"></span>
+            <span id="mbModelTxt">Model</span>
+            <span class="mb-caret">▾</span>
+          </button>
+          <button type="button" class="cp-eff" id="effBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="effPop"
+                  title="Mức suy nghĩ" data-i18n-title="eff.title">
+            <span id="effTxt">Off</span><span class="mb-caret">▾</span>
+          </button>
+          <button type="button" class="cp-fast" id="fastBtn" aria-pressed="false" title="Fast mode" aria-label="Fast mode">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>
+          </button>
+        </div>
+        <span class="cp-gap"></span>
+        <button type="button" class="mic-big" id="voiceBtn" title="Bấm để gọi Javis" data-i18n-title="bar.mic">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>
+          </svg>
+        </button>
+        <button type="button" class="stop-btn" id="stopBtn" title="Ngắt lệnh / dừng đọc (Esc)" data-i18n-title="bar.stop" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+        </button>
+        <button type="button" class="send-btn" id="sendBtn" aria-label="Gửi" data-i18n-aria="bar.send">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </button>
+      </div>
+      <div class="mb-pop" id="mbPop" hidden></div>
+      <div class="eff-pop" id="effPop" role="dialog" aria-label="Effort" hidden></div>
+      <div class="cp-menu" id="plusMenu" role="menu" hidden></div>
+    </div><!-- /hudVoice -->
   </div>
 
   <!-- Mobile-only: nền mờ khi mở ngăn kéo -->
@@ -652,13 +653,17 @@
       <div class="settings-body">
         <style>
         .wz-prov{display:flex;flex-direction:column;gap:8px;margin-top:6px}
-        .wz-card{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid rgba(255,255,255,.14);border-radius:10px;cursor:pointer;transition:.15s}
-        .wz-card:hover{border-color:rgba(255,138,60,.5)} .wz-card.sel{border-color:#ff8a3c;background:rgba(255,138,60,.12)}
-        .wz-card input{margin-top:3px;accent-color:#ff8a3c} .wz-card b{font-size:15px;color:#e7eefc}
-        .wz-rec{font-size:12px;background:#ff8a3c;color:#1a1a1a;border-radius:6px;padding:1px 6px;margin-left:6px;font-weight:700}
-        .wz-pdesc{font-size:15px;color:#9fb0cf;margin-top:3px;line-height:1.45}
-        #wzProvHint code{background:rgba(0,0,0,.35);padding:1px 5px;border-radius:4px;font-size:13px}
-        #wzProvHint{margin-top:8px;font-size:15px;color:#8aa}
+        /* Theme tokens only: these colours used to be hard-coded for the dark theme, so on the
+           light theme the provider names were near-white on cream and the login command in
+           the hint was dark-on-dark (customer report 2026-10-11). */
+        .wz-card{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);background:var(--bg2);border-radius:10px;cursor:pointer;transition:.15s}
+        .wz-card:hover{border-color:var(--accent-line)} .wz-card.sel{border-color:var(--accent);background:var(--accent-wash-2)}
+        /* The global form-input rule stretches inputs to full width; a radio must stay its own size. */
+        .wz-card input{width:auto;flex:none;margin:3px 0 0;accent-color:var(--accent)} .wz-card b{font-size:15px;color:var(--text)}
+        .wz-rec{font-size:12px;background:var(--accent-solid);color:var(--bg);border-radius:6px;padding:1px 6px;margin-left:6px;font-weight:700}
+        .wz-pdesc{font-size:15px;color:var(--text2);margin-top:3px;line-height:1.45}
+        #wzProvHint code{background:var(--surface-3);color:var(--text);padding:1px 5px;border-radius:4px;font-size:13px;word-break:break-all}
+        #wzProvHint{margin-top:8px;font-size:15px;color:var(--text2);line-height:1.5}
         </style>
         <div class="set-note"><span data-i18n="wz.intro">Vài bước nhanh để bắt đầu. Mọi thứ đổi lại được sau trong</span> <i data-ic="settings"></i> <span data-i18n="page.settings.label">Cài đặt</span>.</div>
         <div class="set-sec">
@@ -718,7 +723,11 @@
       <div class="fm-head"><img src="/brand-logo" alt="" style="width:24px;height:24px;border-radius:6px;vertical-align:middle;margin-right:6px;object-fit:cover"><span id="authTitle" data-i18n="auth.title">Đăng nhập Javis</span></div>
       <div class="auth-body">
         <input id="authUser" placeholder="Tài khoản" data-i18n-ph="common.account" autocomplete="username">
-        <input id="authPass" type="password" placeholder="Mật khẩu" data-i18n-ph="common.password" autocomplete="current-password">
+        <div class="auth-pw">
+          <input id="authPass" type="password" placeholder="Mật khẩu" data-i18n-ph="common.password" autocomplete="current-password">
+          <button type="button" class="auth-pw-eye" id="authPassEye" aria-pressed="false"
+                  title="Hiện/ẩn mật khẩu" data-i18n-title="auth.show_pw" aria-label="Hiện/ẩn mật khẩu" data-i18n-aria="auth.show_pw"><i data-ic="eye"></i></button>
+        </div>
         <!-- Ô mã 2 lớp: ẩn cho tới khi server trả needs_2fa. Hiện sẵn từ đầu thì người CHƯA bật
              2FA phải nhìn một ô họ không hiểu, mỗi lần đăng nhập. inputmode=numeric để điện
              thoại bật bàn phím số; autocomplete=one-time-code để iOS/Android tự điền từ SMS/app. -->
@@ -734,6 +743,7 @@
         <div class="auth-reset" id="authResetInfo" style="display:none">
           <span data-i18n="auth.reset1">Mở file</span> <code>server/settings.json</code><span data-i18n="auth.reset2">, xóa khối</span> <code>"auth"</code> <span data-i18n="auth.reset3">(hoặc đặt rỗng), rồi chạy</span>
           <code>stop-javis.bat</code> → <code>start-javis.vbs</code>. <span data-i18n="auth.reset4">Mở lại sẽ về bộ cài đặt để tạo tài khoản mới.</span>
+          <div class="auth-reset-srv" data-i18n="auth.reset_server">Chạy trên máy chủ (Docker, Hostinger): đổi JAVIS_ADMIN_PASSWORD trong Environment rồi Redeploy. Javis đặt lại mật khẩu theo giá trị mới, 2FA giữ nguyên.</div>
         </div>
       </div>
     </div>
@@ -830,17 +840,17 @@
   <!-- theme.js phải nạp TRƯỚC mọi file khác: graph.js / app.js đăng ký
        hàm vẽ lại theo tông ngay lúc parse, nếu window.javisTheme chưa có thì chúng
        đăng ký hụt và các lớp canvas kẹt ở bảng màu tối. -->
-  <script src="/static/theme.js?v=2"></script>
+  <script src="/static/theme.js?v=4"></script>
   <!-- Voice V1: đạo diễn hội thoại (thuần) phải nạp TRƯỚC voice.js và app.js. -->
-  <script src="/static/voice-turn.js?v=2"></script>
+  <script src="/static/voice-turn.js?v=3"></script>
   <script src="/static/voice-turn-policy.js?v=1"></script>
   <script src="/static/voice-adaptive.js?v=1"></script>
-  <script src="/static/voice-adaptive-ui.js?v=1"></script>
-  <script src="/static/voice-attention.js?v=1"></script>
+  <script src="/static/voice-adaptive-ui.js?v=2"></script>
+  <script src="/static/voice-attention.js?v=2"></script>
   <script src="/static/voice-chunker.js?v=1"></script>
   <script src="/static/voice.js?v=27"></script>
   <script src="/static/graph.js?v=17"></script>
-  <script src="/static/chat-render.js?v=17"></script>
+  <script src="/static/chat-render.js?v=18"></script>
   <script src="/static/code-hl.js?v=1"></script>
   <script src="/static/dataview.js?v=2"></script>
   <script src="/static/chess-board-ui.js?v=1"></script>
@@ -851,10 +861,12 @@
   <!-- Bảng lệnh của trình soạn .md (nút thanh công cụ + phím tắt + menu "/"). PHẢI đứng
        trước console.js: _neBuildToolbar đọc window.JavisEditorCmds để vẽ nút. -->
   <script src="/static/editor-cmds.js?v=1"></script>
-  <script src="/static/file-editor.js?v=11"></script>
+  <!-- Đếm từ + ký tự cho trình sửa file (0.65.32). Thuần, console.js dùng qua window.JavisWordCount. -->
+  <script src="/static/word-count.js?v=1"></script>
+  <script src="/static/file-editor.js?v=13"></script>
   <script src="/static/chat-ask.js?v=2"></script>
   <script src="/static/limit-resume.js?v=1"></script>
-  <script src="/static/chat-slash.js?v=3"></script>
+  <script src="/static/chat-slash.js?v=4"></script>
   <!-- Lệnh "/" hệ thống (/status /model /compact /plan /goal ...): chạy lệnh mà chat-slash.js vừa nhận
        diện. Phải nạp TRƯỚC app.js (sendMessage gọi window.JavisLenh) và SAU chat-slash.js (đọc menu). -->
   <script src="/static/chat-lenh.js?v=1"></script>
@@ -864,31 +876,47 @@
        window.JavisSteps ngay khi khung tool_call đầu tiên về. -->
   <script src="/static/chat-steps.js?v=2"></script>
   <script src="/static/chat-viec.js?v=2"></script>
+  <script src="/static/chat-resonance.js?v=2"></script>
+  <script src="/static/resonance-agent.js?v=1"></script>
   <!-- Voice V1: khối ngữ cảnh giao diện + bộ nhận lệnh ui_action, nạp TRƯỚC app.js. -->
+  <!-- Kéo đổi bề rộng cột ở trang đồ thị và trang Trò chuyện (0.148.0): nạp TRƯỚC app.js và console.js. -->
+  <script src="/static/col-resize.js?v=1"></script>
   <script src="/static/ui-context.js?v=1"></script>
   <script src="/static/ui-actions.js?v=1"></script>
   <!-- Voice V2: nghe nói thẳng (Live), app.js gọi lười khi bấm mic ở chế độ Live. -->
-  <script src="/static/voice-live.js?v=3"></script>
-  <script src="/static/app.js?v=119"></script>
+  <script src="/static/voice-live.js?v=6"></script>
+  <script src="/static/screen-awake.js?v=1"></script>
+  <script src="/static/call-bar.js?v=1"></script>
+  <script src="/static/app.js?v=132"></script>
   <!-- Sau app.js: dải việc nền đọc window.JavisSessions (app.js dựng) để biết phiên + brain. -->
   <script src="/static/background-strip.js?v=3"></script>
   <!-- Thân bảng chọn model dùng chung: phải đứng TRƯỚC model-picker.js (thanh chat) và
        studio.js (ô Model của trợ lý) vì cả hai gọi window.JavisModelList lúc vẽ. -->
   <script src="/static/model-list.js?v=3"></script>
-  <script src="/static/model-picker.js?v=10"></script>
+  <script src="/static/effort-slider.js?v=2"></script>
+  <script src="/static/model-picker.js?v=13"></script>
+  <script src="/static/composer-plus.js?v=3"></script>
+  <script src="/static/composer-folder.js?v=2"></script>
   <script src="/static/branding.js?v=7"></script>
-  <script src="/static/quick-settings.js?v=10"></script>
+  <script src="/static/quick-settings.js?v=11"></script>
   <script src="/static/chat-zoom.js?v=6"></script>
   <script src="/static/brains-ui.js?v=7"></script>
   <script src="/static/sessions-ui.js?v=20"></script>
   <script src="/static/studio.js?v=43"></script>
   <!-- Trang Cộng sự: nạp SAU studio.js (mượn trình sửa agent/workflow của Studio) và TRƯỚC
        console.js (renderWorkspace ủy quyền cho window.JavisWorkspace). -->
-  <script src="/static/workspace.js?v=16"></script>
+  <!-- Tab Công việc của trợ lý (0.142.0): nạp TRƯỚC workspace.js, workspace.js gọi window.JavisAgentJobs. -->
+  <script src="/static/agent-jobs.js?v=2"></script>
+  <script src="/static/workspace.js?v=19"></script>
   <script src="/static/packs.js?v=1"></script>
+  <!-- Hộp chọn thành viên kiểu Zalo (0.142.0): nạp TRƯỚC teams.js, teams.js gọi window.JavisTeamPicker. -->
+  <script src="/static/team-picker.js?v=1"></script>
+  <script src="/static/teams.js?v=1"></script>
   <script src="/static/chatbots-reply-policy.js?v=1"></script>
+  <script src="/static/chatbots-try.js?v=1"></script>
   <script src="/static/chatbots.js?v=17"></script>
   <!-- Trang Hội thoại (hộp thư khách): nạp TRƯỚC console.js để renderConversations uỷ quyền được. -->
+  <script src="/static/conversations-filters.js?v=1"></script>
   <script src="/static/conversations.js?v=6"></script>
   <!-- Dashboard Token (trang Mức dùng nâng cấp): nạp TRƯỚC console.js để renderUsage ủy quyền được. -->
   <script src="/static/usage.js?v=1"></script>
@@ -899,12 +927,12 @@
   <script src="/static/folder-picker.js?v=2"></script>
   <!-- Trang Coding (nhóm Code): mượn khung chat của app, nên nạp TRƯỚC console.js y như
        workspace.js để renderCoding uỷ quyền được. -->
-  <script src="/static/coding.js?v=7"></script>
+  <script src="/static/coding.js?v=9"></script>
   <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->
   <!-- Phần đọc cấu hình của form "Tự thêm MCP" (thuần, có test node). Nạp TRƯỚC console.js. -->
   <script src="/static/mcp-form-parse.js?v=1"></script>
-  <script src="/static/console.js?v=161"></script>
-  <script src="/static/mobile-chat.js?v=11"></script>
+  <script src="/static/console.js?v=169"></script>
+  <script src="/static/mobile-chat.js?v=13"></script>
   <script src="/static/brain-view.js?v=1"></script>
   <script src="/static/push.js?v=2"></script>
   <script src="/static/install-nudge.js?v=1"></script>

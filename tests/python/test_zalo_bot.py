@@ -216,10 +216,10 @@ check("file không tồn tại thì báo đúng lý do", not ok and "không tồ
 
 # 0.61.0: danh sách kênh gắn được bot đọc từ sổ đăng ký (server/channels), thứ tự là thứ tự sổ.
 # 0.64.80: Zalo cá nhân cũng gắn được bot (không token), nên ba kênh chứ không còn hai.
-check("kho biết đúng ba kênh gắn được bot",
-      set(chatbot_store.KENH) == {"telegram", "zalo", "zalo_personal"})
+check("kho biết đúng các kênh gắn được bot (0.71.0 thêm Slack, WhatsApp; 0.102.0 thêm Lark; 0.134.0 thêm Messenger)",
+      set(chatbot_store.KENH) == {"telegram", "zalo", "zalo_personal", "messenger", "slack", "whatsapp", "lark"})
 check("kênh lạ rơi về Telegram chứ không lưu nguyên",
-      chatbot_store._clean_kenh("messenger") == "telegram")
+      chatbot_store._clean_kenh("viber") == "telegram")
 check("kênh zalo được nhận", chatbot_store._clean_kenh("Zalo") == "zalo")
 check("channel KHÔNG nằm trong danh sách trắng sửa được",
       "channel" not in chatbot_store._PATCHABLE)
@@ -230,6 +230,8 @@ check("id cuộc chat Zalo (chuỗi hex) được nhận là id nhóm hợp lệ
       chatbot_store._clean_groups("6ede9afa66b88fe6d6a9") == ["6ede9afa66b88fe6d6a9"])
 check("id nhóm Telegram (số âm) vẫn nhận như cũ",
       chatbot_store._clean_groups("-1001234567890") == ["-1001234567890"])
+check("danh sách nhóm không bị cắt ở 50 (spa có hàng trăm nhóm khách)",
+      len(chatbot_store._clean_groups([str(1000 + i) for i in range(120)])) == 120)
 
 
 # ---- 9. Bộ giám sát biết chọn lớp vận chuyển theo kênh ----

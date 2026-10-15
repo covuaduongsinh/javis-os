@@ -108,7 +108,7 @@ CLAUDE_MD = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
 CONSOLE_JS = (ROOT / "dashboard" / "console.js").read_text(encoding="utf-8")
 INDEX = (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")
 MAIN_PY = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
-README = (ROOT / "README.md").read_text(encoding="utf-8")
+README = (ROOT / "docs" / "i18n" / "vi" / "README.md").read_text(encoding="utf-8")
 DOC10 = (ROOT / "docs" / "10-models-va-engine.md").read_text(encoding="utf-8")
 DOC01 = (ROOT / "docs" / "01-bat-dau-thiet-lap.md").read_text(encoding="utf-8")
 
@@ -138,7 +138,8 @@ _ui_set = set(re.findall(r'"([^"]+)"', _ui.group(1))) if _ui else set()
 # Đọc danh sách THẬT ở server thay vì chép lại tay lần thứ ba. Bản trước ghim cứng đúng năm
 # tên, nên thêm một provider là test đỏ dù mọi thứ đều đúng - hàng rào quay ra chặn việc sửa.
 # Bất biến cần canh không phải "có đúng năm cái", mà là "UI khớp server".
-_srv = re.search(r'if prov in \(([^)]*)\):\n\s+try:\n\s+if _hub_enabled\(\)', MAIN_PY)
+# Từ 0.92.2 danh sách nằm ở hằng `_API_TOOL_PROVIDERS` (bản đó vá chỗ thiếu `ollama-local` ở cả server lẫn UI).
+_srv = re.search(r'_API_TOOL_PROVIDERS = \(([^)]*)\)', MAIN_PY)
 check("đọc được danh sách provider có MCP ở server", _srv is not None)
 _srv_set = set(re.findall(r'"([^"]+)"', _srv.group(1))) if _srv else set()
 check(f"server cấp MCP cho mọi provider API (đang có: {sorted(_srv_set)})",

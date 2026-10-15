@@ -63,6 +63,11 @@ uv>=0.5
 # connector google-keep khỏi bắt user mở terminal chạy lệnh. Kéo theo pycryptodomex/requests/
 # urllib3; đã kiểm bằng `pip install --dry-run`: KHÔNG đụng tới pin fastapi/starlette ở trên.
 gpsoauth>=1.0
+# tzdata: bảng múi giờ IANA cho `zoneinfo` (server/localefmt.py). Linux đầy đủ đọc /usr/share/zoneinfo,
+# nhưng Windows KHÔNG có bảng đó và image Docker gọn cũng có thể thiếu: khi đó mọi múi giờ khác Việt
+# Nam lặng lẽ rơi về UTC+7 (localefmt cố ý không ném lỗi ở đường nóng). Thuần dữ liệu, không biên
+# dịch, không dependency. Để SÀN chứ không ghim: luật giờ các nước đổi vài lần mỗi năm.
+tzdata>=2026.1
 
 # yt-dlp: quân dự bị cho việc đọc phụ đề YouTube (server/youtube_read.py). Sáu client
 # InnerTube tự viết lo phần lớn ca; khi YouTube siết và chặn sạch chúng thì nhánh này gánh,
@@ -74,3 +79,8 @@ gpsoauth>=1.0
 # `tv_embedded` - cái tên đã bị xoá. Cài bản cũ thì quân dự bị coi như không có. Máy nào cập
 # nhật Javis từ trước 0.41.1 nên chạy thẳng: pip install -U yt-dlp
 yt-dlp>=2026.8.19
+
+# pypdf: bóc chữ PDF cho tool javis_read_file (server/doc_text.py, 0.92.2), để engine API và Ollama máy nhà đọc được PDF
+# đính kèm thay vì một đống mã nhị phân. Thuần Python, giấy phép BSD, không kéo dependency nào. Thiếu nó app VẪN chạy: đọc PDF
+# trả một câu báo thiếu thư viện thay cho chữ.
+pypdf==6.18.1

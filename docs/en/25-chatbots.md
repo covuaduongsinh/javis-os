@@ -6,9 +6,9 @@ Put an **Agent** you created in front of other people: they message a dedicated 
 
 It suits anything you answer over and over for other people: questions about a product or a service, explaining internal rules to colleagues, fielding students' questions, guiding members of a community, filtering questions before they reach you.
 
-It differs from [the Telegram channel](11-telegram.md) in one decisive way: the Telegram bot on the **Channels** page is **your own Javis** (full power, reading the main brain, able to call every data source, and only you can message it). The bot on the **Chatbot** page is **an Agent on duty** (read-only by default, seeing only its own brain, and strangers can message it). Do not use one in place of the other.
+It differs from [the Telegram channel](11-telegram.md) in one decisive way: the Telegram bot on the **Admin channels** page is **your own Javis** (full power, reading the main brain, able to call every data source, and only you can message it). The bot on the **Chatbot** page is **an Agent on duty** (read-only by default, seeing only its own brain, and strangers can message it). Do not use one in place of the other.
 
-A dedicated bot **can do real work** if you raise its permission level: writing files, calling data sources, even acting outside. But whoever drives it is the person messaging it, not you, so read [The three permission levels](#the-three-permission-levels-what-the-bot-may-do) carefully before raising it.
+A dedicated bot **can do real work** if you raise its permission level: writing files, calling data sources, even acting outside. But whoever drives it is the person messaging it, not you, so read [The four permission levels](#the-four-permission-levels-what-the-bot-may-do) carefully before raising it.
 
 ## What this feature is
 
@@ -17,7 +17,7 @@ A dedicated bot **can do real work** if you raise its permission level: writing 
 - The Chatbot page **belongs to the open brain**: switching brains at the top of the page shows that brain's bots, just like the Agents and Skills pages.
 - People message the bot directly, or you drop the bot into a group.
 - **The bot follows your Agent file exactly.** Javis inserts no rules of its own.
-- **Three permission levels**, chosen at creation and changeable later: Read only (the default), Can write, Full power. Raising the level requires ticking a consent box after reading the risks.
+- **Four permission levels**, chosen at creation and changeable later: Read only (the default), Reads documents, Can write, Full power. The first two write nothing and call no source; the last two require ticking a consent box after reading the risks.
 - Two rails **do not change with the level**, and they are locked in code rather than in wording: **the bot only sees its own brain**, and **it cannot run machine commands**.
 - Questions beyond its knowledge are handed to the human on duty you nominate.
 - The Chatbot page is built for **many bots** from the start: a card grid, a search field, add/edit/delete, and enable/disable in place. Running one bot or ten uses the same interface.
@@ -25,7 +25,7 @@ A dedicated bot **can do real work** if you raise its permission level: writing 
 
 ## Where to open it in Javis
 
-The left navigation rail, the **Capabilities** group, the **Conversations** item, **Chatbots** tab (since 0.61.0 Chatbots, Channels and the Inbox share one page). Saying "open chatbots" lands on this tab.
+The left navigation rail, the **Capabilities** group, the **Conversations** item, **Bots** tab. The page has two tabs, **Bot inbox** and **Bots** (since 0.65.9; before that there were three, Inbox, Channels and Create chatbot, and people had to jump between "add a channel" and "create a bot"). Saying "open chatbots" lands on the Bots tab.
 
 ## Preparing before creating a bot
 
@@ -51,7 +51,7 @@ The bot **reads the Agent at run time** rather than copying it. Editing the Agen
 
 ### 3. A channel account: a dedicated token, taken from the right place for the channel
 
-Since 0.61.0 a token is a **channel account** on the **Channels** tab, and a bot only **points** to it. Add the account on the Channels tab first and tick it when creating the bot, or paste the token right inside the bot form; both lead to the same result. One bot can serve **several** accounts (one role answering on Telegram and Zalo Bot alike), while each account has **one** bot on duty.
+Since 0.61.0 a token is a **channel account**, and a bot only **points** to it. Add the channel with **Add a channel** in the **Channels without a bot** section right under the bot list and tick it when creating the bot, or press **Connect a new channel** inside the New bot form (the new channel is ticked for you); both lead to the same result. One bot can serve **several** accounts (one role answering on Telegram and Zalo Bot alike), while each account has **one** bot on duty.
 
 If the bot runs on **Telegram**: go to **@BotFather**, type `/newbot`, set a name and username, and take the token string shaped `123456789:ABCdef...`.
 
@@ -99,11 +99,11 @@ Click **New bot** and fill in:
 
 | Field | What to enter |
 |---|---|
-| Which channel accounts this bot serves | Tick one or more accounts from the Channels tab (only accounts with no bot on duty are listed). None yet: open **Add a new account with a token**, pick the channel type, paste the token, Check. See [Choosing Telegram or Zalo](#choosing-telegram-or-zalo) |
+| Which channel accounts this bot serves | Tick one or more channels (only channels with no bot on duty can be ticked; channels another bot serves are greyed out with a lock and that bot's name). None yet: open **Add a new account with a token**, pick the channel type, paste the token, Check. See [Choosing Telegram or Zalo](#choosing-telegram-or-zalo) |
 | Bot name | The name you use to tell your bots apart |
 | The Agent as its brain | Pick an Agent in the open brain, or click **Create Agent** |
 | What the bot answers from | See the two modes below |
-| What the bot may do | The permission level. Leave it at **Read only** the first time; read [The three permission levels](#the-three-permission-levels-what-the-bot-may-do) before raising it |
+| What the bot may do | The permission level. Leave it at **Read only** the first time; read [The four permission levels](#the-four-permission-levels-what-the-bot-may-do) before raising it |
 | The on-duty Chat ID | The Telegram number of the person receiving handovers (see below) |
 | Allowed groups | Shown only when an account is on a channel that supports groups (Telegram). Leaving it empty is fine, drop the bot into a group then allow it with one click later (see Step 4) |
 | When the bot speaks in a group | Same condition. By default only when named or replied to |
@@ -151,6 +151,19 @@ For a group you do not want, click **Skip** and it leaves the waiting list. If s
 In an allowed group, by default the bot only answers when someone **names it** (typing `@bot_name`, or picking its name from the member list) or **replies to one of its messages**. In a group with several bots it can tell them apart: naming another bot or replying to another bot does not make it answer.
 
 To make it answer **every message in the group**, change the "When the bot speaks in a group" field. Weigh it carefully: in a busy group it is very noisy and burns model quota fast. And it only works once privacy mode is off, so read the next section.
+
+### The reply judge reviews and tunes itself (from 0.77.0)
+
+In "Self-assess" mode a **reply judge** decides, message by message, whether a group bot speaks or stays silent, and learns from thumbs up/down and from how people react. From 0.77.0 a **self-review** also looks at the whole picture: once a bot has gathered enough new evidence (about 8 labels, or 40 silences) and a day has passed since the last review, Javis sends that bot's report to your **main brain** (the model chosen on the **Models** page, usually stronger than the cheap model that judges each message). It looks for repeated patterns and changes at most 3 things, or nothing when there is no clear pattern.
+
+- **What it can change:** lessons (it only ever removes its own, never yours), example messages, each group's threshold, the bot's overall eagerness, and whether messages that start by tagging someone else ("@Quy, when is class?") are considered at all. The bot still only speaks when its documents match and the judge agrees. Rate limits, yielding to you, permissions and what the bot says stay out of reach.
+- **Every change must cite this bot's own messages as evidence**, so text a customer types cannot become an instruction.
+- **It measures itself:** if the bot is marked wrong noticeably more often after a review, that review is undone and you get a message. Issues only a code change can fix are written to `Javis/gop-y-bo-phan-xu.md` in the bot's brain.
+- **You hear about it** in one message to the inbox (the bell) and Telegram per review that changed something.
+
+**To step in, just tell Javis:** "show me Javis Vu's reply judge stats this week", "let Javis Vu answer for me when customers tag me about class times", "undo review a1b2c3 of Javis Vu". Javis reads the same report, proposes, and applies when you agree; every change is logged and can be undone. Customer-facing bots never see these tools, even at the "can write" or "full" levels.
+
+If your main brain runs on a Claude Pro/Max plan, note that the review is background work on that plan, which Anthropic does not count as ordinary personal use. It runs at most once a day per bot and only with evidence, but the safest setup is a ChatGPT or Grok plan or an API key for the main brain. Operators can turn the review off with the environment variable `JAVIS_REPLY_POLICY_REVIEW=0`.
 
 ### Telegram's privacy mode (read this if the bot is silent in a group)
 
@@ -218,6 +231,17 @@ Every time someone asks, Javis **looks up documents in the bot's brain first**, 
 
 That differs from "the bot has permission to read the brain". Permission to read does not mean it will read: the model can answer straight from its general knowledge, the sentence flows just as confidently, and **you cannot tell from the outside**. So Javis looks up first rather than leaving that decision to the model.
 
+### Google Docs and Google Sheets linked from the Agent (from 0.84.10)
+
+A price list or guide that lives on Google does not need copying into the brain. Attach the link to the Agent (the **Assistant documents** section when you open the Agent) or paste it into the Agent text, and the bot searches it just like a brain file:
+
+- Google Sheets are read **tab by tab**, every row carrying its column names, so "how much is the Stanley cutter" finds that exact row. A link to one specific tab (ending in `#gid=`) reads only that tab.
+- The file must be shared as **Anyone with the link, Viewer**, with downloading not turned off. An unshared file does not stop the bot from answering, it just answers without that file, and the bot card shows a warning naming the link to share.
+- Edits on Google reach the bot within a few minutes. If Google is briefly unreachable, the bot keeps using the last copy it read.
+- Only links **you** put in the Agent are read. A link a customer pastes into a message is never opened. Two bots on one brain with different Agents never see each other's links.
+
+At the **Reads documents** level, the bot's three search tools still open only brain files. Google link content reaches the bot through the lookup done before each turn.
+
 ### Two modes, chosen when creating the bot
 
 The difference lies only in **what happens when no matching document is found**. When one is found, both modes behave identically.
@@ -239,26 +263,49 @@ The one exception is the "documents only" mode above, and that is a rule **you d
 
 So **the Agent file decides the bot's quality almost entirely**. Write it like briefing a new hire: how to speak, how far the scope goes, what must not be promised, and in which cases to hand over to a human. When the bot behaves wrongly, fix the Agent rather than hunting for another button.
 
-### Two rails Javis locks at EVERY level
+### Two rails Javis locks at the first three levels
 
-The two points below hold even when you give the bot full power. They live in the source code rather than in wording, so no clever phrasing gets around them:
+The two points below hold at Read only, Reads documents and Can write. They do not hold at **Full power** (since 0.85.3 it runs exactly like the admin channel, see the Full power level below). They live in the source code rather than in wording, so no clever phrasing gets around them:
 
 - The bot **cannot see another brain**, your main brain included. Every file read and write is clamped inside the bot's own brain folder; climbing out with `../` or an absolute path is refused outright.
 - The bot **cannot run machine commands**, cannot open an unfamiliar web page to read, cannot spawn child agents. The bot also has **no admin commands**: `/brain`, `/model`, `/status` do nothing.
 
-How Javis guarantees it: **the bot never touches the engine's native tools.** At the Read only level it has no tools at all; at the two higher levels every tool goes through Javis's connection hub, where file paths are clamped and the permission level is applied right at the call site. The bot does not open a CLI, so Claude Code's `Bash` and absolute-path `Read` are simply not present here.
+How Javis guarantees it: **the bot never touches the engine's native tools.** At the Read only level it has no tools at all; at Reads documents it has only the three document-reading tools; at Can write every tool goes through Javis's connection hub, where file paths are clamped and the permission level is applied right at the call site. The bot does not open a CLI, so Claude Code's `Bash` and absolute-path `Read` are simply not present here.
 
 Documents are still looked up by Python before the model runs and placed into the prompt, at every level. The bot reads its own brain without needing any tool.
 
-## The three permission levels: what the bot may do
+## The four permission levels: what the bot may do
 
 Chosen in the **What the bot may do** field when creating or editing a bot. The default is **Read only**.
 
 | Level | What the bot can do | Suits |
 |---|---|---|
 | **Read only** (default) | Only read documents and answer. No tools. | Duty and Q&A, which is nearly everything |
+| **Reads documents** | Like Read only, plus three read-only tools to **search and open** documents in its own brain. No writing, no data sources | Bots that stay silent because customers use different words than the documents |
 | **Can write** | Adds: writing files in its own brain, calling attached data sources at read/write level | Recording requests, updating notes, looking up real figures |
-| **Full power** | Adds: sending, paying, booking and cancelling, deleting, publishing outward | Places where you control the list of people who can message it |
+| **Full power** | **Exactly like the admin channel**: machine commands, every file, every connection of yours (including Gmail, Drive, calendar through your Claude/ChatGPT account), skills, background work, every outside action | A bot only you or people you fully trust can message |
+
+### The Reads documents level (from 0.80.0)
+
+At Read only, Javis searches the documents **by keyword** before each turn and hands the bot the few best chunks. That keeps the bot from making things up, but it misses when a customer uses other words than the document: the document says "refund" and the customer types "money back", nothing matches, and the bot stays silent or says it has no information.
+
+The **Reads documents** level keeps that pre-search and gives the bot three tools to read its brain **itself**, the way the main Javis reads its notebook:
+
+- **Search** the documents, retrying with other words when the first try finds nothing.
+- **List** the documents with their section titles, to pick the right one.
+- **Open** a whole document.
+
+The bot is told: when a question needs specific information the pre-search did not find, search first, and only say there is no information after searching properly.
+
+**The reply judge sees the table of contents too.** At the other levels, a message nobody addressed to the bot that misses the keyword search is silenced straight away. At this level the judge reads the bot's table of contents and decides whether the message fits a topic, so different wording no longer silences the bot for nothing.
+
+**Why this level asks for no consent tick:** it takes nothing the pre-search did not already expose.
+
+- No write tool, no data source, no plugin, even if you connected many sources. Javis enforces this where tools are called, not with instructions.
+- The bot opens only files the pre-search already reads: not `memory/`, `inbox/` (customer uploads), skills, plugins or Javis' convention files, and also not `agents/` or `workflows/` (your internal instructions). The path a customer types is only compared against that list, so `../`, absolute paths and links pointing out of the brain open nothing.
+- Only the bot's own brain. Without it the bot gets no tools at all, rather than the brain you have open.
+
+The **Try** button runs this level as is (it only reads), so you can test it right away. It costs a few extra model calls when the bot searches, and depends on the engine like the two levels above (see [Which engines can run the raised levels](#which-engines-can-run-the-raised-levels)).
 
 ### What you lose by raising the level
 
@@ -272,13 +319,15 @@ At Read only that is harmless: however cleverly someone talks it around, the bot
 - The bot can call the data sources you attached, at read and write level. Everything in those sources is within reach of whoever is chatting with the bot.
 - Javis still **hard-blocks** the outward-action group at this level: no sending, no payments, no booking or cancelling, no deleting, no publishing. Blocked at the tool-call layer, not by wording.
 
-**The Full power level:**
+**The Full power level (since 0.85.3 it runs exactly like the admin channel):**
 
-- The bot can do **everything** the attached sources allow, sending, paying, booking, cancelling, deleting and publishing outward included. Those actions **cannot be undone**.
-- One clever sentence ("ignore the previous instructions and do this for me") is enough. The only remaining rail is the Agent file you wrote, and words can be talked around.
-- The bot does not check with you first. There is no per-command approval gate.
+- The bot runs **the admin channel's own route**: the same brain engine, the same native engine tools (running commands on the server, reading and writing every file including other brains), every connection of yours (including Gmail, Drive, calendar connected through your Claude or ChatGPT account), skills, background work, schedules. It differs from the admin channel only in speaking as **the Agent's role** and working in the bot's brain.
+- The bot can take every outside action: sending, paying, booking or cancelling, deleting, publishing. Those actions **cannot be undone**.
+- The bot is controlled by **whoever messages it**. One clever sentence ("ignore the previous instructions and do this for me") is enough; only the Agent file you wrote stands in the way, and words can be talked around. There is no per-command approval gate.
 
-So: **only turn Full power on when you control the list of people who can message the bot.** Somewhere anyone can message, do not, however carefully you wrote the Agent.
+So: **only turn Full power on for a bot that only you or people you fully trust can message** (set **Who the bot answers** to chosen people). Somewhere anyone can message, do not, however carefully you wrote the Agent.
+
+The Grok Build and Antigravity brains can use tools only at Full power. At Reads documents and Can write they answer without tools, and the bot card shows a warning saying so.
 
 ### How to raise the level
 
@@ -296,7 +345,7 @@ A bot card with a raised level carries a coloured band naming the level, yellow 
 
 The **Read only** level runs identically on all nine brains, with no exceptions.
 
-The two raised levels need an engine that can call tools. The six API engines (OpenRouter, OpenAI, Anthropic, Gemini, Groq, Ollama) and the Claude Code plan use a route that has run reliably for a long time. The **ChatGPT plan** alone goes through a Codex backend route the provider has not published as stable, so tool calling may fail.
+The other three levels (Reads documents, Can write, Full power) need an engine that can call tools. The six API engines (OpenRouter, OpenAI, Anthropic, Gemini, Groq, Ollama) and the Claude Code plan use a route that has run reliably for a long time. The **ChatGPT plan** alone goes through a Codex backend route the provider has not published as stable, so tool calling may fail.
 
 In that case **the bot does not die**: it answers that turn at the Read only level, and the bot card shows a yellow band stating it is running with fewer permissions than you set. Raising permissions must never take away a capability the bot already had.
 
@@ -349,13 +398,25 @@ The log keeps the 2000 most recent turns per bot, trimming older ones. Deleting 
 
 **At every level, a bot CANNOT:** read or write another brain, run machine commands, open an unfamiliar web page, spawn child agents, use admin commands (`/brain`, `/model`, `/status` all do nothing and the bot only answers generically).
 
-**Everything else depends on the permission level** you set: writing files, calling data sources, acting outside. See the table in [The three permission levels](#the-three-permission-levels-what-the-bot-may-do). The default is Read only, meaning none of those.
+**Everything else depends on the permission level** you set: writing files, calling data sources, acting outside. See the table in [The four permission levels](#the-four-permission-levels-what-the-bot-may-do). The default is Read only, meaning none of those.
 
 The bot's Telegram command menu has only three items (`/help`, `/nhanvien`, `/id`), not the main Javis bot's admin menu. Listing commands the bot refuses to run there would only teach people to go looking for a different command set.
 
 And **how it speaks, what scope it accepts, what it refuses** are decided by your Agent file, not by Javis. To make the bot avoid a topic, not make promises on your behalf, or not change role when talked around, write those things into the Agent.
 
 The right way to understand the limits above: they live in the **permission level in the source code**, not in wording inside the prompt. Wording can be talked around by clever phrasing; a permission level cannot, because the tool is simply not granted for that run. The flip side of the same truth: when you **do** grant tools for that run, the wording in the Agent cannot hold it back either.
+
+## The bot sends images (since 0.84.3)
+
+A bot can send images on Telegram, personal Zalo, Slack, WhatsApp and Lark, at **every permission level**. To use it, tell the Agent file when to send which image, for example "when a customer asks about shirts, send `![Shirt](attachments/shirt.jpg)`". The Agent puts that image syntax in its reply; Javis removes it from the text and sends the real image right after the text message. In a Zalo group the text still tags the person who asked.
+
+Javis only sends an image when all of these hold:
+
+- It is **inside the bot's own brain** (paths count from that brain's root). Images in another brain or elsewhere on the machine are refused.
+- It really is an image (`.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`), exists, and is at most 10 MB. Documents such as PDFs or `.md` notes are not sent.
+- At most 4 images per reply.
+
+An image that fails these checks stays in the text as written, so you can see in the inbox what the bot tried to send. Javis does **not** attach files the bot just created on its own: a stranger is steering the bot, so only images the Agent names on purpose go out.
 
 ## The bot speaks like a person, exposing no machine state
 
@@ -372,13 +433,19 @@ Instead, while the bot thinks, Telegram shows the **"typing…"** dots at the to
 
 **Messaging again while the bot is answering is not blocked.** The bot gathers those messages and, having finished the previous answer, answers them together, exactly like a person reading the rest of the messages before replying. It gathers at most 5 messages per conversation so a stranger cannot spam its memory into bloat.
 
+**On a personal Zalo account the bot waits until the customer has finished typing** (since 0.128.0). In a private chat, messages that arrive in a row ("Hello", "can I ask", "is there a seat left in grade 9?") are gathered and answered once, in order, after the customer has been quiet for **5 seconds**. A photo followed by "can you check this" becomes one question with the photo, and so does a file (since 0.133.0): a bot with Can write or higher saves it to `inbox/khach` in its brain (up to 20 MB, text files read directly), while a read-only bot does not download it but still knows a file was sent. If you type into that chat yourself while it waits, or turn the bot off, nothing is sent. To keep the wait short, an account that just had a private customer message is read every 2 seconds instead of 20 for one minute; this only reads the buffer on the machine running Javis and makes no extra calls to Zalo. Groups are unchanged: each message is still judged on its own.
+
+**If you typed into a chat yourself but have not answered the customer within 10 minutes, the bot answers** (since 0.136.0, private chats only). The bot still steps aside for 10 minutes after you type into a chat, but customer messages that arrive meanwhile are no longer dropped. Javis holds them; if you answer (on the phone or from the Inbox) they are dropped. Once the customer's first message has waited 10 minutes and you are still silent, the bot answers them all once. It is told that the customer has been waiting and what they attached (file names, photos), so a message with only a file or a photo also gets a fitting reply, such as confirming it arrived. The bot cannot open the file itself. Before 0.136.0 these messages were never answered, because after 10 minutes they were older than the 3-minute limit. Groups are not affected: answering a ten-minute-old message in a group reads as out of place. If Javis restarts meanwhile, held messages are forgotten: at worst one message goes unanswered, never answered twice.
+
 One place still deliberately speaks plainly: when someone calls the bot in **a group you have not allowed**, the bot says one sentence once, stating it is not enabled for this group. Staying entirely silent there would make the bot look broken with no way for you to know to click **Allow**.
 
 ## Rate limiting
 
-Each person is limited to a number of questions per hour (20 by default, editable when editing the bot). Over that, the bot politely asks to answer later.
+Since 0.85.4 there is **no limit on how many times the bot answers each person**. Anyone who messages the bot directly or calls it by name gets an answer, however many times. (Before, each person got at most 20 answers per hour, after which the bot asked to answer later.)
 
-This is necessary because one bored person in a group can burn your whole model quota in an afternoon, and you only find out from the bill.
+Since 0.85.5 there is also **no limit on the bot speaking up on its own** in a group nobody called it in (auto mode). How often it does is decided by the reply judge and the model, following the Agent's role and the documents; you tune it by marking decisions Right/Wrong in the reply judge.
+
+No limit means one person messaging non-stop, or a busy group asking a lot, keeps spending your model usage. If something looks off, click **Take over** for that chat on the Conversations page, narrow **Who the bot answers**, or switch that group back to answering only when called by name.
 
 ## Deleting a bot
 
@@ -400,7 +467,7 @@ Click **Delete** on the card. The bot stops answering immediately.
 
 **Can two bots share one Agent?** Yes, and sometimes it makes sense: the same role but two different brains for two different audiences. The reverse, two bots sharing one token, is not allowed and Javis blocks it.
 
-**What happens when people send the bot images?** Uploaded files land in `inbox/khach/` in that bot's brain, kept apart from your files, and do not count as documents for answering.
+**What happens when people send the bot images?** Uploaded files land in `inbox/khach/` in that bot's brain, kept apart from your files, and do not count as documents for answering. Since 0.81.0 the photo is also sent straight into the chat turn, so the bot's own model looks at it (Claude, GPT, Gemini, OpenRouter, Groq, Ollama, the ChatGPT plan, the Claude Code plan); ChatGPT is no longer needed. A brain that cannot see images (Antigravity, Grok Build, text-only models) makes the bot say plainly that it cannot see the photo. In a Telegram group: tag the bot in the caption, reply to the photo while tagging the bot, or send the photo and tag the bot right after (within 3 minutes, same person; needs privacy mode off).
 
 **The bot answered one question wrongly, where do I review it?** Click Log, the Recent conversations tab. The source line under each turn says which file it took the answer from, so you can fix exactly the right place.
 

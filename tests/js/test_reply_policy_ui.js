@@ -29,8 +29,8 @@ const ctx = { window: win, document: { createElement: () => ({ set innerHTML(x) 
 vm.createContext(ctx);
 vm.runInContext(MOD, ctx);
 const RP = win.JavisReplyPolicy;
-check("module chỉ phơi ra ba hàm: formHtml, summary, openPanel",
-  RP && JSON.stringify(Object.keys(RP).sort()) === JSON.stringify(["formHtml", "openPanel", "summary"]), RP && Object.keys(RP).join(","));
+check("module chỉ phơi ra bốn hàm: formHtml, summary, openPanel, codeLabel (nhãn mã im cho Hộp thư)",
+  RP && JSON.stringify(Object.keys(RP).sort()) === JSON.stringify(["codeLabel", "formHtml", "openPanel", "summary"]), RP && Object.keys(RP).join(","));
 
 // ---- 1. hàm thuần ----
 const html = RP.formHtml();
@@ -56,6 +56,27 @@ check("panel không còn gọi route soạn hồ sơ bằng tay", MOD.indexOf("d
 check("nhấn 'Là chủ' lưu qua /update với reply_policy JSON", /\/update"[\s\S]{0,120}reply_policy: JSON\.stringify\(\{ trainer_ids: ids \}\)/.test(MOD));
 check("nút Đúng/Sai hiện cho mọi quyết định ứng viên (tự học luôn bật)", /x\.candidate \? ' <button/.test(MOD) && MOD.indexOf("learning_enabled") < 0);
 check("panel có dòng hướng dẫn thay cho các ô đã bỏ", MOD.indexOf('tt("rp.panel_h")') >= 0);
+
+// ---- 2b. nút Là chủ dễ hiểu hơn (0.65.14): tên rõ nghĩa, nhãn Chủ, bỏ được, Đúng/Sai có chú thích ----
+check("nút đổi tên thành 'Đặt làm chủ bot' (không còn 'Là chủ' khó hiểu), có chú thích khi rê chuột",
+  VI["rp.is_owner"] === "Đặt làm chủ bot" && /Make bot owner/.test(EN["rp.is_owner"])
+  && /class="cb-rp-lnk rp-owner"[^;]*title="' \+ esc\(tt\("rp\.is_owner_tip"\)\)/.test(MOD));
+check("người đã là chủ hiện nhãn 'Chủ' ở tin của họ, và không còn nút đặt chủ ở tin đó",
+  /chuBot\(\)\.indexOf\(x\.sender_id\) >= 0 \? ' ' \+ chip\("ok", tt\("rp\.owner_badge"\)\)/.test(MOD)
+  && /chuBot\(\)\.indexOf\(x\.sender_id\) < 0\s*\? ' <button type="button" class="cb-rp-lnk rp-owner"/.test(MOD));
+check("có khối 'Chủ bot' đầu panel: liệt kê người đã đặt kèm nút 'Bỏ chủ', và nói rõ khi chưa có ai thì bot chưa nghe lời dạy của ai",
+  /khoiChu\(\)/.test(MOD) && /rp-unowner/.test(MOD) && VI["rp.owner_remove"] === "Bỏ chủ" && /chưa nghe lời dạy của ai/.test(VI["rp.owner_none"]));
+check("bỏ chủ lọc đúng người đó ra khỏi danh sách rồi lưu qua CÙNG một hàm lưu (chỉ một chỗ gọi /update)",
+  /luuChu\(chuBot\(\)\.filter\(function \(x\) \{ return x !== sid; \}\)\)/.test(MOD)
+  && /luuChu\(chuBot\(\)\.concat\(\[b\.dataset\.sid\]\)\)/.test(MOD) && (MOD.match(/\/update"/g) || []).length === 1);
+check("chủ chưa có tên trong tin gần đây vẫn hiện (để bỏ được), không lộ id thô",
+  /return tt\("rp\.owner_unknown"\)/.test(MOD) && !/chip\("ok", sid\)/.test(MOD));
+const thumbKeys = ["rp.thumb_up_reply", "rp.thumb_down_reply", "rp.thumb_up_silent", "rp.thumb_down_silent"];
+check("Đúng/Sai có chú thích theo từng dòng (bot nói hay bot im), và có một dòng giải thích chung trên danh sách",
+  /noi \? "rp\.thumb_up_reply" : "rp\.thumb_up_silent"/.test(MOD) && /noi \? "rp\.thumb_down_reply" : "rp\.thumb_down_silent"/.test(MOD)
+  && thumbKeys.every((k) => VI[k] && EN[k]) && new Set(thumbKeys.map((k) => VI[k])).size === 4 && MOD.indexOf('tt("rp.thumb_hint")') >= 0);
+check("nghĩa Sai khớp với nhãn máy ghi (im mà Sai là Im nhầm, nói mà Sai là Chen nhầm)",
+  /phải im/.test(VI["rp.thumb_down_reply"]) && /phải nói/.test(VI["rp.thumb_down_silent"]));
 
 // ---- 3. từ điển ----
 const keys = new Set([...MOD.matchAll(/"(rp\.[a-z_]+)"/g)].map((m) => m[1]));

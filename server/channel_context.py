@@ -24,6 +24,34 @@ MAX_FILE_MB = 50          # trần sendDocument của Telegram bot
 _EXCLUDE_PARTS = {".git", "__pycache__", "node_modules", ".obsidian", ".trash", ".tmp"}
 
 
+# Chat apps that share one block (see the branch in `build_channel_block`):
+# source -> (name, what a group chat is called there, lines only that app needs).
+_CHAT_APPS = {
+    "slack": ("Slack", "kênh Slack", (
+        "- Trong kênh Slack, câu trả lời đi vào THREAD của tin vừa gọi bạn, nên không cần "
+        "nhắc lại câu hỏi.",
+        "- Lệnh bot trên Slack gõ bằng dấu chấm than (`!stop`, `!new`) vì Slack giữ dấu `/` "
+        "cho lệnh của chính nó.")),
+    "whatsapp": ("WhatsApp", "nhóm WhatsApp", (
+        "- TRẦN khoảng 4000 ký tự một tin. Viết gọn ngay từ đầu, đừng để gateway cắt hộ.",
+        "- WhatsApp chỉ cho Javis nhắn trước trong vòng 24 GIỜ kể từ tin cuối người này "
+        "gửi. Việc nền chạy lâu hơn thế thì kết quả có thể không tới được: nói rõ điều này "
+        "khi giao việc dài hạn qua WhatsApp.")),
+    "discord": ("Discord", "kênh Discord", (
+        "- TRẦN 2000 ký tự một tin Discord. Viết gọn ngay từ đầu; dài hơn thì gateway cắt "
+        "thành nhiều tin.",
+        "- Trong kênh của server, bạn chỉ được gọi khi có người @nhắc bot hoặc trả lời tin "
+        "của bot, nên câu trả lời đi thẳng vào việc.",
+        "- Lệnh bot gõ bằng dấu chấm than (`!stop`, `!new`) vì Discord giữ dấu `/` cho lệnh "
+        "đăng ký sẵn của nó.")),
+    "lark": ("Lark/Feishu", "nhóm Lark", (
+        "- Trong nhóm, bạn chỉ được gọi khi có người @nhắc bot, nên câu trả lời đi thẳng vào "
+        "việc.",
+        "- Lark hiện markdown cơ bản (đậm, nghiêng, link, gạch đầu dòng, khối mã) nhưng KHÔNG "
+        "có bảng.")),
+}
+
+
 def build_channel_block(source: str, meta: dict = None, telegram_running: bool = False,
                         port: int = 7777, brain_root: str = None) -> str:
     """Block 'KÊNH HỘI THOẠI HIỆN TẠI' để nối vào cuối system prompt.
@@ -47,6 +75,14 @@ def build_channel_block(source: str, meta: dict = None, telegram_running: bool =
         platforms.append("Telegram bot")
     if source == "zalo":
         platforms.append("Zalo bot")
+    if source == "slack":
+        platforms.append("Slack bot")
+    if source == "whatsapp":
+        platforms.append("WhatsApp")
+    if source == "discord":
+        platforms.append("Discord bot")
+    if source == "lark":
+        platforms.append("Lark/Feishu bot")
 
     lines = [
         "", "",
@@ -224,6 +260,38 @@ def build_channel_block(source: str, meta: dict = None, telegram_running: bool =
             f"http://127.0.0.1:{port}/kanban/task. Giữ NGUYÊN cả tiền tố `zalo:` - đó chính là "
             "thứ server đọc để biết gửi về Zalo chứ không phải Telegram.",
             "- Bỏ trống thì kết quả rơi về chủ bot Telegram, tức là người đang hỏi không thấy gì.",
+        ]
+    elif source in _CHAT_APPS:
+        # Slack and WhatsApp (0.71.0), Discord and Lark/Feishu (0.85.0). One branch because the
+        # rules that matter are the same (short chat replies, no Markdown tables, keep the prefix
+        # so results come back here); the lines that differ come from `_CHAT_APPS`. The prompt
+        # stays in Vietnamese like every other block the model reads.
+        ten, nhom, dong_rieng = _CHAT_APPS[source]
+        who = (meta.get("user_name") or "").strip() or "user"
+        conv = (f"{nhom}, tin nhắn từ {who}" if meta.get("chat_type") == "group"
+                else f"chat riêng với {who}")
+        chat_id = meta.get("chat_id") or "?"
+        tien_to = source + ":"
+        lines += [
+            f"- Nguồn tin nhắn này: {ten} ({conv}, chat_id {chat_id}).",
+            f"- Nền tảng đang kết nối: {', '.join(platforms)}.",
+            f"- Đang chat qua {ten}: trả lời NGẮN gọn kiểu tin nhắn. {ten} KHÔNG hiển thị bảng "
+            "markdown - đừng dùng bảng. Đậm/nghiêng/`code`/khối mã thì gateway tự đổi sang "
+            "định dạng của nền tảng.",
+            "- Liệt kê từ 3 ý trở lên thì gạch đầu dòng `- `, in đậm con số và kết luận.",
+            *dong_rieng,
+            "",
+            f"## Gửi file qua {ten}",
+            "- Javis tự đính kèm ảnh và tài liệu khi bạn nhúng `![](attachments/...)` hoặc link "
+            "file trong brain như thường lệ. Không nói \"đã gửi\" khi chưa nhúng gì.",
+            "- File user gửi lên đã được gateway tải về máy sẵn - đường dẫn nằm ngay trong tin nhắn.",
+            "",
+            "## Đặt nhắc hẹn và giao việc nền",
+            "- Nhắc hẹn: gọi tool `javis_schedule` (op=create). Nó tự gắn đúng brain phiên này.",
+            f"- Kết quả loop và việc Kanban phải về ĐÚNG người đang hỏi: gắn `owner_chat: "
+            f"\"{chat_id}\"` cho loop, hoặc field \"chat_id\":\"{chat_id}\" khi POST "
+            f"http://127.0.0.1:{port}/kanban/task. Giữ NGUYÊN cả tiền tố `{tien_to}` - đó là thứ "
+            f"server đọc để gửi về {ten}.",
         ]
     elif source == "cli":
         # Terminal. Khác web ở chỗ KHÔNG render được gì: không ảnh, không bảng, không link bấm

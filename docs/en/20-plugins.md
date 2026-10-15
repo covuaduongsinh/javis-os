@@ -39,7 +39,7 @@ Open the dashboard (default port 7777), look at the left navigation rail, click 
 Right under the heading are three introductory blocks:
 
 1. A description line: "Plugins add native **tools** (callable by engines) and **hooks** to Javis without touching the core, usable on EVERY engine (Claude Code, Codex, API) through the hub, respecting the 3 permission levels like any other tool."
-2. An orange warning box (shown only while it is still locked): "**⚠ Plugins you installed are blocked.** Global and brain plugins run real Python code in the server, so they are OFF by default. To turn them on: set the environment variable `JAVIS_ENABLE_USER_PLUGINS=true` and restart Javis. Bundled plugins keep working normally."
+2. An orange warning box (shown only when this machine turns user plugins off): "**⚠ Plugins you installed are turned off on this machine.** This machine sets the environment variable `JAVIS_ENABLE_USER_PLUGINS=false` so global and brain plugins do not run. Remove it (or set it to true) and restart Javis. Bundled plugins keep running normally."
 3. A grey signpost line: "Drop a GLOBAL plugin (used by EVERY brain) into `<the real path on your machine>` · each plugin is `plugin.yaml` + `plugin.py`. Or tell Javis in the chat box: 'create a plugin ...'."
 
 The path on the third line is the **real** path on the machine running Javis, so copy it from the screen rather than typing it from the documentation.
@@ -90,7 +90,7 @@ For **Global** and **This brain** plugins, Javis writes `enabled: true/false` st
 
 Enabling and disabling takes effect immediately with no restart: Javis refreshes the hub's cache so the tool appears or disappears on the next chat turn, and the brain's capability index `Javis/index.md` is rebuilt too.
 
-The one exception: if you enable a **Global/This brain** plugin while the environment variable is still locked, Javis shows a dialog saying it was enabled in the manifest BUT user-installed plugins only run once `JAVIS_ENABLE_USER_PLUGINS=true` is set and Javis is restarted (protection against running unknown code). The card then switches to **⚠ waiting for env**.
+The one exception: if you enable a **Global/This brain** plugin on a machine that sets `JAVIS_ENABLE_USER_PLUGINS=false`, Javis shows a dialog saying it was enabled in the manifest BUT this machine turns user-installed plugins off, and to remove that variable (or set it to true) and restart. The card then switches to **⚠ off by env**.
 
 ### Step 3: Check that the tool reached the engine
 
@@ -108,19 +108,18 @@ These ship with the app (the **Bundled** label). All are on by default except `t
 | Recurring jobs and reminders | `javis-schedule` | `javis_schedule` | write (safe) | On |
 | Queue Kanban work | `javis-task` | `javis_task` | write (safe) | On |
 | Attach another MCP | `javis-connect` | `javis_add_mcp` | write (safe) | On |
-| Create images (ChatGPT) | `image-chatgpt` | `javis_generate_image` | write (safe) | On |
+| Create and view images (ChatGPT) | `image-chatgpt` | `javis_generate_image`, `javis_describe_image` | write (safe); viewing: read only | On |
 | Read YouTube videos | `youtube-read` | `javis_youtube_read` | read only | On |
 | Meta Ads (Graph API) | `meta-ads-graph` | `meta_ads_accounts`, `meta_ads_insights`, `meta_ads_campaigns`, `meta_ads_get` | read only | On |
 | Facebook Pages (Graph API) | `meta-pages-graph` | `fb_pages_list`, `fb_page_posts`, `fb_page_comments`, `fb_page_post`, `fb_page_photo`, `fb_page_album`, `fb_page_video`, `fb_page_edit`, `fb_page_delete`, `fb_page_reply` | full power | On |
 | Facebook monitoring (Apify) | `fb-monitor-apify` | `fb_monitor` | read only | On |
-| Send images and files over Zalo | `zalo-image` | `zalo_send_image` | full power | On |
 | Tool usage log | `tool-audit` | `javis_tool_stats` + the `post_tool_call` hook | read only | **Off** |
 
 What each one does:
 
 - **Queue Kanban work**: queue a background job straight from chat (`op=add`) and see how running work is going (`op=list`). Added in 0.17.1. Before that the only route was `POST /kanban/task`, and calling it required running machine commands, so only Claude Code and Codex could do it even though the documentation promised every brain could. This tool calls the in-process queue directly and opens no extra HTTP door. Two hard rails: it **cannot create `full`-level jobs** (the level that spends money, creates orders, sends messages, which you must set yourself on the Work page), and it defaults to `suggest`. Moving columns, cancelling work and approving pending work still happen on the Work page.
 - **Attach another MCP**: have Javis attach a new MCP source right from chat, and it **appears on the Connections page** under "Connected" like an account you added by hand, shared by every brain. Before this plugin, Javis had no way to write into the connection store, so all it could do was run `claude mcp add`; that server landed in Claude Code's own configuration where the other six brains could not see it, and on the Connections page it did not sit under "Connected" but fell into the collapsed "Connections already in Claude Code and Codex" section (closed by default), so it looked as if nothing had been added. Three safety rails: the permission level defaults to **read only** (raise it yourself on the Connections page if you want writes); a source that runs a **local command** (stdio) is added **disabled** so you read the command before enabling it; and a service already in the Connections catalogue (Gmail, Calendar, POS...) makes Javis point at the right card rather than spawning a parallel hand-declared copy. If the connection test fails, the entry **stays** on the Connections page with the reason rather than vanishing silently.
-- **Send images and files over Zalo**: send an image (one Javis just created, say) or a file with a message over Zalo, from the very account you scanned the QR with on the Connections page. It exists because the standard MCP's `zalo_send_message` tool can only send text, while the library underneath has been able to do more for a long time and 1.6.2 is already the latest release, so waiting on upstream means waiting forever. Only files INSIDE the brain in use can be sent, a deliberate rail, because a sent Zalo message cannot be recalled. Requires Node.js 20+. Details in [Zalo](12-zalo-agent-mcp.md).
+- **Zalo extras (the `javis.zalo` pack on Javis Store)**: since 0.73.0 the Zalo tools that fill what the standard MCP lacks no longer ship inside the app, so people who do not use Zalo do not carry them. The pack has image and file sending (`zalo_send_image`), tagging the right people, notes, reminders and polls in a group (`zalo_group_members`, `zalo_send_mention`, `zalo_create_note`, `zalo_create_reminder`, `zalo_create_poll`) and reading group images (`zalo_read_images`). Javis offers it right after you scan the Zalo QR; on a machine that already used Zalo, the Connections page shows an install button. Details in [Zalo](12-zalo-agent-mcp.md).
 - **Time and date (VN)**: tells Javis today's date, the time and the weekday in Vietnam time (UTC+7), and computes relative dates ("in 3 days", "last week"). Pure standard library, no network needed. It is also the simplest example plugin to read when you want to write your own.
 - **Recurring jobs and reminders**: lets you create, list and cancel recurring jobs and reminders **right in a chat sentence**, with no YAML typing. Repeating, durable work is written to `Javis/loops/<slug>.md` (editable in Obsidian); one-off reminders or cron schedules go into the reminder store. Details in [Recurring jobs and reminders](08-recurring-jobs.md).
 - **Create images (ChatGPT)**: generates images from a description using the **ChatGPT plan** you are signed in to (OAuth), with no OpenAI API key. Images are saved into the brain's `attachments/` then embedded straight into the answer. It requires ChatGPT connected on the **Models** page; without it the tool returns a sentence saying ChatGPT (OAuth) is not connected and telling you to sign in on the Models page and try again.
@@ -141,7 +140,7 @@ Since 0.55.23, a **Package** installed on the **Capabilities > Install store** p
 They differ from the other three sources in three ways:
 
 - **Enabling, disabling and removing all happen in the Install store**, not here. A plugin travels with its whole package, so toggling it separately only causes confusion. The card on this page has a button that takes you straight there.
-- **No `JAVIS_ENABLE_USER_PLUGINS` environment variable needed.** A package goes through the installer, meaning you saw the screen listing every code file before clicking agree. That is the same kind of assurance the environment variable provides, only per package rather than an all-or-nothing switch.
+- **`JAVIS_ENABLE_USER_PLUGINS` does not apply to packages.** A package goes through the installer, meaning you saw the screen listing every code file before clicking agree, and its code signature is checked on every load.
 - **The code in the package is locked to its content.** At install time, Javis records a fingerprint of all the code in the package. On every load it recomputes and compares: one byte off and the plugin **does not run**, with the card stating that the code in the package changed since you agreed to install it. To keep using it, reinstall from the Install store to review and confirm again.
 
 A note when editing by hand: opening a package's `plugin.py` in a Windows editor and saving is enough to shift the fingerprint, because many editors change the line endings. That is not a bug, the file content genuinely differs. To modify a plugin, edit it in your own plugin folder rather than inside a package.
@@ -223,24 +222,25 @@ A few things to remember while writing:
 - To make a tool refuse itself when prerequisites are missing (not signed in, no key), pass `check_fn=`, a function returning `None` when ready or an explanatory sentence when not.
 - A broken plugin **does not bring Javis down**: every load step, tool call and hook is wrapped, and the error appears only on that plugin's card.
 
-### Step 4: Unlock with the environment variable
+### Step 4: Enable the plugin
 
-Plugins you install are **blocked by default**, even with `enabled: true`. To unlock them:
+Since 0.162.0, Javis **loads the plugins you install by default**: a plugin with `enabled: true` (you clicked **Enable** on its card) runs, no environment variable needed.
+
+To block user plugins on a machine altogether (for example a shared server):
 
 1. Open the `.env` file in the project root (create it if absent, see [.env configuration](16-env-configuration.md)).
-2. Add one line: `JAVIS_ENABLE_USER_PLUGINS=true`
+2. Add one line: `JAVIS_ENABLE_USER_PLUGINS=false`
 3. Save the file and **restart Javis**.
-4. Return to the **Plugins** page: the orange warning box disappears and enabled plugins switch to **● running**.
 
-Accepted values are `1`, `true`, `yes` or `on` (case insensitive). The old name `JAVIS_ENABLE_VAULT_PLUGINS` still works for compatibility, but prefer the new one.
+Off accepts `0`, `false`, `no` or `off` (case insensitive). The old name `JAVIS_ENABLE_VAULT_PLUGINS` still works, but when both are set the new name wins.
 
 ## Safety rails (read before installing an unfamiliar plugin)
 
 This is the most important part of this page.
 
-- **Plugins you install run real Python code, inside Javis's own server process.** They have that process's rights: reading and writing files, calling the network, reading environment variables. That is why Javis **hard-blocks them by default** and only runs them once you set `JAVIS_ENABLE_USER_PLUGINS=true` yourself and restart. This is the rail against someone who can write a folder into the brain being able to run code on your machine.
-- **Only unlock once you have read the code** of every plugin in those two folders. The environment variable unlocks **all** user plugins, not one at a time.
-- **Bundled plugins (the "Bundled" label) are not subject to this rail** because they ship with the Javis release. They keep working while the environment variable is off.
+- **Plugins you install run real Python code, inside Javis's own server process.** They have that process's rights: reading and writing files, calling the network, reading environment variables. Since 0.162.0 the project owner chose to **load them by default**; the remaining guard is each plugin's own **Enable** switch (`enabled: true` in `plugin.yaml`).
+- **Only enable a plugin once you have read its code.** Note: anyone who can write into a `plugins/` folder (including the model, since it can write into the brain) can also write `enabled: true`. On a shared server, or one that runs bots for strangers, set `JAVIS_ENABLE_USER_PLUGINS=false`.
+- **Bundled plugins (the "Bundled" label) are not subject to this switch** because they ship with the Javis release. They keep working even when the machine sets `false`.
 - **A plugin Javis creates from chat is always disabled** (`enabled: false`) and at the `readonly` level. Javis never enables it for you; you must read the code then click **Enable** yourself.
 - **Do not write plugins that perform money, order, messaging or publishing actions.** Those should go through MCP connections and the permission system, where the blocks and logs already exist. A plugin should be `min_mode: readonly` unless you deliberately need otherwise.
 - **Do not clone bundled plugins into a brain.** They travel with the app and update themselves; a copy in the brain shadows the original and stops being updated.
@@ -259,8 +259,10 @@ Besides tools, a plugin can register hooks. The current build has two events:
 
 | Event | When it fires | What it receives |
 |---|---|---|
-| `pre_tool_call` | Just before any tool runs | `tool_name`, `args`, `mode`, `vault_root` |
+| `pre_tool_call` | Just before any tool runs | `tool_name`, `args`, `mode`, `vault_root`, `turn` |
 | `post_tool_call` | Just after a tool finishes | plus `result` |
+
+`turn` tells a hook **who is talking** in that tool call: `kenh` (the channel), `sender_id` (the id of whoever sent this message; in a group it is still the sender, not the group), `chat_type` (`private` or `group`), `chat_id` (the conversation) and `la_chu` (`true` on the dashboard and the owner's admin channels, always `false` for a dedicated bot). When it cannot be known (background work, an engine that cannot carry the turn key yet) `turn` is `None`: a hook that needs an identity must read `None` as "nobody", never as the owner.
 
 A hook wraps **every** tool call, MCP tools and core tools included, not only that plugin's tools. Use it for logging, counting, alerting. When no plugin registers a hook, Javis wraps nothing, so there is no performance cost. The `tool-audit` plugin is a working example: enable it and every tool call is counted into a file private to the plugin.
 
@@ -288,7 +290,7 @@ def register(ctx):
 | What you see | Meaning / action |
 |---|---|
 | **● running** (green) | The plugin is loaded and its tools are available to the engine |
-| **⚠ waiting for env** (orange) | You enabled the plugin but `JAVIS_ENABLE_USER_PLUGINS=true` is not set, or is set but Javis has not been restarted |
+| **⚠ off by env** (orange) | You enabled the plugin but this machine sets `JAVIS_ENABLE_USER_PLUGINS=false` |
 | **⚠ error** (red) | The manifest is broken or the code failed to load; the reason appears under the chip row |
 | **○ off** (grey) | The plugin is present but disabled, exposing no tools |
 | **● enabled (not loaded)** (orange) | A rare state: enabled but not loaded for some other reason. Reload the page, and if it persists check the server log |
@@ -312,7 +314,7 @@ def register(ctx):
 
 ## Common problems
 
-- **The card reads "⚠ waiting for env":** you have not set `JAVIS_ENABLE_USER_PLUGINS=true`, or set it but have not restarted Javis. The variable is only read at startup.
+- **The card reads "⚠ off by env":** this machine sets `JAVIS_ENABLE_USER_PLUGINS=false`. Remove that line from `.env` (or set `true`) and restart Javis. The variable is only read at startup.
 - **The environment variable is set and it is still blocked:** check that the `.env` file is in the project root, that the line has no leading `#`, and that the value is `true` (or `1`/`yes`/`on`). On Docker, set the variable in the container's Environment section rather than in a file on the host.
 - **A newly dropped plugin does not appear on the page:** the folder must be **directly** inside the plugins folder (no extra nesting) and must contain `plugin.py` (or `__init__.py`). Without that, Javis does not consider it a plugin. The folder name must also be a valid slug (lowercase, no diacritics).
 - **The card reads "⚠ error" with "plugin.py missing":** the folder has only `plugin.yaml`. Add the code file.
@@ -331,6 +333,6 @@ def register(ctx):
 - [Connections and business data](09-connections-and-business-data.md) - attaching external data sources; the Meta Ads, Facebook Pages and Apify plugins take their tokens from here.
 - [Models and engines](10-models-and-engines.md) - why every engine can call plugin tools.
 - [Recurring jobs and reminders](08-recurring-jobs.md) - the three permission levels of background work, and the `javis-schedule` plugin.
-- [Zalo Agent MCP](12-zalo-agent-mcp.md) - Zalo now uses the upstream MCP and no longer has its own plugin.
+- [Zalo Agent MCP](12-zalo-agent-mcp.md) - Zalo now uses the MCP of Javis's own `javis-zalo` CLI and no longer has its own plugin.
 - [.env configuration](16-env-configuration.md) - how to set an environment variable and restart.
 - [Agents and Workflows](07-agents-and-workflows.md) - Javis's other kinds of capability.

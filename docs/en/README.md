@@ -4,7 +4,7 @@
 
 Detailed guides for every feature of Javis OS. Each page is a standalone how-to: where to open it, what to click, how to use it.
 
-> Just starting? Read [Installation in the README](../../README.en.md) first, then go to [01 - Getting started and first setup](01-getting-started.md).
+> Just starting? Read [Installation in the README](../../README.md#-installation) first, then go to [01 - Getting started and first setup](01-getting-started.md).
 
 The dashboard's navigation rail groups **19 pages** into **7 groups**: Assistant · Brain · Code · Capabilities · Work · Connections · System. The table of contents below follows the same logic.
 
@@ -28,6 +28,9 @@ The dashboard's navigation rail groups **19 pages** into **7 groups**: Assistant
 - [20 - Plugins](20-plugins.md) - adding native tools and hooks for every engine with one Python folder.
 - [25 - Chatbot (a dedicated bot)](25-chatbots.md) - putting an Agent in front of customers through a dedicated Telegram or Zalo bot, with its own brain and a handover to a human.
 - [28 - Customer conversations (Inbox)](28-customer-conversations.md) - every chat customers have with your bots and personal Zalo in one place, with takeover when a human is needed.
+- [29 - Slack and WhatsApp](29-slack-whatsapp.md) - chat with Javis and run customer bots on Slack (no domain needed) and WhatsApp (Meta's official API).
+- [30 - Discord and Lark/Feishu](30-discord-lark.md) - chat with Javis from Discord and Lark/Feishu on the Admin channels page, no domain needed.
+- [31 - Messenger](31-messenger.md) - a customer bot that answers your Facebook Page inbox (Meta's official API, needs an HTTPS domain).
 
 ### Background work (the Work and Brain groups)
 - [08 - Recurring jobs and reminders](08-recurring-jobs.md) - several background loops plus reminders on a clock or a cron schedule.
@@ -60,10 +63,10 @@ The dashboard's navigation rail groups **19 pages** into **7 groups**: Assistant
 
 ## Also in English at the repository root
 
-- [README.en.md](../../README.en.md) - what Javis is and how to install it.
+- [README.md](../../README.md) - what Javis is and how to install it.
 - [QUICKSTART.en.md](../../QUICKSTART.en.md) - the first 10 minutes.
 - [DEPLOY.en.md](../../DEPLOY.en.md) - installing on a server or VPS.
-- [CONTRIBUTING.en.md](../../CONTRIBUTING.en.md) - contributing to the project.
+- [CONTRIBUTING.md](../../CONTRIBUTING.md) - contributing to the project.
 
 Screenshots, button names and menu paths match the interface language you selected on the Settings page, so an English page lines up with an English interface everywhere.
 
