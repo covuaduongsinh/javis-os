@@ -67,7 +67,9 @@ _HTTP_NGUON = frozenset({"bundled", "pack", "user"})
 
 # Tên tool builtin/lõi - plugin KHÔNG được trùng (mcp_hub cũng skip lúc merge, đây là lớp 2).
 _RESERVED_TOOLS = {"javis_connections", "javis_read_file", "javis_list_dir",
-                   "javis_write_file", "javis_use_skill"}
+                   "javis_write_file", "javis_use_skill", "javis_edit_file", "javis_search_files",
+                   "javis_run_command", "javis_terminal", "javis_process",
+                   "javis_web_search", "javis_web_fetch"}
 
 # Name of the in-process plugin MCP server the Claude Agent SDK engine mounts (claude_sdk_engine).
 PLUGIN_SERVER = "javis-plugins"
@@ -396,6 +398,7 @@ class PluginContext:
         self._on_unload: List[Callable] = []
         self._http: List[dict] = []
         self._well_known: Dict[str, Callable] = {}
+        self._webhook_handlers: Dict[str, dict] = {}
 
     @property
     def data_dir(self) -> Path:
@@ -461,6 +464,10 @@ class PluginContext:
         `{"kenh", "sender_id", "chat_type", "chat_id", "la_chu"}` - chi tiết ở `turn_context`.
         `None` = không xác định được (việc nền, engine chưa mang được khoá lượt): hook cần danh
         tính thì coi None là "không ai", KHÔNG phải "chủ máy".
+
+        **`chatbot_turn_context`**: fired once per chatbot turn, right before the engine runs. It
+        receives `channel, account_id, bot_id, chat_type, chat_id, sender_id, vault_root, trial` and
+        may return ONE short line for that turn's system prompt. See `chatbot_turn_context` below.
         """
         self._hooks.setdefault(str(event), []).append(callback)
 
@@ -497,6 +504,47 @@ class PluginContext:
             raise ValueError(f"method không hợp lệ: {methods!r}")
         self._http.append({"path": duong, "handler": handler, "methods": mt,
                            "public": bool(public), "no_cookie": bool(no_cookie)})
+
+    def register_event_handler(self, name: str, handler: Callable, schema: Optional[dict] = None,
+                               min_mode: str = "full", description: str = "", ai: bool = False,
+                               idempotent: bool = True) -> None:
+        """Webhook platform (spec §8.2): a handler a webhook can bind as an action
+        (`{"kind": "plugin", "plugin": "<slug>", "handler": "<name>"}`). Only the bound plugin + handler receives the
+        event: nothing is broadcast to other plugins, and `fire_hook` is never used for business events.
+
+        handler(envelope: dict, ctx) -> {"status": ..., "ref"?: job id, "detail"?: str} (sync or async). `envelope`
+        holds `delivery_id` (the SAME on every retry of this delivery: keep it, and answer a second copy with the same
+        job id), `event_id`, `hook_id`, `action_id`, `attempt`, `generation`, `source`, `brain`, `revision`,
+        `verified`, `fields`, `payload`, `raw_sha256`, `business_key`, `level`. Never the owner's cookie or the
+        sender's signing secret. Status:
+          completed        done now (a short receipt in `detail`);
+          accepted         the plugin committed the work in its OWN store and runs it on its own schedule (a 15-minute
+                           wait, an approval list): return its job id in `ref`. Only after the plugin's commit;
+          retryable_error  not done, try again later;     permanent_error  not done, never for this event;
+          unknown          may have acted, the owner reconciles;     waiting_approval  waits for someone in the plugin.
+        `schema` (webhook rules schema format, paths over the envelope: {"fields": {"fields.order_id": {"type":
+        "string", "required": true}}}) is checked before the call: an event that does not fit is never handed over.
+        `ai=True` declares that the handler calls a model: it then runs only when the owner allowed it in the action,
+        and each call counts against the hook's AI budget. `idempotent` (default True: the contract above) lets a
+        delivery whose worker died mid-call be handed over again under the same delivery id."""
+        if not _TOOL_RE.match(str(name or "")):
+            raise ValueError(f"tên handler không hợp lệ (a-z0-9_): {name!r}")
+        if min_mode not in VALID_MIN_MODE:
+            min_mode = "full"
+        sch = None
+        if schema:
+            import webhook_rules
+            sch = webhook_rules._v_schema(schema)
+        self._webhook_handlers[str(name)] = {"handler": handler, "min_mode": min_mode,
+                                             "description": str(description or "")[:300], "schema": sch,
+                                             "ai": bool(ai), "idempotent": bool(idempotent)}
+
+    def register_webhook_handler(self, name: str, handler: Callable, min_mode: str = "full",
+                                 description: str = "", schema: Optional[dict] = None, ai: bool = False,
+                                 idempotent: bool = True) -> None:
+        """Older name of register_event_handler (same contract)."""
+        self.register_event_handler(name, handler, schema=schema, min_mode=min_mode, description=description, ai=ai,
+                                    idempotent=idempotent)
 
     def register_well_known(self, name: str, handler: Callable) -> None:
         """Phục vụ `GET /.well-known/<name>` và `/.well-known/<name>/<phần sau>` (ví dụ metadata
@@ -742,6 +790,31 @@ def tim_http(slug: str, duong: str, method: str = ""):
     return None
 
 
+def find_webhook_handler(vault_root: Optional[str], slug: str, name: str) -> Optional[dict]:
+    """The webhook handler `name` of the ENABLED plugin `slug` visible to this brain (its own vault plugins, plus
+    bundled, pack and global ones), as {"handler", "ctx", "min_mode"}; None if absent or off. Another brain's vault
+    plugin is never found here."""
+    ent = _load_all(vault_root)
+    for lp in ent["plugins"]:
+        if lp.slug == slug:
+            h = getattr(lp.ctx, "_webhook_handlers", {}).get(name)
+            if h:
+                return {"handler": h["handler"], "ctx": lp.ctx, "min_mode": h["min_mode"], "schema": h.get("schema"),
+                        "ai": h.get("ai", False), "idempotent": h.get("idempotent", True)}
+    return None
+
+
+def webhook_handlers(vault_root: Optional[str] = None) -> List[dict]:
+    """Handlers a webhook of this brain can choose (for the dashboard)."""
+    out = []
+    for lp in _load_all(vault_root)["plugins"]:
+        for n, h in getattr(lp.ctx, "_webhook_handlers", {}).items():
+            out.append({"plugin": lp.slug, "handler": n, "label": lp.name, "min_mode": h["min_mode"],
+                        "description": h["description"], "ai": h.get("ai", False),
+                        "schema": h.get("schema") or {}})
+    return out
+
+
 def tim_well_known(ten: str):
     """(plugin, handler) phục vụ `/.well-known/<ten>`, hoặc None. Plugin nạp trước giữ tên."""
     for lp in _plugin_http():
@@ -835,7 +908,16 @@ def _make_call(tool: dict, ctx: PluginContext, mode: str):
     name = tool["name"]
 
     async def _call(args):
-        if not _min_mode_ok(min_mode, mode):
+        if str(mode or "").strip().lower() == "gated" and min_mode != "readonly":
+            # 0.207.0: a gated Team step. A plugin that writes or acts (review: `javis_task` and `javis_schedule` are
+            # `safe` yet queue work that runs at full later) needs the owner's approval of this exact call
+            # (team_gate.py). Read-only plugin tools run.
+            import asyncio
+            import team_gate
+            ok, why = await asyncio.to_thread(team_gate.hub_check, name, args or {}, f"plugin: {name}")
+            if not ok:
+                return why
+        elif not _min_mode_ok(min_mode, mode):
             loai = "ghi/hành động" if min_mode == "safe" else "nguy hiểm (chỉ chế độ full)"
             return (f"ERROR: tool '{name}' cần mức quyền cao hơn ({min_mode}) - thao tác {loai} "
                     f"bị chặn ở chế độ hiện tại. Nâng chế độ chạy nếu thật sự cần.")
@@ -847,12 +929,19 @@ def _make_call(tool: dict, ctx: PluginContext, mode: str):
                 return f"ERROR: kiểm tra điều kiện tool '{name}' lỗi: {type(e).__name__}: {e}"
             if why:
                 return f"ERROR: {why}"
-        try:
-            res = handler(args or {}, ctx)
-            res = await _maybe_await(res)
-            return res if isinstance(res, str) else json.dumps(res, ensure_ascii=False, default=str)
-        except Exception as e:
-            return f"ERROR: tool plugin '{name}' lỗi: {type(e).__name__}: {e}"
+        async def _run(a):
+            try:
+                res = handler(a or {}, ctx)
+                res = await _maybe_await(res)
+                return res if isinstance(res, str) else json.dumps(res, ensure_ascii=False, default=str)
+            except Exception as e:
+                return f"ERROR: tool plugin '{name}' lỗi: {type(e).__name__}: {e}"
+
+        if min_mode == "full":
+            # 0.238.0: an outside action (send, post, order) runs once per Kanban job, even when the job runs again.
+            import once_ledger
+            return await once_ledger.run(name, args or {}, _run)
+        return await _run(args)
 
     return _call
 
@@ -1075,6 +1164,93 @@ def wrap_with_hooks(fn: str, base_call: Callable, mode: str, vault_root: Optiona
                      "turn": dict(turn) if turn else None})
         return result
     return _wrapped
+
+
+# ============================================================
+# chatbot_turn_context - one line of operator context per chatbot turn
+# ============================================================
+# Why this hook exists: a chatbot turn only shows the model "[Display name] text", and a display name
+# is something anyone can type. The channel layer does know which platform account sent the message,
+# but no plugin could see it, so any rule of the form "this account gets X" had to be baked into the
+# core (PR #659, closed: one tutoring centre's roster). This is the generic seam instead: a plugin
+# hears who sent the turn and may hand back ONE short line of context for the bot's system prompt.
+#
+# Contract (callback(**kwargs), always declare **kwargs):
+#     channel, account_id, bot_id, chat_type ("private" | "group"), chat_id, sender_id,
+#     vault_root (the bot's brain), trial (True on the "Try bot" turn)
+#   returns a str (one line) or None. Anything else is ignored.
+#
+# What the core guarantees, so a careless plugin cannot hurt a reply:
+#   - no plugin registered -> nothing runs and the prompt is byte-for-byte the same as before;
+#   - a raising or slow callback (CHATBOT_CONTEXT_TIMEOUT_S) is logged and skipped, the turn goes on;
+#   - each line is flattened to one line without control characters and cut at CHATBOT_CONTEXT_LINE_MAX,
+#     all lines together at CHATBOT_CONTEXT_TOTAL_MAX;
+#   - the core never writes the sender id into the prompt itself: only what a plugin chose to return.
+CHATBOT_TURN_CONTEXT = "chatbot_turn_context"
+CHATBOT_CONTEXT_LINE_MAX = 300
+CHATBOT_CONTEXT_TOTAL_MAX = 900
+CHATBOT_CONTEXT_TIMEOUT_S = 2.0
+_CTRL_RE = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]+")
+
+
+def clean_context_line(value: Any, limit: int = CHATBOT_CONTEXT_LINE_MAX) -> str:
+    """A hook's return value as one safe prompt line, or "" (not a string, or nothing left).
+    Newlines and every control / bidi / zero-width character become one space, so a line can never
+    start a new block of the prompt; the result is cut at `limit` characters."""
+    if not isinstance(value, str):
+        return ""
+    s = re.sub(r"\s+", " ", _CTRL_RE.sub(" ", value)).strip()
+    return s[:max(0, int(limit))].rstrip()
+
+
+def has_chatbot_context_hooks(vault_root: Optional[str] = None) -> bool:
+    return bool(_load_all(vault_root)["hooks"].get(CHATBOT_TURN_CONTEXT))
+
+
+async def _call_with_timeout(cb: Callable, payload: dict, timeout: float):
+    """Run one callback within `timeout` seconds. A sync callback runs in a worker thread so it cannot
+    block the event loop that serves every other chat; past the deadline its thread is abandoned (Python
+    cannot kill it) and its answer, if it ever comes, is dropped."""
+    if inspect.iscoroutinefunction(cb):
+        return await asyncio.wait_for(cb(**payload), timeout)
+    loop = asyncio.get_running_loop()
+    t0 = loop.time()
+    out = await asyncio.wait_for(asyncio.to_thread(cb, **payload), timeout)
+    if inspect.isawaitable(out):
+        out = await asyncio.wait_for(out, max(0.01, timeout - (loop.time() - t0)))
+    return out
+
+
+async def chatbot_turn_context(vault_root: Optional[str], payload: dict,
+                               timeout: Optional[float] = None) -> List[str]:
+    """Fire `chatbot_turn_context` and return the cleaned lines, in plugin load order. [] when no plugin
+    listens, which is the common case. Never raises. `timeout` per callback, default
+    CHATBOT_CONTEXT_TIMEOUT_S (read at call time)."""
+    timeout = CHATBOT_CONTEXT_TIMEOUT_S if timeout is None else float(timeout)
+    try:
+        cbs = list(_load_all(vault_root)["hooks"].get(CHATBOT_TURN_CONTEXT) or [])
+    except Exception as e:      # noqa: BLE001 - a broken plugin host must not cost a reply
+        print(f"[plugins] hook {CHATBOT_TURN_CONTEXT}: load failed: {type(e).__name__}: {e}", file=sys.stderr)
+        return []
+    lines: List[str] = []
+    used = 0
+    for cb in cbs:
+        if used >= CHATBOT_CONTEXT_TOTAL_MAX:
+            break
+        try:
+            out = await _call_with_timeout(cb, dict(payload), timeout)   # a fresh copy: one hook cannot edit the next one's view
+        except asyncio.TimeoutError:
+            print(f"[plugins] hook {CHATBOT_TURN_CONTEXT}: {getattr(cb, '__qualname__', cb)} "
+                  f"timed out after {timeout}s, skipped", file=sys.stderr)
+            continue
+        except Exception as e:      # noqa: BLE001
+            print(f"[plugins] hook {CHATBOT_TURN_CONTEXT} failed: {type(e).__name__}: {e}", file=sys.stderr)
+            continue
+        line = clean_context_line(out, min(CHATBOT_CONTEXT_LINE_MAX, CHATBOT_CONTEXT_TOTAL_MAX - used))
+        if line:
+            lines.append(line)
+            used += len(line)
+    return lines
 
 
 def fire_hook(event: str, vault_root: Optional[str] = None, **payload) -> None:

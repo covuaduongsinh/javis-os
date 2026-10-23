@@ -12,12 +12,14 @@ Không nhận `import main` - mọi thứ cần từ main đi qua `deps`.
 """
 from __future__ import annotations
 
+import mimetypes
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Optional
 
-from fastapi import APIRouter, Form
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Form, Query
+from fastapi.responses import FileResponse, JSONResponse
 
 import channel_accounts
 import channels
@@ -37,6 +39,16 @@ class ConversationsDeps:
     # ghi và dạy sau khi đã gửi. Không import chatbot_runtime ở đây: route đi qua deps như mọi route khác.
     manual_answer: Callable = None
     manual_done: Callable = None
+    # `brain_root(brain) -> str`: thư mục gốc của một brain. Cần cho `/conversations/{id}/media` (0.171.0), nơi phát ảnh và file khách
+    # gửi mà kênh đã tải về brain của bot. Thiếu thì đường đó trả 404.
+    brain_root: Callable = None
+
+
+# Ảnh và file khách gửi chỉ được phát từ hai thư mục mà các kênh tự tải về: `inbox/` (Telegram, Zalo Bot, Slack, WhatsApp,
+# Messenger, Discord, Lark ghi vào `inbox/khach`) và `attachments/` (ảnh Zalo cá nhân bot đã tải để xem). Không ghi chú nào khác của brain.
+_THU_MUC_MEDIA = ("inbox", "attachments")
+_DUOI_XEM_THANG = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".heic", ".mp4", ".webm", ".mp3", ".ogg", ".m4a",
+                   ".wav", ".opus", ".pdf")
 
 
 _DEPS: "ConversationsDeps" = None   # type: ignore
@@ -151,6 +163,12 @@ def register(app, deps: ConversationsDeps):
                 it["bot_name"] = _ten_bot(str(it.get("bot_id") or ""))
                 it["need_reply"] = conversations.can_tra_loi(it, hesitant)
             return {"ok": True, "items": items}
+        phone_lookup = None
+        if q and conversations.chuan_hoa_sdt(q) and channel in ("", "zalo_personal") \
+                and (not account_id or account_id.startswith("zalo_personal:")):
+            items, phone_lookup = await _tim_sdt_tren_zalo(items, q, dict(
+                channel=channel, bot_id=bot_id, account_id=account_id, q=q, mode=mode, limit=limit,
+                status=status, chat_type=chat_type, hesitant=hesitant))
         facets = conversations.dem_bo_loc(hesitant)
         ten = {bid: _ten_bot(bid) for bid in facets["bots"] if bid}
         for it in items:
@@ -160,7 +178,29 @@ def register(app, deps: ConversationsDeps):
                 "stats": conversations.thong_ke(bot_id=bot_id, channel=channel, account_id=account_id),
                 "facets": facets,
                 "bots": [{"id": bid, "name": ten[bid], **facets["bots"][bid]} for bid in ten],
-                "channels": channels.cho_giao_dien()}
+                "channels": channels.cho_giao_dien(), "phone_lookup": phone_lookup}
+
+    async def _tim_sdt_tren_zalo(items: list, q: str, loc: dict) -> tuple:
+        """0.216.0: ô tìm kiếm là một số điện thoại đầy đủ mà chưa khách nào trong hòm thư mang số đó: hỏi Zalo của các
+        tài khoản Zalo cá nhân số này là ai, gắn số vào khách đó rồi tìm lại. Trả `(items, phone_lookup)`; `phone_lookup`
+        là None khi không cần hỏi (đã có khách mang số này) và cho giao diện biết người mang số chưa có cuộc chat nào."""
+        import zalo_phone_lookup
+        sdt = conversations.chuan_hoa_sdt(q)
+        if any(it.get("customer_phone") == sdt for it in items):
+            return items, None
+        r = await zalo_phone_lookup.lookup(sdt, account_id=loc.get("account_id") or "")
+        if not r["results"]:
+            return items, None
+        if any(x["uid"] for x in r["results"]):
+            items = conversations.danh_sach(**loc)
+        for x in r["results"]:
+            kenh, _, tk = x["account_id"].partition(":")
+            # `has_chat`: có cuộc chat riêng trong kho; `shown`: nó nằm trong danh sách đang hiện (bộ lọc có thể ẩn nó).
+            x["has_chat"] = bool(x["uid"]) and conversations.co_tin(kenh, tk, x["uid"])
+            x["shown"] = bool(x["uid"]) and any(
+                it.get("channel_account_id") == x["account_id"]
+                and x["uid"] in (it.get("customer_external_id"), it.get("external_chat_id")) for it in items)
+        return items, r
 
     @router.get("/conversations/stats")
     async def conversations_stats(bot_id: str = "", channel: str = "", account_id: str = ""):
@@ -212,6 +252,12 @@ def register(app, deps: ConversationsDeps):
     @router.post("/conversations/{conv_id}/read")
     async def conversations_read(conv_id: int):
         return {"ok": True} if conversations.danh_dau_da_doc(conv_id) else _404()
+
+    @router.post("/conversations/{conv_id}/pin")
+    async def conversations_pin(conv_id: int, pinned: str = Form("1")):
+        """Ghim (pinned=1) hoặc bỏ ghim (pinned=0) một cuộc chat lên đầu hòm thư."""
+        ok = conversations.dat_ghim(conv_id, str(pinned).strip().lower() not in ("0", "false", ""))
+        return {"ok": True, "conversation": conversations.chi_tiet(conv_id)} if ok else _404()
 
     @router.post("/conversations/{conv_id}/reply")
     async def conversations_reply(conv_id: int, text: str = Form(...)):
@@ -314,5 +360,52 @@ def register(app, deps: ConversationsDeps):
             return JSONResponse({"ok": False, "error": err},
                                 status_code=404 if hop_le else 400)
         return {"ok": True, "conversation": conversations.chi_tiet(conv_id)}
+
+    def _goc_media(c: dict) -> list:
+        """Các thư mục được phép phát media của hội thoại này: inbox/ và attachments/ trong brain của bot trực nó, và
+        brain gắn với tài khoản kênh."""
+        if not _DEPS or not _DEPS.brain_root:
+            return []
+        brains = []
+        bot = chatbot_store.get_bot(str(c.get("bot_id") or "")) if c.get("bot_id") else None
+        if bot and bot.get("brain"):
+            brains.append(str(bot["brain"]))
+        for key in (str(c.get("channel_account_id") or ""), _tk_goc(c)):
+            try:
+                a = channel_accounts.get_account(key) if key else None
+            except Exception:      # noqa: BLE001 - a broken account record must not break the inbox
+                a = None
+            if a and a.get("brain"):
+                brains.append(str(a["brain"]))
+        goc = []
+        for b in dict.fromkeys(brains):
+            try:
+                root = Path(_DEPS.brain_root(b)).resolve()
+            except Exception:      # noqa: BLE001
+                continue
+            goc += [root / d for d in _THU_MUC_MEDIA]
+        return goc
+
+    @router.get("/conversations/{conv_id}/media")
+    async def conversations_media(conv_id: int, p: str = Query(...), dl: int = Query(0)):
+        """Ảnh hay file KHÁCH gửi mà kênh đã tải về máy (0.171.0): Hộp thư hiện ảnh ngay trong cuộc chat, file thì tải về.
+
+        Đường dẫn nằm sẵn trong tin ("[... đã tải về: <path>]"). Chỉ phát file nằm thật trong inbox/ hoặc attachments/ của brain
+        của chính hội thoại này (resolve trước khi so, nên `..` hay symlink không leo ra được). Cần đăng nhập như mọi route khác."""
+        c = conversations.chi_tiet(conv_id)
+        if not c:
+            return _404()
+        try:
+            f = Path(str(p or "")).expanduser().resolve()
+        except (OSError, ValueError):
+            return _404(localefmt.chu("không có file đó", "no such file"))
+        if not f.is_file() or not any(g == f.parent or g in f.parents for g in _goc_media(c)):
+            return _404(localefmt.chu("không có file đó", "no such file"))
+        if dl or f.suffix.lower() not in _DUOI_XEM_THANG:
+            return FileResponse(str(f), filename=f.name)
+        resp = FileResponse(str(f), media_type=mimetypes.guess_type(f.name)[0] or "application/octet-stream")
+        resp.headers["Content-Disposition"] = "inline"
+        resp.headers["X-Content-Type-Options"] = "nosniff"
+        return resp
 
     app.include_router(router)

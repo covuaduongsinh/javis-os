@@ -88,8 +88,23 @@ def world(label, engine_for=None, agents=("agent-one", "agent-two")):
     return r, tm, ts, ss, tm.get(tid), d
 
 
-def memory_text(d):
+def memory_files_text(d):
     return "\n".join(p.read_text(encoding="utf-8") for p in d.glob("memory/agents/**/*") if p.is_file())
+
+
+def scoped_lessons(prefix="team:"):
+    """T3 phần L (0.156.0): bài học của lượt nhóm vào kho bài học phạm vi nhóm (`agent_lessons`), không vào MEMORY.md."""
+    import agent_lessons
+    from contextlib import closing as _closing
+    st = main._resonance_store()
+    agent_lessons.ensure(st)
+    with _closing(st._conn()) as c:
+        return [dict(r) for r in c.execute("SELECT * FROM agent_lessons WHERE scope LIKE ?", (prefix + "%",))]
+
+
+def memory_text(d):
+    """Mọi bộ nhớ bền của agent: file MEMORY.md và kho bài học có phạm vi (mã đánh dấu của từng ca là duy nhất)."""
+    return memory_files_text(d) + "\n" + "\n".join(r["text"] for r in scoped_lessons(""))
 
 
 
@@ -106,12 +121,13 @@ def patch_build(return_value=None, side_effect=None):
             return side_effect(system, tag)
         return return_value
 
-    def build(spec, base, tag, settings=None):
+    def build(spec, base, tag, settings=None, **_kw):
         eng, why = src(getattr(base, "system_prompt", ""), tag)
         if eng is None:
             raise main.team_engine.TeamEngineUnavailable(str((why or {}).get("reason") or why), spec.get("provider", ""))
         return eng
-    return patch.object(main.team_engine, "build", side_effect=build)
+    # 0.194.0: Work/Help steps build through `build_tools` (the member's toolkit), every other turn through `build`.
+    return patch.multiple(main.team_engine, build=build, build_tools=build)
 
 def agent_msgs(ss, team):
     return [m for m in ss.get_team_messages_page(team["session_id"], limit=200)["messages"] if m["author_kind"] == "agent"]
@@ -165,7 +181,16 @@ def section_r1():
         "blank_final": [{"type": "final", "content": "  \n "}],
         "no_final": [{"type": "text", "content": "đang nghĩ"}],
     }
+    # 0.194.0: a Work step runs with the member's tools, so a tool call there is normal work (checked below), not an
+    # error. Reply turns stay text only (the reply section checks that a tool call still breaks them).
+    TOOL_OK = ("tool_call", "tool_result")
+    for name in TOOL_OK:
+        w = job_via_factory(f"r1-{name}", BAD[name])
+        check(f"R1 {name}: lượt Làm có công cụ, gọi công cụ rồi trả final thì việc xong",
+              w["task"]["status"] == "done" and [x["status"] for x in w["turns"]] == ["ok"], (w["task"], w["turns"]))
     for name, events in BAD.items():
+        if name in TOOL_OK:
+            continue
         w = job_via_factory(f"r1-{name}", events)
         turns = w["turns"]
         check(f"R1 {name}: việc không xong, bị chặn 'failed' để Chạy lại",
@@ -203,6 +228,13 @@ def section_r1():
     check("R1 lượt trò chuyện final lỗi: kết cục error, không đăng câu trả lời, lượt tính",
           [o["status"] for o in outs] == ["error"] and agent_msgs(ss, t) == []
           and [x["status"] for x in tm.turns(t["team_id"])] == ["error"])
+    # 0.194.0: chat replies stay text only, so a tool call there still breaks the turn.
+    r, tm, ts, ss, t, d = world("r1-reply-tool")
+    with patch.object(main, "_team_agent_info", side_effect=ident), \
+            patch_build(return_value=(Engine(BAD["tool_call"]), {})):
+        outs = run(r.run_replies(r.submit(t["team_id"], "Chào", client_msg_id="r1-reply-tool")))
+    check("R1 lượt trò chuyện gọi công cụ: vẫn là lỗi (trò chuyện chỉ chữ), không đăng câu trả lời",
+          [o["status"] for o in outs] == ["error"] and agent_msgs(ss, t) == [])
 
     o = TR.TextOnlyOutcome()
     for ev in ({"type": "text", "content": "a"}, {"type": "usage", "input_tokens": 2, "output_tokens": 1},
@@ -272,6 +304,10 @@ def section_r3():
     check("R3 đối chứng: đầu ra hợp lệ ghi bài học vào bộ nhớ agent, tin sạch marker",
           "GOOD_LESSON_101" in memory_text(w["d"]) and w["task"]["status"] == "done"
           and "JAVIS_LESSON" not in w["msgs"][0]["content"])
+    good = [x for x in scoped_lessons() if x["text"] == "GOOD_LESSON_101"]
+    check("R3 + T3: bài học của lượt nhóm vào phạm vi team:<id> (nguồn self, gắn lượt), không vào MEMORY.md",
+          len(good) == 1 and good[0]["scope"] == f"team:{w['t']['team_id']}" and good[0]["source"] == "self"
+          and '"turn:' in good[0]["source_refs_json"] and "GOOD_LESSON_101" not in memory_files_text(w["d"]), good)
     w = job_via_factory("r3-rule", [{"type": "final", "content": "Kết quả\nJAVIS_RULE: RULE_202 luôn viết ngắn"}])
     check("R3 JAVIS_RULE trong lượt nhóm hạ thành bài học (không có chủ nói trực tiếp), ghi khi hợp lệ",
           "RULE_202" in memory_text(w["d"]) and "JAVIS_RULE" not in w["msgs"][0]["content"])
@@ -425,6 +461,11 @@ def section_r5():
     async def max_gap(coro_factory, beats_n=80):
         beats = []
         stop = asyncio.Event()
+        # Dọn rác TRƯỚC khi đo (0.176.0): một lượt gc thế hệ 2 trên tiến trình đã nạp cả `main` dừng mọi luồng ~130 ms và
+        # rơi vào cửa sổ đo tuỳ lúc, tức là đổi chỗ nào đó số đối tượng tạo ra là test đỏ dù không có I/O nào chạy trên
+        # event loop. Test này canh I/O chặn, không canh lịch dọn rác của Python.
+        import gc
+        gc.collect()
 
         async def pulse():
             while not stop.is_set():
