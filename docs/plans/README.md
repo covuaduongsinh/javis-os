@@ -9,6 +9,7 @@ Thư mục này dùng để lưu trữ toàn bộ các kế hoạch nâng cấp,
 
 ## Danh mục kế hoạch
 
+- [2026-10-23-deploy-vps-dokploy-v0-295-0.md](file:///D:/code/javis-os/docs/plans/2026-10-23-deploy-vps-dokploy-v0-295-0.md): Kế hoạch và kết quả triển khai Javis OS v0.295.0 lên VPS Dokploy (217.15.160.118, domain javis.dsc.edu.vn).
 - [2026-10-23-dong-bo-upstream-v0-295-0.md](file:///D:/code/javis-os/docs/plans/2026-10-23-dong-bo-upstream-v0-295-0.md): Kế hoạch đồng bộ 115 commits từ repo gốc upstream v0.295.0, bảo toàn Cờ vua Dương Sinh MCP, các micro-plugins và Dokploy VPS.
 - [2026-10-15-deploy-vps-dokploy-v0-164-1.md](file:///D:/code/javis-os/docs/plans/2026-10-15-deploy-vps-dokploy-v0-164-1.md): Kế hoạch triển khai Javis OS v0.164.1 lên VPS Dokploy (217.15.160.118, domain javis.dsc.edu.vn).
 - [2026-10-15-dong-bo-upstream-v0-164-1.md](file:///D:/code/javis-os/docs/plans/2026-10-15-dong-bo-upstream-v0-164-1.md): Kế hoạch đồng bộ 204 commits từ repo gốc upstream v0.164.1, bảo toàn Cờ vua Dương Sinh MCP, các micro-plugins và Dokploy VPS.
